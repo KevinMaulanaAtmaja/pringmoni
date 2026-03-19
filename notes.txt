@@ -1,0 +1,15 @@
+# prisma migrate pake direct url
+npx prisma migrate dev --url="$DIRECT_URL"
+
+# prisma studio pake direct url
+npx prisma studio --url="$DIRECT_URL"
+
+# shadcn preset
+npx shadcn@latest init --preset b3ubQPikny --template next
+
+# cek status, migrate, seed
+npx prisma migrate status
+npx prisma db push/pull
+npx prisma db seed
+npx prisma generate
+npx tsx prisma/testPrisma.ts
