@@ -7,12 +7,173 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  role      String   @default("user")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Users {
+  id            Int       @id @default(autoincrement())
+  email         String?   @unique @map("email")
+  username      String    @unique @map("username")
+  password      String    @map("password")
+  role          RoleUser  @map("role")
+  status        Boolean   @default(true) @map("status")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime? @map("updated_at")
+  logs          Logs[]
+  kasirPesanan  Pesanan[] @relation("KasirPesanan")
+  waiterPesanan Pesanan[] @relation("WaiterPesanan")
+
+  @@map("users")
+}
+
+model Meja {
+  id         Int        @id @default(autoincrement())
+  nomorMeja  String     @unique @map("nomor_meja")
+  kapasitas  Int        @map("kapasitas")
+  tokenMeja  String?    @unique @map("token_meja")
+  statusMeja StatusMeja @default(kosong) @map("status_meja")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime?  @map("updated_at")
+  deletedAt  DateTime?  @map("deleted_at")
+  pesanan    Pesanan[]
+
+  @@map("meja")
+}
+
+model KategoriMenu {
+  id           Int       @id @default(autoincrement())
+  namaKategori String    @unique @map("nama_kategori")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+  menus        Menu[]
+
+  @@map("kategori_menu")
+}
+
+model Menu {
+  id            Int             @id @default(autoincrement())
+  namaMenu      String          @unique @map("nama_menu")
+  deskripsi     String?         @map("deskripsi")
+  harga         Decimal         @map("harga") @db.Decimal(10, 2)
+  kategoriId    Int             @map("kategori_id")
+  statusMenu    StatusMenu      @default(tersedia) @map("status_menu")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime?       @map("updated_at")
+  deletedAt     DateTime?       @map("deleted_at")
+  detailPesanan DetailPesanan[]
+  kategori      KategoriMenu    @relation(fields: [kategoriId], references: [id])
+  menuFoto      MenuFoto[]
+
+  @@map("menu")
+}
+
+model MenuFoto {
+  id        Int       @id @default(autoincrement())
+  menuId    Int       @map("menu_id")
+  fotoUrl   String    @map("foto_url")
+  urutan    Int       @default(1) @map("urutan")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  menu      Menu      @relation(fields: [menuId], references: [id])
+
+  @@map("menu_foto")
+}
+
+model Pesanan {
+  id               Int               @id @default(autoincrement())
+  mejaId           Int               @map("meja_id")
+  waiterId         Int?              @map("waiter_id")
+  kasirId          Int?              @map("kasir_id")
+  statusPesanan    StatusPesanan     @default(menunggu) @map("status_pesanan")
+  catatan          String?           @map("catatan")
+  totalHarga       Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
+  metodePembayaran MetodePembayaran? @map("metode_pembayaran")
+  jumlahBayar      Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
+  kembalian        Decimal           @default(0) @map("kembalian") @db.Decimal(10, 2)
+  statusPembayaran StatusBayar       @default(menunggu) @map("status_pembayaran")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime?         @map("updated_at")
+  deletedAt        DateTime?         @map("deleted_at")
+  detailPesanan    DetailPesanan[]
+  kasir            Users?            @relation("KasirPesanan", fields: [kasirId], references: [id])
+  meja             Meja              @relation(fields: [mejaId], references: [id])
+  waiter           Users?            @relation("WaiterPesanan", fields: [waiterId], references: [id])
+
+  @@map("pesanan")
+}
+
+model DetailPesanan {
+  id             Int      @id @default(autoincrement())
+  menuId         Int      @map("menu_id")
+  pesananId      Int      @map("pesanan_id")
+  jumlah         Int      @map("jumlah")
+  hargaSaatPesan Decimal  @map("harga_saat_pesan") @db.Decimal(10, 2)
+  catatanItem    String?  @map("catatan_item")
+  createdAt      DateTime @default(now()) @map("created_at")
+  menu           Menu     @relation(fields: [menuId], references: [id])
+  pesanan        Pesanan  @relation(fields: [pesananId], references: [id])
+
+  @@map("detail_pesanan")
+}
+
+model Logs {
+  id         Int          @id @default(autoincrement())
+  userId     Int?         @map("user_id")
+  aksi       JenisAksiLog @map("aksi")
+  keterangan String?      @map("keterangan")
+  ipAddress  String?      @map("ip_address")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  user       Users?       @relation(fields: [userId], references: [id])
+
+  @@map("logs")
+}
+
+enum RoleUser {
+  owner
+  cashier
+  waiter
+}
+
+enum StatusMeja {
+  kosong
+  terpakai
+}
+
+enum StatusMenu {
+  tersedia
+  habis
+  nonaktif
+}
+
+enum StatusPesanan {
+  menunggu
+  diproses
+  selesai
+  dibatalkan
+}
+
+enum MetodePembayaran {
+  qris
+  tunai
+}
+
+enum StatusBayar {
+  menunggu
+  berhasil
+  dibatalkan
+}
+
+enum JenisAksiLog {
+  LOGIN
+  LOGOUT
+  CREATE_USER
+  UPDATE_USER
+  DELETE_USER
+  CREATE_MENU
+  UPDATE_MENU
+  DELETE_MENU
+  CREATE_MEJA
+  UPDATE_MEJA
+  DELETE_MEJA
+  CREATE_ORDER
+  UPDATE_ORDER_STATUS
+  CANCEL_ORDER
+  PROCESS_PAYMENT
 }
