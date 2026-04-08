@@ -13,8 +13,8 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-    const users = await prisma.user.findMany();
-    console.log(users);
+    // const users = await prisma.users.findMany();
+    // console.log(users);
 }
 
 main()

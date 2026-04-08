@@ -29,23 +29,23 @@ async function main() {
     },
   ];
 
-  for (const user of users) {
-    await prisma.user.upsert({
-      where: {
-        email: user.email,
-      },
-      update: {
-        username: user.username,
-        role: user.role,
-      },
-      create: {
-        username: user.username,
-        email: user.email,
-        password,
-        role: user.role,
-      },
-    });
-  }
+  // for (const user of users) {
+  //   await prisma.users.upsert({
+  //     where: {
+  //       email: users.email,
+  //     },
+  //     update: {
+  //       username: users.username,
+  //       role: users.role,
+  //     },
+  //     create: {
+  //       username: users.username,
+  //       email: users.email,
+  //       password,
+  //       role: users.role,
+  //     },
+  //   });
+  // }
 
   console.log("Seed selesai: 2 user sudah siap di database.");
 }
