@@ -1,18 +1,8 @@
 import "dotenv/config";
-// import { PrismaClient } from "./generated/client/client";
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL is missing. Check your .env file.");
-}
-
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
-});
+const prisma = new PrismaClient();
 
 async function main() {
   const password = await bcrypt.hash("password123", 10);
