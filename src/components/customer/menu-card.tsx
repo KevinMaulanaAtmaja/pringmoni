@@ -1,0 +1,165 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Minus, Plus } from "lucide-react";
+
+interface Menu {
+  id: number;
+  namaMenu: string;
+  harga: number;
+  deskripsi?: string;
+  fotoUrl?: string;
+  kategori: string;
+  statusMenu: "tersedia" | "habis" | "nonaktif";
+  jumlahDipesan?: number;
+}
+
+interface MenuCardProps {
+  menu: Menu;
+  onTambah?: (menu: Menu, jumlah: number, catatan: string) => void;
+  onSuccess: () => void;
+  jumlahDipesan?: number;
+}
+
+export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardProps) {
+  const isDisabled = menu.statusMenu !== "tersedia";
+  const [jumlah, setJumlah] = useState(1);
+  const [catatan, setCatatan] = useState("");
+
+  const handleReset = () => {
+    setJumlah(1);
+    setCatatan("");
+  };
+
+  const handleTambah = () => {
+    onTambah?.(menu, jumlah, catatan);
+    handleReset();
+    onSuccess();
+  };
+
+  return (
+    <Dialog onOpenChange={(open) => !open && handleReset()}>
+      <DialogTrigger asChild>
+        <div
+          className={`bg-card rounded-2xl overflow-hidden border transition-all ${
+            isDisabled
+              ? "opacity-60 pointer-events-none"
+              : "hover:shadow-lg hover:border-primary/20 active:scale-95 cursor-pointer"
+          }`}
+        >
+          {/* Image */}
+          <div className="aspect-square w-full bg-muted flex items-center justify-center relative">
+            {menu.fotoUrl ? (
+              <img
+                src={menu.fotoUrl}
+                alt={menu.namaMenu}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-4xl">🍽️</span>
+            )}
+            {isDisabled && (
+              <Badge
+                variant="secondary"
+                className="absolute top-2 right-2 rounded-full text-xs"
+              >
+                Habis
+              </Badge>
+            )}
+            {jumlahDipesan !== undefined && jumlahDipesan > 0 && (
+              <div className="absolute bottom-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full">
+                {jumlahDipesan}x
+              </div>
+            )}
+          </div>
+
+          <div className="p-2.5">
+            <h3 className="font-medium text-xs line-clamp-2">{menu.namaMenu}</h3>
+            <p className="text-primary font-bold text-sm mt-1">
+              Rp {menu.harga.toLocaleString("id-ID")}
+            </p>
+          </div>
+        </div>
+      </DialogTrigger>
+
+      <DialogContent className="max-w-sm rounded-3xl p-0 gap-0" showCloseButton={true}>
+        <DialogTitle className="sr-only">{menu.namaMenu}</DialogTitle>
+        {/* Image */}
+        <div className="aspect-video w-full bg-muted flex items-center justify-center rounded-t-3xl">
+          {menu.fotoUrl ? (
+            <img
+              src={menu.fotoUrl}
+              alt={menu.namaMenu}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-6xl">🍽️</span>
+          )}
+        </div>
+
+        <div className="p-5 pt-4">
+          {/* Title & Price */}
+          <h3 className="font-bold text-lg">{menu.namaMenu}</h3>
+          <p className="text-primary font-bold text-xl mt-1">
+            Rp {menu.harga.toLocaleString("id-ID")}
+          </p>
+          {menu.deskripsi && (
+            <p className="text-sm text-muted-foreground mt-2">{menu.deskripsi}</p>
+          )}
+
+          {/* Catatan */}
+          <div className="mt-4">
+            <p className="text-sm font-medium mb-2">Catatan (opsional)</p>
+            <input
+              type="text"
+              placeholder="Contoh: tanpa bawang, extra mayo..."
+              className="w-full px-3 py-2 text-sm rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              value={catatan}
+              onChange={(e) => setCatatan(e.target.value)}
+            />
+          </div>
+
+          {/* Jumlah & Tombol */}
+          <div className="mt-5 flex items-center gap-3">
+            {/* Quantity Control */}
+            <div className="flex items-center gap-2 bg-muted rounded-full px-2 py-1">
+              <button
+                onClick={() => setJumlah(Math.max(1, jumlah - 1))}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-background transition-colors"
+              >
+                <Minus className="size-4" />
+              </button>
+              <span className="font-bold w-6 text-center">{jumlah}</span>
+              <button
+                onClick={() => setJumlah(jumlah + 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-background transition-colors"
+              >
+                <Plus className="size-4" />
+              </button>
+            </div>
+
+            {/* Tombol Tambah */}
+            <DialogClose asChild>
+              <Button
+                className="flex-1 rounded-full h-11"
+                onClick={handleTambah}
+                disabled={isDisabled}
+              >
+                Tambah Rp {(menu.harga * jumlah).toLocaleString("id-ID")}
+              </Button>
+            </DialogClose>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
