@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -82,12 +82,21 @@ const sampleMenu: Menu[] = [
 
 export default function CustomerMenuPage() {
   const router = useRouter();
+  const params = useParams();
+  const tokenMeja = params.tokenMeja as string;
   const [keranjang, setKeranjang] = useState<KeranjangItem[]>([]);
   const [showToastBerhasil, setShowToastBerhasil] = useState(false);
   const [sudahPesan, setSudahPesan] = useState(false);
   const [totalCheckout, setTotalCheckout] = useState(0);
   const [activeKategori, setActiveKategori] = useState("Semua");
   const [searchQuery, setSearchQuery] = useState("");
+  const [voucher, setVoucher] = useState<Voucher | null>(null);
+
+  interface Voucher {
+    kode: string;
+    potongan: number;
+    minPembelian: number;
+  }
 
   const filteredMenu = sampleMenu.filter((menu) => {
     const matchKategori =
@@ -99,10 +108,11 @@ export default function CustomerMenuPage() {
   });
 
   const totalItem = keranjang.reduce((sum, item) => sum + item.jumlah, 0);
-  const totalHarga = keranjang.reduce(
+  const subtotal = keranjang.reduce(
     (sum, item) => sum + item.harga * item.jumlah,
     0
   );
+  const totalHarga = voucher ? subtotal - voucher.potongan : subtotal;
 
   const tambahKeranjang = (menu: Menu, jumlah: number = 1, catatan: string = "") => {
     setKeranjang((prev) => {
@@ -145,21 +155,16 @@ export default function CustomerMenuPage() {
   const handleCheckout = () => {
     if (keranjang.length === 0) return;
 
-    const totalHarga = keranjang.reduce(
-      (sum, item) => sum + item.harga * item.jumlah,
-      0
-    );
-    const pesanan = {
-      id: Date.now().toString(),
+    const checkoutData = {
       items: keranjang,
-      totalHarga,
-      status: "menunggu" as const,
-      waktu: new Date(),
+      subtotal,
+      voucher,
+      total: totalHarga,
+      mejaToken: tokenMeja,
+      waktu: new Date().toISOString(),
     };
-    localStorage.setItem("lastPesanan", JSON.stringify(pesanan));
-
-    setTotalCheckout(totalHarga);
-    setSudahPesan(true);
+    localStorage.setItem("checkoutData", JSON.stringify(checkoutData));
+    router.push(`/${tokenMeja}/checkout`);
   };
 
   const handleLihatPesanan = () => {
@@ -181,8 +186,11 @@ export default function CustomerMenuPage() {
             onUpdateJumlah={updateJumlah}
             onHapus={hapusDariKeranjang}
             onCheckout={handleCheckout}
+            subtotal={subtotal}
+            voucher={voucher}
+            onApplyVoucher={setVoucher}
           >
-            <Button variant="outline" size="icon" className="relative">
+            <Button variant="outline" size="icon" className="relative" data-cart-button>
               <ShoppingCart className="size-5" />
               {totalItem > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
@@ -255,14 +263,16 @@ export default function CustomerMenuPage() {
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">
-                {totalItem} item
+                {totalItem} item{voucher && <span className="text-green-600"> + Voucher</span>}
               </p>
               <p className="text-lg font-bold">
                 Rp {totalHarga.toLocaleString("id-ID")}
               </p>
             </div>
-            <Button className="rounded-full px-6" onClick={handleCheckout}>
-              Pesan
+            <Button className="rounded-full px-6" onClick={() => {
+              document.querySelector<HTMLButtonElement>('[data-cart-button]')?.click();
+            }}>
+              Checkout
             </Button>
           </div>
         </div>

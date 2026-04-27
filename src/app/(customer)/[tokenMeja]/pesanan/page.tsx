@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,21 +19,35 @@ interface PesananItem {
 interface Pesanan {
   id: string;
   items: PesananItem[];
-  totalHarga: number;
+  subtotal: number;
+  voucher: {
+    kode: string;
+    potongan: number;
+  } | null;
+  total: number;
+  metodeBayar: string;
+  jumlahBayar?: number;
+  kembalian?: number;
   status: "menunggu" | "diproses" | "selesai";
   waktu: Date;
 }
 
 export default function DetailPesananPage() {
+  const params = useParams();
+  const tokenMeja = params.tokenMeja as string;
   const [pesanan, setPesanan] = useState<Pesanan | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Sample data - akan direplace dengan data dari backend
   useEffect(() => {
-    // Cek localStorage untuk pesanan terbaru
     const saved = localStorage.getItem("lastPesanan");
     if (saved) {
-      setPesanan(JSON.parse(saved));
+      try {
+        setPesanan(JSON.parse(saved));
+      } catch {
+        setPesanan(null);
+      }
     }
+    setLoading(false);
   }, []);
 
   const statusConfig = {
@@ -53,6 +68,14 @@ export default function DetailPesananPage() {
     },
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
   if (!pesanan) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -65,7 +88,7 @@ export default function DetailPesananPage() {
             <p className="text-muted-foreground text-sm text-center mb-6">
               Silakan pesan menu terlebih dahulu
             </p>
-            <Link href="../">
+            <Link href={`/${tokenMeja}`}>
               <Button>Pesan Sekarang</Button>
             </Link>
           </CardContent>
@@ -82,10 +105,10 @@ export default function DetailPesananPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
-          <Link href="../" className="text-muted-foreground hover:text-foreground">
-            ← Kembali
+          <Link href={`/${tokenMeja}`} className="text-muted-foreground hover:text-foreground">
+            Kembali
           </Link>
-          <h1 className="flex-1 text-center font-bold">Detail Pesanan</h1>
+          <h1 className="flex-1 text-center font-bold">Status Pesanan</h1>
           <div className="w-12" />
         </div>
       </header>
@@ -166,7 +189,7 @@ export default function DetailPesananPage() {
                     <p className="font-medium">{item.jumlah}x {item.namaMenu}</p>
                     {item.catatan && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        📝 {item.catatan}
+                        {item.catatan}
                       </p>
                     )}
                   </div>
@@ -177,11 +200,41 @@ export default function DetailPesananPage() {
               ))}
             </div>
 
-            <div className="border-t mt-4 pt-4 flex justify-between">
-              <p className="font-bold">Total</p>
-              <p className="font-bold text-lg text-primary">
-                Rp {pesanan.totalHarga.toLocaleString("id-ID")}
-              </p>
+            <div className="border-t mt-4 pt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>Rp {(pesanan.subtotal || 0).toLocaleString("id-ID")}</span>
+              </div>
+              {pesanan.voucher && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Voucher ({pesanan.voucher.kode})</span>
+                  <span>-Rp {pesanan.voucher.potongan.toLocaleString("id-ID")}</span>
+                </div>
+              )}
+              {pesanan.metodeBayar && (
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Metode Bayar</span>
+                  <span className="capitalize">{pesanan.metodeBayar}</span>
+                </div>
+              )}
+              {pesanan.jumlahBayar && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Jumlah Bayar</span>
+                  <span>Rp {pesanan.jumlahBayar.toLocaleString("id-ID")}</span>
+                </div>
+              )}
+              {pesanan.kembalian !== undefined && pesanan.kembalian !== null && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Kembalian</span>
+                  <span>Rp {pesanan.kembalian.toLocaleString("id-ID")}</span>
+                </div>
+              )}
+              <div className="border-t pt-2 flex justify-between">
+                <p className="font-bold">Total</p>
+                <p className="font-bold text-lg text-primary">
+                  Rp {pesanan.total.toLocaleString("id-ID")}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
