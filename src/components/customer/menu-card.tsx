@@ -16,8 +16,8 @@ interface Menu {
   id: number;
   namaMenu: string;
   harga: number;
-  deskripsi?: string;
-  fotoUrl?: string;
+  deskripsi: string | null;
+  fotoUrl: string | null;
   kategori: string;
   statusMenu: "tersedia" | "habis" | "nonaktif";
   jumlahDipesan?: number;
@@ -25,7 +25,7 @@ interface Menu {
 
 interface MenuCardProps {
   menu: Menu;
-  onTambah?: (menu: Menu, jumlah: number, catatan: string) => void;
+  onTambah?: (menu: Menu, jumlah: number, catatan: string | null) => void;
   onSuccess: () => void;
   jumlahDipesan?: number;
 }
@@ -41,7 +41,7 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
   };
 
   const handleTambah = () => {
-    onTambah?.(menu, jumlah, catatan);
+    onTambah?.(menu, jumlah, catatan || null);
     handleReset();
     onSuccess();
   };

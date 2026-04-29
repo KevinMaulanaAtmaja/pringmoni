@@ -58,7 +58,13 @@ export async function updateUser(data: {
   status: boolean
   password?: string
 }) {
-  const updateData: any = {
+  const updateData: {
+    username: string
+    email: string | null
+    role: RoleUser
+    status: boolean
+    password?: string
+  } = {
     username: data.username,
     email: data.email || null,
     role: data.role,

@@ -43,7 +43,7 @@ const waiterNav = [
 export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname()
   
-  const navItems = role === 'waiter' ? waiterNav : role === 'cashier' ? cashierNav : ownerNav
+  const navItems = role === 'waiter' ? waiterNav : role === 'kasir' ? cashierNav : ownerNav
 
   return (
     <aside className="w-64 bg-green-700 text-white p-4 flex flex-col h-screen sticky top-0">

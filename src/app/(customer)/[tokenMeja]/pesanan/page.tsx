@@ -1,71 +1,60 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Clock, ChefHat, PackageCheck } from "lucide-react";
-import Link from "next/link";
+import { CheckCircle, Clock, ChefHat, PackageCheck, RefreshCw } from "lucide-react";
+import { getActivePesananByToken } from "@/app/actions/pesanan";
+import type { StatusPesanan } from "@/types";
 
 interface PesananItem {
   id: number;
   namaMenu: string;
   harga: number;
   jumlah: number;
-  catatan?: string;
+  catatan: string | null;
 }
 
 interface Pesanan {
-  id: string;
+  id: number;
   items: PesananItem[];
-  subtotal: number;
-  voucher: {
-    kode: string;
-    potongan: number;
-  } | null;
   total: number;
-  metodeBayar: string;
-  jumlahBayar?: number;
-  kembalian?: number;
-  status: "menunggu" | "diproses" | "selesai";
-  waktu: Date;
+  status: StatusPesanan;
+  waktu: string;
 }
 
 export default function DetailPesananPage() {
+  const router = useRouter();
   const params = useParams();
   const tokenMeja = params.tokenMeja as string;
   const [pesanan, setPesanan] = useState<Pesanan | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("lastPesanan");
-    if (saved) {
-      try {
-        setPesanan(JSON.parse(saved));
-      } catch {
-        setPesanan(null);
-      }
+  const fetchPesanan = async () => {
+    try {
+      const data = await getActivePesananByToken(tokenMeja);
+      setPesanan(data);
+    } catch {
+      setPesanan(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, []);
+  };
 
-  const statusConfig = {
-    menunggu: {
-      label: "Menunggu",
-      icon: Clock,
-      color: "bg-yellow-100 text-yellow-700",
-    },
-    diproses: {
-      label: "Diproses",
-      icon: ChefHat,
-      color: "bg-blue-100 text-blue-700",
-    },
-    selesai: {
-      label: "Selesai",
-      icon: PackageCheck,
-      color: "bg-green-100 text-green-700",
-    },
+  useEffect(() => {
+    fetchPesanan();
+  }, [tokenMeja]);
+
+  const getBadgeVariant = (status: StatusPesanan) => {
+    switch (status) {
+      case 'menunggu': return 'outline';
+      case 'diproses': return 'secondary';
+      case 'selesai': return 'default';
+      case 'dibatalkan': return 'destructive';
+      default: return 'outline';
+    }
   };
 
   if (loading) {
@@ -97,21 +86,27 @@ export default function DetailPesananPage() {
     );
   }
 
-  const status = statusConfig[pesanan.status];
-  const StatusIcon = status.icon;
+  
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
-          <Link href={`/${tokenMeja}`} className="text-muted-foreground hover:text-foreground">
-            Kembali
-          </Link>
-          <h1 className="flex-1 text-center font-bold">Status Pesanan</h1>
-          <div className="w-12" />
-        </div>
-      </header>
+       {/* Header */}
+       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+         <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
+           <button
+             onClick={() => {
+               if (window.confirm("Yakin ingin kembali? Anda tidak bisa memantau pesanan lagi.")) {
+                 router.push(`/${tokenMeja}`);
+               }
+             }}
+             className="text-muted-foreground hover:text-foreground"
+           >
+             Kembali
+           </button>
+           <h1 className="flex-1 text-center font-bold">Status Pesanan</h1>
+           <div className="w-12" />
+         </div>
+       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6">
         {/* Success Message */}
@@ -135,9 +130,14 @@ export default function DetailPesananPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
-                <Badge className={`mt-1 ${status.color}`}>
-                  <StatusIcon className="size-3 mr-1" />
-                  {status.label}
+                 <Badge variant={getBadgeVariant(pesanan.status)} className="mt-1">
+                  {pesanan.status === 'menunggu' && <Clock className="size-3 mr-1" />}
+                  {pesanan.status === 'diproses' && <ChefHat className="size-3 mr-1" />}
+                  {pesanan.status === 'selesai' && <PackageCheck className="size-3 mr-1" />}
+                  {pesanan.status === 'dibatalkan' && <PackageCheck className="size-3 mr-1" />}
+                  {pesanan.status === 'menunggu' ? 'Menunggu' : 
+                   pesanan.status === 'diproses' ? 'Diproses' :
+                   pesanan.status === 'selesai' ? 'Selesai' : 'Dibatalkan'}
                 </Badge>
               </div>
               <div className="text-right">
@@ -149,28 +149,33 @@ export default function DetailPesananPage() {
             {/* Progress Steps */}
             <div className="flex items-center justify-between mt-6">
               {["menunggu", "diproses", "selesai"].map((step, index) => {
-                const stepStatus = statusConfig[step as keyof typeof statusConfig];
-                const StepIcon = stepStatus.icon;
                 const isActive = pesanan.status === step;
-                const isPast =
-                  ["menunggu", "diproses", "selesai"].indexOf(pesanan.status) > index;
-
+                const isPast = ["menunggu", "diproses", "selesai"].indexOf(pesanan.status) > index;
+                
+                const getStepIcon = (step: string) => {
+                  if (step === "menunggu") return Clock;
+                  if (step === "diproses") return ChefHat;
+                  return PackageCheck;
+                };
+                
+                const StepIcon = getStepIcon(step);
+                
                 return (
                   <div key={step} className="flex flex-col items-center">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        isPast
-                          ? "bg-green-500 text-white"
-                          : isActive
-                          ? stepStatus.color
-                          : "bg-muted"
-                      }`}
-                    >
-                      <StepIcon className="size-5" />
-                    </div>
-                    <p className="text-xs mt-2 text-muted-foreground">
-                      {stepStatus.label}
-                    </p>
+                     <div
+                       className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                         isPast
+                           ? "bg-green-500 text-white"
+                           : isActive
+                           ? "bg-blue-100 text-blue-700"
+                           : "bg-muted"
+                       }`}
+                     >
+                       <StepIcon className="size-5" />
+                     </div>
+                     <p className="text-xs mt-2 text-muted-foreground">
+                       {step === "menunggu" ? "Menunggu" : step === "diproses" ? "Diproses" : "Selesai"}
+                     </p>
                   </div>
                 );
               })}
@@ -201,34 +206,6 @@ export default function DetailPesananPage() {
             </div>
 
             <div className="border-t mt-4 pt-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>Rp {(pesanan.subtotal || 0).toLocaleString("id-ID")}</span>
-              </div>
-              {pesanan.voucher && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Voucher ({pesanan.voucher.kode})</span>
-                  <span>-Rp {pesanan.voucher.potongan.toLocaleString("id-ID")}</span>
-                </div>
-              )}
-              {pesanan.metodeBayar && (
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Metode Bayar</span>
-                  <span className="capitalize">{pesanan.metodeBayar}</span>
-                </div>
-              )}
-              {pesanan.jumlahBayar && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Jumlah Bayar</span>
-                  <span>Rp {pesanan.jumlahBayar.toLocaleString("id-ID")}</span>
-                </div>
-              )}
-              {pesanan.kembalian !== undefined && pesanan.kembalian !== null && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Kembalian</span>
-                  <span>Rp {pesanan.kembalian.toLocaleString("id-ID")}</span>
-                </div>
-              )}
               <div className="border-t pt-2 flex justify-between">
                 <p className="font-bold">Total</p>
                 <p className="font-bold text-lg text-primary">

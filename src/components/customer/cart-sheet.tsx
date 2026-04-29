@@ -19,12 +19,12 @@ interface Voucher {
   minPembelian: number;
 }
 
-interface KeranjangItem {
+export interface KeranjangItem {
   id: number;
   namaMenu: string;
   harga: number;
   jumlah: number;
-  catatan?: string;
+  catatan: string | null;
 }
 
 interface CartSheetProps {

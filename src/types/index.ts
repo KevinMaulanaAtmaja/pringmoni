@@ -1,4 +1,4 @@
-export type RoleUser = 'owner' | 'cashier' | 'waiter'
+export type RoleUser = 'owner' | 'admin' | 'kasir' | 'waiter'
 
 export interface User {
   id: number
@@ -28,12 +28,24 @@ export interface KategoriMenu {
 export interface Menu {
   id: number
   namaMenu: string
-  deskripsi?: string
+  deskripsi: string | null
   harga: number
   kategoriId: number
   kategori?: KategoriMenu
   statusMenu: StatusMenu
-  fotoUrl?: string
+  fotoUrl: string | null
+}
+
+// Type for customer menu display (returned by getMenusForCustomer)
+export interface CustomerMenu {
+  id: number
+  namaMenu: string
+  deskripsi: string | null
+  harga: number
+  kategori: string
+  statusMenu: StatusMenu
+  fotoUrl: string | null
+  menuFoto?: { id: number; fotoUrl: string }[]
 }
 
 export type StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan'
@@ -46,7 +58,7 @@ export interface DetailPesananItem {
   menuName: string
   jumlah: number
   hargaSaatPesan: number
-  catatanItem?: string
+  catatanItem: string | null
 }
 
 export interface Pesanan {
@@ -56,7 +68,7 @@ export interface Pesanan {
   waiterId?: number
   kasirId?: number
   statusPesanan: StatusPesanan
-  catatan?: string
+  catatan: string | null
   totalHarga: number
   metodePembayaran?: MetodePembayaran
   jumlahBayar?: number

@@ -1,32 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Wallet, Banknote, ArrowLeft, CreditCard, Smartphone } from "lucide-react";
+import { CheckCircle, Wallet, Banknote, ArrowLeft, CreditCard, Smartphone, Loader2 } from "lucide-react";
+import { getPesananById, updatePembayaran } from "@/app/actions/pesanan";
 
 interface CheckoutItem {
   id: number;
   namaMenu: string;
   harga: number;
   jumlah: number;
-  catatan?: string;
+  catatan: string | null;
 }
 
 interface CheckoutData {
   items: CheckoutItem[];
   subtotal: number;
-  voucher: {
-    kode: string;
-    potongan: number;
-    minPembelian: number;
-  } | null;
   total: number;
-  mejaToken: string;
-  waktu: string;
 }
 
 type MetodeBayar = "tunai" | "qris" | "debit" | "kredit";
@@ -34,21 +28,38 @@ type MetodeBayar = "tunai" | "qris" | "debit" | "kredit";
 export default function CheckoutPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const tokenMeja = params.tokenMeja as string;
-  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(() => {
-    if (typeof window === "undefined") return null;
-    const saved = localStorage.getItem("checkoutData");
-    return saved ? JSON.parse(saved) : null;
-  });
+  const orderId = searchParams.get("orderId");
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [metodeBayar, setMetodeBayar] = useState<MetodeBayar | null>(null);
   const [jumlahBayar, setJumlahBayar] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    if (!checkoutData) {
-      router.push(`/${tokenMeja}`);
-    }
-  }, [checkoutData, router, tokenMeja]);
+    const loadData = async () => {
+      if (!orderId) {
+        router.push(`/${tokenMeja}`);
+        return;
+      }
+
+      try {
+        const data = await getPesananById(parseInt(orderId));
+        if (data) {
+          setCheckoutData(data);
+        } else {
+          router.push(`/${tokenMeja}`);
+        }
+      } catch {
+        router.push(`/${tokenMeja}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [orderId, router, tokenMeja]);
 
   if (!checkoutData) {
     return (
@@ -58,10 +69,9 @@ export default function CheckoutPage() {
     );
   }
 
-  const { items, subtotal = 0, voucher, total = 0 } = checkoutData;
+  const { items, subtotal = 0, total = 0 } = checkoutData;
   const jumlahBayarNum = parseInt(jumlahBayar) || 0;
   const kembalian = jumlahBayarNum - total;
-  const canBayar = metodeBayar === "qris" || metodeBayar === "debit" || metodeBayar === "kredit" || (metodeBayar === "tunai" && jumlahBayarNum >= total);
 
   const metodeOptions: { value: MetodeBayar; label: string; icon: React.ReactNode }[] = [
     { value: "tunai", label: "Tunai", icon: <Banknote className="size-5" /> },
@@ -70,28 +80,29 @@ export default function CheckoutPage() {
     { value: "kredit", label: "Kredit", icon: <CreditCard className="size-5" /> },
   ];
 
-  const handleBayar = () => {
-    if (!canBayar) return;
+  const handleBayar = async () => {
+    if (!metodeBayar) return;
 
-    const pesanan = {
-      id: Date.now().toString(),
-      items,
-      subtotal,
-      voucher,
-      total,
-      metodeBayar,
-      jumlahBayar: metodeBayar === "tunai" ? jumlahBayarNum : null,
-      kembalian: metodeBayar === "tunai" ? kembalian : null,
-      status: "menunggu" as const,
-      waktu: new Date(),
-    };
-    localStorage.setItem("lastPesanan", JSON.stringify(pesanan));
-    localStorage.removeItem("checkoutData");
-    setShowSuccess(true);
+    try {
+      const result = await updatePembayaran(parseInt(orderId!), {
+        metodePembayaran: metodeBayar,
+        jumlahBayar: metodeBayar === "tunai" ? jumlahBayarNum : null,
+        kembalian: metodeBayar === "tunai" ? kembalian : 0,
+      });
 
-    setTimeout(() => {
-      router.push(`/${tokenMeja}/pesanan`);
-    }, 2000);
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+
+      setShowSuccess(true);
+      setTimeout(() => {
+        router.push(`/${tokenMeja}/pesanan`);
+      }, 2000);
+    } catch (error) {
+      console.error("Payment error:", error);
+      alert("Terjadi kesalahan");
+    }
   };
 
   if (showSuccess) {
@@ -149,12 +160,6 @@ export default function CheckoutPage() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>Rp {subtotal.toLocaleString("id-ID")}</span>
               </div>
-              {voucher && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Voucher ({voucher.kode})</span>
-                  <span>-Rp {voucher.potongan.toLocaleString("id-ID")}</span>
-                </div>
-              )}
               <div className="border-t pt-2 flex justify-between font-bold">
                 <span>Total</span>
                 <span className="text-lg text-primary">
@@ -246,7 +251,7 @@ export default function CheckoutPage() {
         <div className="pt-4 pb-8">
           <Button
             className="w-full h-14 rounded-full text-lg font-bold"
-            disabled={!canBayar}
+            disabled={!metodeBayar}
             onClick={handleBayar}
           >
             Bayar Rp {total.toLocaleString("id-ID")}

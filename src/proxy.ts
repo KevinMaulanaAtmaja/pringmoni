@@ -1,37 +1,29 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { auth } from "@/lib/auth"
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
-  
-  const cookies = request.cookies.getAll()
-  const cookieNames = cookies.map(c => c.name)
+  const session = await auth()
+  const isLoggedIn = !!session?.user
 
-  const isLoggedIn = cookieNames.some(name => 
-    name.includes('next-auth') || 
-    name.includes('session-token') ||
-    name.includes('authjs')
-  )
+  // Public routes: home, login, reset-password, customer routes (token meja)
+  const isPublicRoute = 
+    pathname === "/" || 
+    pathname === "/login" || 
+    pathname === "/reset-password" ||
+    pathname.match(/^\/[a-zA-Z0-9-]+$/) || // Customer token route: /[tokenMeja]
+    pathname.match(/^\/[a-zA-Z0-9-]+\/pesanan$/) || // /[tokenMeja]/pesanan
+    pathname.match(/^\/[a-zA-Z0-9-]+\/checkout$/) // /[tokenMeja]/checkout
 
-  if (pathname === "/" || pathname === "/login" || pathname === "/reset-password") {
-    return NextResponse.next()
-  }
-
-  if (!isLoggedIn) {
-    const isProtectedPath = 
-      pathname.startsWith("/dashboard") ||
-      pathname.startsWith("/menu") ||
-      pathname.startsWith("/pesanan") ||
-      pathname.startsWith("/kasir") ||
-      pathname.startsWith("/meja")
-
-    if (isProtectedPath) {
-      return NextResponse.redirect(new URL("/login", request.url))
-    }
-  }
-
+  // Kalau sudah login dan akses login, redirect ke dashboard
   if (isLoggedIn && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url))
+  }
+
+  // Kalau belum login dan akses protected route, redirect ke login
+  if (!isLoggedIn && !isPublicRoute) {
+    return NextResponse.redirect(new URL("/login", request.url))
   }
 
   return NextResponse.next()

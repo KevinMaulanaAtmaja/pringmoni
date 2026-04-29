@@ -45,7 +45,7 @@ export async function getDashboardStats() {
       pesananDiproses: pesananDiproses.length,
     }
 
-    if (role === 'cashier') {
+    if (role === 'kasir') {
       return {
         ...stats,
         showMeja: false,
@@ -77,7 +77,7 @@ export async function getDashboardStats() {
       mejaTerpakai: 0,
       pesananMenunggu: 0,
       pesananDiproses: 0,
-      showMeja: role !== 'cashier',
+      showMeja: role !== 'kasir',
       showPesananDiproses: true,
     }
   }
