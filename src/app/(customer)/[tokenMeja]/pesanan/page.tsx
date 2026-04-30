@@ -8,6 +8,16 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, Clock, ChefHat, PackageCheck, RefreshCw } from "lucide-react";
 import { getActivePesananByToken } from "@/app/actions/pesanan";
 import type { StatusPesanan } from "@/types";
+import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface PesananItem {
   id: number;
@@ -31,6 +41,7 @@ export default function DetailPesananPage() {
   const tokenMeja = params.tokenMeja as string;
   const [pesanan, setPesanan] = useState<Pesanan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
 
   const fetchPesanan = async () => {
     try {
@@ -91,22 +102,40 @@ export default function DetailPesananPage() {
   return (
     <div className="min-h-screen bg-background">
        {/* Header */}
-       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-         <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
-           <button
-             onClick={() => {
-               if (window.confirm("Yakin ingin kembali? Anda tidak bisa memantau pesanan lagi.")) {
-                 router.push(`/${tokenMeja}`);
-               }
-             }}
-             className="text-muted-foreground hover:text-foreground"
-           >
-             Kembali
-           </button>
-           <h1 className="flex-1 text-center font-bold">Status Pesanan</h1>
-           <div className="w-12" />
-         </div>
-       </header>
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+          <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
+            <Dialog open={showDialog} onOpenChange={setShowDialog}>
+              <DialogTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground">
+                  Kembali
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Yakin ingin kembali?</DialogTitle>
+                  <DialogDescription>
+                    Anda tidak bisa memantau pesanan lagi jika kembali ke menu.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowDialog(false)}>
+                    Batal
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowDialog(false);
+                      router.push(`/${tokenMeja}`);
+                    }}
+                  >
+                    Ya, Kembali
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <h1 className="flex-1 text-center font-bold">Status Pesanan</h1>
+            <div className="w-12" />
+          </div>
+        </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6">
         {/* Success Message */}
