@@ -14,12 +14,12 @@ export default async function DashboardLayout({
     redirect("/login")
   }
 
-  const role = session.user.role
-
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar role={role} />
-      <main className="flex-1 p-6">
+      <div className="fixed top-0 left-0 h-screen">
+        <Sidebar role={session.user.role} />
+      </div>
+      <main className="flex-1 ml-64 p-6">
         <Header />
         {children}
       </main>
