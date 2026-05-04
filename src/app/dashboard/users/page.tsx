@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Pencil, Trash2, User as UserIcon } from 'lucide-react'
+import { Plus, Pencil, Trash2, User as UserIcon, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   getUsers,
   createUser,
@@ -49,6 +49,8 @@ const roleLabels: Record<RoleUser, string> = {
   waiter: 'Waiter',
 }
 
+const ITEMS_PER_PAGE = 5
+
 export default function UsersPage() {
   const [users, setUsers] = useState<UserWithRole[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -62,10 +64,25 @@ export default function UsersPage() {
     status: true,
   })
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Delete confirmation states
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+
+  // Filter states
+  const [search, setSearch] = useState('')
+  const [filterRole, setFilterRole] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     loadData()
   }, [])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, filterRole, filterStatus])
 
   async function loadData() {
     setLoading(true)
@@ -80,6 +97,7 @@ export default function UsersPage() {
   }
 
   function openDialog(user?: UserWithRole) {
+    setError(null)
     if (user) {
       setEditingId(user.id)
       setForm({
@@ -105,9 +123,10 @@ export default function UsersPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
+    setError(null)
     try {
       if (editingId) {
-        await updateUser({
+        const result = await updateUser({
           id: editingId,
           username: form.username,
           email: form.email || undefined,
@@ -115,13 +134,21 @@ export default function UsersPage() {
           status: form.status,
           password: form.password || undefined,
         })
+        if ('error' in result && result.error) {
+          setError(result.error)
+          return
+        }
       } else {
-        await createUser({
+        const result = await createUser({
           username: form.username,
           email: form.email || undefined,
           password: form.password,
           role: form.role,
         })
+        if ('error' in result && result.error) {
+          setError(result.error)
+          return
+        }
       }
       setIsOpen(false)
       loadData()
@@ -130,84 +157,153 @@ export default function UsersPage() {
     }
   }
 
-  async function handleDelete(id: number) {
-    if (confirm('Yakin hapus akun ini?')) {
-      await deleteUser(id)
-      loadData()
+  function handleDeleteClick(id: number) {
+    setDeleteId(id)
+  }
+
+  async function handleDeleteConfirm() {
+    if (deleteId) {
+      try {
+        await deleteUser(deleteId)
+        setDeleteId(null)
+        loadData()
+      } catch {
+        alert('Gagal hapus akun')
+      }
     }
   }
 
+  function handleDeleteCancel() {
+    setDeleteId(null)
+  }
+
+  // Filter logic
+  const filteredUsers = useMemo(() => {
+    let result = users
+
+    if (search) {
+      const s = search.toLowerCase()
+      result = result.filter(u =>
+        u.username.toLowerCase().includes(s) ||
+        (u.email && u.email.toLowerCase().includes(s))
+      )
+    }
+
+    if (filterRole !== 'all') {
+      result = result.filter(u => u.role === filterRole)
+    }
+
+    if (filterStatus !== 'all') {
+      const isActive = filterStatus === 'active'
+      result = result.filter(u => u.status === isActive)
+    }
+
+    return result
+  }, [users, search, filterRole, filterStatus])
+
+  // Pagination
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Kelola Akun</h1>
-        <Button onClick={() => openDialog()}>
+    <div className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-bold">Kelola Akun</h1>
+      </div>
+
+      {/* Filters + Tambah Button */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Cari..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-8 w-[200px] text-sm px-3"
+        />
+        <Select value={filterRole} onValueChange={setFilterRole}>
+          <SelectTrigger className="h-8 w-[130px] text-sm">
+            <SelectValue placeholder="Role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua</SelectItem>
+            <SelectItem value="owner">Owner</SelectItem>
+            <SelectItem value="cashier">Kasir</SelectItem>
+            <SelectItem value="waiter">Waiter</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="h-8 w-[130px] text-sm">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua</SelectItem>
+            <SelectItem value="active">Aktif</SelectItem>
+            <SelectItem value="inactive">Nonaktif</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button onClick={() => openDialog()} className="h-8 ml-auto">
           <Plus className="w-4 h-4 mr-2" />
-          Tambah Akun
+          Tambah
         </Button>
       </div>
 
       <div className="bg-white rounded-lg border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>No</TableHead>
-              <TableHead>Username</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+            <TableRow className="h-9">
+              <TableHead className="h-9">No</TableHead>
+              <TableHead className="h-9">Username</TableHead>
+              <TableHead className="h-9">Email</TableHead>
+              <TableHead className="h-9">Role</TableHead>
+              <TableHead className="h-9">Status</TableHead>
+              <TableHead className="h-9 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-4">
                   Memuat...
                 </TableCell>
               </TableRow>
-            ) : users.length === 0 ? (
+            ) : paginatedUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  Belum ada akun
+                <TableCell colSpan={6} className="text-center py-4">
+                  {search || filterRole !== 'all' || filterStatus !== 'all'
+                    ? 'Tidak ada akun yang sesuai filter'
+                    : 'Belum ada akun'}
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user, index) => (
-                <TableRow key={user.id}>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell>
+              paginatedUsers.map((user, index) => (
+                <TableRow key={user.id} className="h-12">
+                  <TableCell className="py-2">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
+                  <TableCell className="py-2">
                     <div className="flex items-center gap-2">
-                      <UserIcon className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium">{user.username}</span>
+                      <UserIcon className="w-3 h-3 text-gray-400" />
+                      <span className="font-medium text-sm">{user.username}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{user.email || '-'}</TableCell>
-                  <TableCell>
-                    <Badge className={roleColors[user.role]}>
+                  <TableCell className="py-2 text-sm">{user.email || '-'}</TableCell>
+                  <TableCell className="py-2">
+                    <Badge className={`${roleColors[user.role]} text-xs`}>
                       {roleLabels[user.role]}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={user.status ? 'default' : 'secondary'}>
+                  <TableCell className="py-2">
+                    <Badge variant={user.status ? 'default' : 'secondary'} className="text-xs">
                       {user.status ? 'Aktif' : 'Nonaktif'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => openDialog(user)}
-                      >
-                        <Pencil className="w-4 h-4" />
+                  <TableCell className="py-2 text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(user)}>
+                        <Pencil className="w-3 h-3" />
                       </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleDelete(user.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
+                      <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(user.id)}>
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
                   </TableCell>
@@ -218,6 +314,33 @@ export default function UsersPage() {
         </Table>
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="w-3 h-3" />
+          </Button>
+          <span className="text-xs">
+            {currentPage}/{totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="w-3 h-3" />
+          </Button>
+        </div>
+      )}
+
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
@@ -226,7 +349,7 @@ export default function UsersPage() {
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-3 py-3">
               <div className="grid gap-2">
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -262,6 +385,14 @@ export default function UsersPage() {
                   }
                   required={!editingId}
                 />
+                {error && (
+                  <p className="text-sm text-red-500">{error}</p>
+                )}
+                {!editingId && (
+                  <p className="text-xs text-gray-500">
+                    Min 8 karakter, huruf besar, huruf kecil, angka, simbol
+                  </p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="role">Role</Label>
@@ -314,6 +445,32 @@ export default function UsersPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteId !== null} onOpenChange={() => handleDeleteCancel()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konfirmasi Hapus Akun</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              Apakah Anda yakin ingin menghapus akun ini? Tindakan ini tidak dapat dibatalkan.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDeleteCancel} className="h-7 text-xs">
+              Batal
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteConfirm}
+              className="h-7 text-xs"
+            >
+              Hapus
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

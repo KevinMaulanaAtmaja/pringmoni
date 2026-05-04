@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   Dialog,
   DialogContent,
@@ -20,117 +20,517 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Plus, Pencil, Trash2, QrCode } from "lucide-react"
-
-const mockMejas = [
-  { id: 1, nomorMeja: 'A1', kapasitas: 4, tokenMeja: 'ABC123', statusMeja: 'kosong' },
-  { id: 2, nomorMeja: 'B2', kapasitas: 2, tokenMeja: 'DEF456', statusMeja: 'terpakai' },
-  { id: 3, nomorMeja: 'C3', kapasitas: 6, tokenMeja: 'GHI789', statusMeja: 'kosong' },
-]
+import { Plus, Pencil, Trash2, QrCode, ChevronLeft, ChevronRight } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { QRCodeSVG } from "qrcode.react"
+import { getMeja, getNextNomorMeja, createMeja, updateMeja, deleteMeja } from "@/app/actions/meja"
+import type { Meja } from "@/types"
+import { TipeMeja } from "@/types"
 
 const statusColors: Record<string, string> = {
   kosong: "bg-green-100 text-green-800",
   terpakai: "bg-red-100 text-red-800",
 }
 
+const statusLabels: Record<string, string> = {
+  kosong: "Kosong",
+  terpakai: "Terpakai",
+}
+
+const tipeMejaLabels: Record<string, string> = {
+  lesehan: "Lesehan",
+  kursi: "Kursi",
+}
+
+const ITEMS_PER_PAGE = 5
+
 export default function MejaPage() {
-  const [mejas] = useState(mockMejas)
+  const [mejas, setMejas] = useState<Meja[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isQROpen, setIsQROpen] = useState(false)
-  const [selectedMeja, setSelectedMeja] = useState<(typeof mockMejas)[0] | null>(null)
+  const [selectedMeja, setSelectedMeja] = useState<Meja | null>(null)
+  const [editingMeja, setEditingMeja] = useState<Meja | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [tipeMeja, setTipeMeja] = useState<string>("")
+  const [nextNomorMeja, setNextNomorMeja] = useState<string>("")
+  const [kapasitas, setKapasitas] = useState<string>("")
+  const [error, setError] = useState<string | null>(null)
 
-  function openQR(meja: (typeof mockMejas)[0]) {
+  // Delete confirmation states
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [confirmStep, setConfirmStep] = useState(1) // 1 or 2 for double confirmation
+
+  // Filter states
+  const [search, setSearch] = useState("")
+  const [filterTipe, setFilterTipe] = useState<string>("all")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const result = await getMeja()
+      if ('error' in result) {
+        setError(result.error as string)
+      } else {
+        setMejas(result as unknown as Meja[])
+      }
+    } catch {
+      setError("Gagal memuat data meja")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, filterTipe, filterStatus])
+
+  const loadNextNomorMeja = async (tipe: string) => {
+    if (!tipe) {
+      setNextNomorMeja("")
+      return
+    }
+    try {
+      const result = await getNextNomorMeja(tipe as TipeMeja)
+      setNextNomorMeja(result as string)
+    } catch {
+      setNextNomorMeja("")
+    }
+  }
+
+  // Filter logic
+  const filteredMejas = useMemo(() => {
+    let result = mejas
+
+    if (search) {
+      const s = search.toLowerCase()
+      result = result.filter(m =>
+        m.nomorMeja.toLowerCase().includes(s)
+      )
+    }
+
+    if (filterTipe !== "all") {
+      result = result.filter(m => m.tipeMeja === filterTipe)
+    }
+
+    if (filterStatus !== "all") {
+      result = result.filter(m => m.statusMeja === filterStatus)
+    }
+
+    return result
+  }, [mejas, search, filterTipe, filterStatus])
+
+  // Pagination
+  const totalPages = Math.ceil(filteredMejas.length / ITEMS_PER_PAGE)
+  const paginatedMejas = filteredMejas.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
+  const openDialog = (meja?: Meja) => {
+    if (meja) {
+      setEditingMeja(meja)
+      setTipeMeja("")
+      setNextNomorMeja(meja.nomorMeja)
+      setKapasitas(meja.kapasitas.toString())
+    } else {
+      setEditingMeja(null)
+      setTipeMeja("")
+      setNextNomorMeja("")
+      setKapasitas("")
+    }
+    setIsOpen(true)
+  }
+
+  const handleTipeMejaChange = (value: string) => {
+    setTipeMeja(value)
+    loadNextNomorMeja(value)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+
+      try {
+        const formData = new FormData()
+        formData.set("kapasitas", kapasitas)
+
+        if (editingMeja) {
+          const result = await updateMeja(editingMeja.id, formData)
+          if ('error' in result && result.error) {
+            alert(result.error)
+            return
+          }
+        } else {
+          formData.set("tipeMeja", tipeMeja)
+          const result = await createMeja(null, formData)
+          if ('error' in result && result.error) {
+            alert(result.error)
+            return
+          }
+        }
+
+        setTipeMeja("")
+        setNextNomorMeja("")
+        setKapasitas("")
+        setEditingMeja(null)
+        setIsOpen(false)
+        loadData()
+      } finally {
+        setSubmitting(false)
+      }
+  }
+
+  function handleDeleteClick(id: number) {
+    setDeleteId(id)
+    setConfirmStep(1)
+  }
+
+  async function handleDeleteConfirm() {
+    if (confirmStep === 1) {
+      setConfirmStep(2)
+      return
+    }
+    
+    // Second confirmation - proceed with deletion
+    if (deleteId) {
+      const result = await deleteMeja(deleteId)
+      if ('error' in result && result.error) {
+        alert(result.error)
+        setDeleteId(null)
+        setConfirmStep(1)
+        return
+      }
+      setDeleteId(null)
+      setConfirmStep(1)
+      loadData()
+    }
+  }
+
+  function handleDeleteCancel() {
+    setDeleteId(null)
+    setConfirmStep(1)
+  }
+
+  const openQR = (meja: Meja) => {
     setSelectedMeja(meja)
     setIsQROpen(true)
   }
 
-  function handleDelete(id: number) {
-    alert(`Simulasi: Meja #${id} dihapus`)
+  const downloadQR = (meja: Meja | null) => {
+    if (!meja?.tokenMeja) return
+
+    const svgElement = document.getElementById('qr-code-svg')
+    if (!svgElement) return
+
+    const svgData = new XMLSerializer().serializeToString(svgElement)
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const img = new Image()
+    img.onload = () => {
+      canvas.width = img.width
+      canvas.height = img.height + 30
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0)
+
+      ctx.fillStyle = '#000000'
+      ctx.font = 'bold 14px Arial'
+      ctx.textAlign = 'center'
+      ctx.fillText(meja.nomorMeja, canvas.width / 2, canvas.height - 10)
+
+      const link = document.createElement('a')
+      link.download = `QR-${meja.nomorMeja}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    }
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData)
   }
 
+  if (loading) return <div className="p-8 text-center">Memuat...</div>
+  if (error) return <div className="p-8 text-center text-red-500">{error}</div>
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="p-3 space-y-2">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Kelola Meja</h1>
-        <Button onClick={() => setIsOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />Tambah Meja
+        <h1 className="text-lg font-bold">Kelola Meja</h1>
+      </div>
+
+      {/* Filters + Tambah Button */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Cari..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-8 w-[200px] text-sm px-3"
+        />
+        <Select value={filterTipe} onValueChange={setFilterTipe}>
+          <SelectTrigger className="h-8 w-[130px] text-sm">
+            <SelectValue placeholder="Tipe" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua</SelectItem>
+            <SelectItem value="lesehan">Lesehan</SelectItem>
+            <SelectItem value="kursi">Kursi</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="h-8 w-[130px] text-sm">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua</SelectItem>
+            <SelectItem value="kosong">Kosong</SelectItem>
+            <SelectItem value="terpakai">Terpakai</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button onClick={() => openDialog()} className="h-8 ml-auto">
+          <Plus className="w-4 h-4 mr-2" />
+          Tambah
         </Button>
       </div>
 
       <div className="bg-white rounded-lg border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>No</TableHead>
-              <TableHead>Nomor Meja</TableHead>
-              <TableHead>Kapasitas</TableHead>
-              <TableHead>QR Code</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+            <TableRow className="h-9">
+              <TableHead className="h-9">No</TableHead>
+              <TableHead className="h-9">Nomor</TableHead>
+              <TableHead className="h-9">Tipe</TableHead>
+              <TableHead className="h-9">Kapasitas</TableHead>
+              <TableHead className="h-9">QR</TableHead>
+              <TableHead className="h-9">Status</TableHead>
+              <TableHead className="h-9 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mejas.map((meja, index) => (
-              <TableRow key={meja.id}>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell className="font-medium">{meja.nomorMeja}</TableCell>
-                <TableCell>{meja.kapasitas} orang</TableCell>
-                <TableCell>
-                  <Button variant="outline" size="sm" onClick={() => openQR(meja)}>
-                    <QrCode className="w-4 h-4 mr-2" />Lihat QR
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  <Badge className={statusColors[meja.statusMeja]}>
-                    {meja.statusMeja === 'kosong' ? 'Kosong' : 'Terpakai'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="icon" onClick={() => setIsOpen(true)}><Pencil className="w-4 h-4" /></Button>
-                    <Button variant="destructive" size="icon" onClick={() => handleDelete(meja.id)}><Trash2 className="w-4 h-4" /></Button>
-                  </div>
+            {paginatedMejas.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-4">
+                  {search || filterTipe !== "all" || filterStatus !== "all"
+                    ? "Tidak ada meja yang sesuai filter"
+                    : "Belum ada meja"}
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              paginatedMejas.map((meja, index) => (
+                <TableRow key={meja.id} className="h-12">
+                  <TableCell className="py-2">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
+                  <TableCell className="font-medium py-2">{meja.nomorMeja}</TableCell>
+                  <TableCell className="py-2">
+                    <Badge variant="outline" className="text-xs">
+                      {tipeMejaLabels[meja.tipeMeja] || meja.tipeMeja}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="py-2">{meja.kapasitas} org</TableCell>
+                  <TableCell className="py-2">
+                    {meja.tokenMeja ? (
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => openQR(meja)}>
+                        <QrCode className="w-3 h-3 mr-1" />
+                        QR
+                      </Button>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <Badge className={`${statusColors[meja.statusMeja]} text-xs`}>
+                      {statusLabels[meja.statusMeja]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="py-2 text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(meja)}>
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                      <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(meja.id)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="w-3 h-3" />
+          </Button>
+          <span className="text-xs">
+            {currentPage}/{totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="w-3 h-3" />
+          </Button>
+        </div>
+      )}
 
       <Dialog open={isQROpen} onOpenChange={setIsQROpen}>
         <DialogContent className="max-w-sm text-center">
           <DialogHeader>
             <DialogTitle>QR Code - Meja {selectedMeja?.nomorMeja}</DialogTitle>
           </DialogHeader>
+
           <div className="py-4">
             <div className="inline-block bg-white p-4 rounded-lg border">
-              <div className="w-[200px] h-[200px] bg-gray-100 flex items-center justify-center mx-auto">
-                <p className="text-sm text-gray-500">QR Code: {selectedMeja?.tokenMeja}</p>
-              </div>
+              {selectedMeja?.tokenMeja && (
+                <QRCodeSVG
+                  id="qr-code-svg"
+                  value={`${window.location.origin}/${selectedMeja.tokenMeja}`}
+                  size={200}
+                  level="H"
+                  includeMargin
+                />
+              )}
             </div>
-            <p className="text-sm text-gray-500 mt-2">Simulasi QR Code (qrcode.react belum diinstall)</p>
+            <p className="text-sm text-gray-500 mt-4">
+              Scan QR ini untuk mengakses menu
+            </p>
           </div>
+
+          <DialogFooter className="justify-center">
+            <Button onClick={() => downloadQR(selectedMeja)}>
+              Download QR
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tambah Meja Baru</DialogTitle>
+            <DialogTitle>
+              {editingMeja ? "Edit Meja" : "Tambah Meja Baru"}
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="nomorMeja">Nomor Meja</Label>
-              <Input id="nomorMeja" placeholder="Contoh: A1" />
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-2 py-2">
+              {!editingMeja && (
+                <>
+                  <div className="grid gap-1">
+                    <Label htmlFor="tipeMeja" className="text-xs">Tipe Meja</Label>
+                    <Select value={tipeMeja} onValueChange={handleTipeMejaChange}>
+                      <SelectTrigger id="tipeMeja" className="h-7 text-xs">
+                        <SelectValue placeholder="Pilih tipe" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lesehan">Lesehan (L)</SelectItem>
+                        <SelectItem value="kursi">Kursi (K)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {tipeMeja && (
+                    <div className="grid gap-1">
+                      <Label className="text-xs">Nomor (Otomatis)</Label>
+                      <div className="p-1 bg-gray-100 rounded border text-center text-xs font-medium">
+                        {nextNomorMeja || "Pilih tipe"}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="grid gap-1">
+                <Label htmlFor="kapasitas" className="text-xs">Kapasitas</Label>
+                <Input
+                  id="kapasitas"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={kapasitas}
+                  onChange={(e) => setKapasitas(e.target.value)}
+                  placeholder="Jumlah"
+                  className="h-7 text-xs"
+                  required
+                />
+              </div>
+
+              {!editingMeja && (
+                <p className="text-xs text-gray-500">
+                  Token & QR otomatis
+                </p>
+              )}
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="kapasitas">Kapasitas</Label>
-              <Input id="kapasitas" type="number" placeholder="Jumlah kursi" />
-            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsOpen(false)
+                  setTipeMeja("")
+                  setNextNomorMeja("")
+                  setKapasitas("")
+                  setEditingMeja(null)
+                }}
+              >
+                Batal
+              </Button>
+              <Button type="submit" disabled={submitting || (!editingMeja && !tipeMeja)}>
+                {submitting ? "Menyimpan..." : "Simpan"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteId !== null} onOpenChange={() => handleDeleteCancel()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmStep === 1 ? 'Konfirmasi Hapus Meja' : 'PERHATIAN: Hapus Permanen'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {confirmStep === 1 ? (
+              <p className="text-sm text-gray-600">
+                Apakah Anda yakin ingin menghapus meja ini? Meja yang sudah dipasang permanen akan dihapus beserta semua data pesanan.
+              </p>
+            ) : (
+              <p className="text-sm text-red-600 font-semibold">
+                Meja ini sudah dipasang permanen! Menghapus akan menghapus semua data pesanan terkait. 
+                Klik `Hapus Permanen` untuk konfirmasi kedua.
+              </p>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>Batal</Button>
-            <Button onClick={() => { alert('Simulasi: Meja ditambahkan'); setIsOpen(false) }}>Simpan</Button>
+            <Button variant="outline" onClick={handleDeleteCancel} className="h-7 text-xs">
+              Batal
+            </Button>
+            <Button 
+              variant={confirmStep === 1 ? 'destructive' : 'destructive'} 
+              onClick={handleDeleteConfirm}
+              className="h-7 text-xs"
+            >
+              {confirmStep === 1 ? 'Lanjut' : 'Hapus Permanen'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

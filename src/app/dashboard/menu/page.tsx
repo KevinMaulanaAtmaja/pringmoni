@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ImageIcon, X, Upload } from 'lucide-react';
 import {
   getMenus,
   getKategoriMenus,
@@ -35,7 +36,14 @@ import {
   updateMenu,
   deleteMenu,
   MenuWithKategori,
+  createKategori,
+  updateKategori,
+  deleteKategori,
 } from '@/app/actions/menu';
+
+type ActionResult = { success: boolean } | { error: string };
+import { saveMenuFotoUrls, deleteMenuFoto, getMenuFotos, deleteAllMenuFotos } from '@/app/actions/menu-foto';
+import { UploadButton } from '@/lib/uploadthing-client';
 import { KategoriMenu, StatusMenu } from '@prisma/client';
 
 const statusColors: Record<StatusMenu, string> = {
@@ -49,6 +57,8 @@ const statusLabels: Record<StatusMenu, string> = {
   habis: 'Habis',
   nonaktif: 'Nonaktif',
 };
+
+const ITEMS_PER_PAGE = 5;
 
 export default function MenuPage() {
   const [menus, setMenus] = useState<MenuWithKategori[]>([]);
@@ -64,12 +74,50 @@ export default function MenuPage() {
     statusMenu: 'tersedia' as StatusMenu,
   });
   const [submitting, setSubmitting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 5;
+  const [error, setError] = useState<string | null>(null);
 
+  // Category states
+  const [isKategoriOpen, setIsKategoriOpen] = useState(false);
+  const [editingKategori, setEditingKategori] = useState<KategoriMenu | null>(null);
+  const [kategoriForm, setKategoriForm] = useState({ namaKategori: '' });
+  const [deleteKategoriId, setDeleteKategoriId] = useState<number | null>(null);
+  const [deleteKategoriName, setDeleteKategoriName] = useState('');
+  const [isDeleteKategoriOpen, setIsDeleteKategoriOpen] = useState(false);
+
+  // Filter states
+  const [search, setSearch] = useState('');
+  const [filterKategori, setFilterKategori] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Photo states
+  const [uploadedFotoUrls, setUploadedFotoUrls] = useState<string[]>([]);
+  const [uploadedFileKeys, setUploadedFileKeys] = useState<string[]>([]);
+  const [existingFotos, setExistingFotos] = useState<{ id: number; fotoUrl: string; fileKey: string | null }[]>([]);
+  const [deleteFotoId, setDeleteFotoId] = useState<number | null>(null);
+  const [deleteFotoUrl, setDeleteFotoUrl] = useState<string>('');
+  const [isDeleteFotoOpen, setIsDeleteFotoOpen] = useState(false);
+  const totalPhotos = existingFotos.length + uploadedFotoUrls.length;
+  
+  // Menu name states
+  const [duplicateWarning, setDuplicateWarning] = useState('');
   useEffect(() => {
     loadData();
   }, []);
+
+  const loadKategoris = async () => {
+    try {
+      const result = await getKategoriMenus();
+      setKategoris(result);
+    } catch {
+      // Handle error
+    }
+  };
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterKategori, filterStatus]);
 
   async function loadData() {
     setLoading(true);
@@ -84,7 +132,6 @@ export default function MenuPage() {
       setMenus([]);
       setKategoris([]);
     } finally {
-      setCurrentPage(1);
       setLoading(false);
     }
   }
@@ -99,6 +146,8 @@ export default function MenuPage() {
         kategoriId: menu.kategoriId.toString(),
         statusMenu: menu.statusMenu,
       });
+      // Load existing photos
+      loadMenuFotos(menu.id);
     } else {
       setEditingId(null);
       setForm({
@@ -108,8 +157,44 @@ export default function MenuPage() {
         kategoriId: kategoris[0]?.id.toString() || '',
         statusMenu: 'tersedia',
       });
+      setExistingFotos([]);
     }
+    setDuplicateWarning('');
+    setUploadedFotoUrls([]);
+    setUploadedFileKeys([]);
     setIsOpen(true);
+  }
+
+  
+
+  async function loadMenuFotos(menuId: number) {
+    try {
+      const fotos = await getMenuFotos(menuId);
+      setExistingFotos(fotos as { id: number; fotoUrl: string; fileKey: string | null }[]);
+    } catch {
+      setExistingFotos([]);
+    }
+  }
+
+  function handleDeleteFoto(fotoId: number, fotoUrl: string) {
+    setDeleteFotoId(fotoId);
+    setDeleteFotoUrl(fotoUrl);
+    setIsDeleteFotoOpen(true);
+  }
+
+  async function confirmDeleteFoto() {
+    if (!deleteFotoId) return;
+    try {
+      await deleteMenuFoto(deleteFotoId);
+      if (editingId) {
+        loadMenuFotos(editingId);
+      }
+      setIsDeleteFotoOpen(false);
+      setDeleteFotoId(null);
+      setDeleteFotoUrl('');
+    } catch {
+      alert('Gagal menghapus foto');
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -123,11 +208,48 @@ export default function MenuPage() {
         kategoriId: parseInt(form.kategoriId),
         statusMenu: form.statusMenu,
       };
-      if (editingId) {
-        await updateMenu({ id: editingId, ...data });
-      } else {
-        await createMenu(data);
+
+      // Validation
+      if (!data.namaMenu?.trim()) {
+        alert('Nama menu wajib diisi');
+        setSubmitting(false);
+        return;
       }
+      if (data.harga <= 0) {
+        alert('Harga harus lebih dari 0');
+        setSubmitting(false);
+        return;
+      }
+
+      let menuId = editingId;
+
+      if (editingId) {
+        const result = await updateMenu({ id: editingId, ...data });
+        if ('error' in result && result.error) {
+          alert(result.error);
+          setSubmitting(false);
+          return;
+        }
+        
+        // Add new photos without deleting old ones
+        if (uploadedFotoUrls.length > 0) {
+          await saveMenuFotoUrls(editingId, uploadedFotoUrls, uploadedFileKeys);
+        }
+      } else {
+        const result = await createMenu(data);
+        if ('error' in result && result.error) {
+          alert(result.error);
+          setSubmitting(false);
+          return;
+        }
+        menuId = (result as { id: number }).id;
+        
+        // Save uploaded photo URLs if any (from UploadThing)
+        if (uploadedFotoUrls.length > 0 && menuId) {
+          await saveMenuFotoUrls(menuId, uploadedFotoUrls, uploadedFileKeys);
+        }
+      }
+
       setIsOpen(false);
       loadData();
     } finally {
@@ -136,10 +258,70 @@ export default function MenuPage() {
   }
 
   async function handleDelete(id: number) {
-    if (confirm('Yakin hapus menu ini?')) {
-      await deleteMenu(id);
-      loadData();
+    if (!confirm('Yakin hapus menu ini?')) return;
+    if (!confirm('Menu akan dihapus. Lanjut?')) return;
+    
+    const result = await deleteMenu(id);
+    if ('error' in result && result.error) {
+      alert(result.error);
+      return;
     }
+    loadData();
+  }
+
+  // Category handlers
+  function openKategoriDialog(kategori?: KategoriMenu) {
+    if (kategori) {
+      setEditingKategori(kategori);
+      setKategoriForm({ namaKategori: kategori.namaKategori });
+    } else {
+      setEditingKategori(null);
+      setKategoriForm({ namaKategori: '' });
+    }
+    setIsKategoriOpen(true);
+  }
+
+  async function handleKategoriSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      if (editingKategori) {
+                   const result = await updateKategori(editingKategori.id, kategoriForm) as ActionResult;
+        if ('error' in result && result.error) {
+          setError(result.error);
+          return;
+        }
+      } else {
+        const result = await createKategori(kategoriForm) as ActionResult;
+        if ('error' in result && result.error) {
+          setError(result.error);
+          return;
+        }
+      }
+      setIsKategoriOpen(false);
+      loadData();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleDeleteKategori(id: number, name: string) {
+    setDeleteKategoriId(id);
+    setDeleteKategoriName(name);
+    setIsDeleteKategoriOpen(true);
+  }
+
+  async function confirmDeleteKategori() {
+    if (!deleteKategoriId) return;
+    const result = await deleteKategori(deleteKategoriId);
+    if ('error' in result && result.error) {
+      alert(result.error);
+      return;
+    }
+    setIsDeleteKategoriOpen(false);
+    setDeleteKategoriId(null);
+    setDeleteKategoriName('');
+    loadData();
   }
 
   function formatHarga(harga: number) {
@@ -150,83 +332,169 @@ export default function MenuPage() {
     }).format(harga);
   }
 
-  const totalPages = Math.ceil(menus.length / ITEMS_PER_PAGE);
-  const paginatedMenus = menus.slice(
+  // Filter logic
+  const filteredMenus = useMemo(() => {
+    let result = menus;
+
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(m =>
+        m.namaMenu.toLowerCase().includes(s) ||
+        (m.deskripsi && m.deskripsi.toLowerCase().includes(s))
+      );
+    }
+
+    if (filterKategori !== 'all') {
+      result = result.filter(m => m.kategoriId === parseInt(filterKategori));
+    }
+
+    if (filterStatus !== 'all') {
+      result = result.filter(m => m.statusMenu === filterStatus);
+    }
+
+    return result;
+  }, [menus, search, filterKategori, filterStatus]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredMenus.length / ITEMS_PER_PAGE);
+  const paginatedMenus = filteredMenus.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Kelola Menu</h1>
-        <Button onClick={() => openDialog()}>
+    <div className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-bold">Kelola Menu</h1>
+      </div>
+
+      {/* Filters + Tambah Button */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Cari..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-8 w-[200px] text-sm px-3"
+        />
+        <Select value={filterKategori} onValueChange={setFilterKategori}>
+          <SelectTrigger className="h-8 w-[130px] text-sm">
+            <SelectValue placeholder="Kategori" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua</SelectItem>
+            {kategoris.map((kat) => (
+              <SelectItem key={kat.id} value={kat.id.toString()}>
+                {kat.namaKategori}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="h-8 w-[130px] text-sm">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua</SelectItem>
+            <SelectItem value="tersedia">Tersedia</SelectItem>
+            <SelectItem value="habis">Habis</SelectItem>
+            <SelectItem value="nonaktif">Nonaktif</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button onClick={() => openDialog()} className="h-8 ml-auto">
           <Plus className="w-4 h-4 mr-2" />
           Tambah Menu
+        </Button>
+        <Button onClick={() => openKategoriDialog()} variant="outline" className="h-8">
+          <Plus className="w-4 h-4 mr-2" />
+          Tambah Kategori
         </Button>
       </div>
 
       <div className="bg-white rounded-lg border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>No</TableHead>
-              <TableHead>Nama Menu</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Harga</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+            <TableRow className="h-9">
+              <TableHead className="h-9">No</TableHead>
+              <TableHead className="h-9">Foto</TableHead>
+              <TableHead className="h-9">Menu</TableHead>
+              <TableHead className="h-9">Kategori</TableHead>
+              <TableHead className="h-9">Harga</TableHead>
+              <TableHead className="h-9">Status</TableHead>
+              <TableHead className="h-9 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-4">
                   Memuat...
                 </TableCell>
               </TableRow>
             ) : paginatedMenus.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  Belum ada menu
+                <TableCell colSpan={7} className="text-center py-4">
+                  {search || filterKategori !== 'all' || filterStatus !== 'all'
+                    ? 'Tidak ada menu yang sesuai filter'
+                    : 'Belum ada menu'}
                 </TableCell>
               </TableRow>
             ) : (
               paginatedMenus.map((menu, index) => (
-                <TableRow key={menu.id}>
-                  <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
-                  <TableCell>
+                <TableRow key={menu.id} className="h-12">
+                  <TableCell className="py-2">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</TableCell>
+                  <TableCell className="py-2">
+                    {menu.fotoUrl ? (
+                      <div className="flex gap-1 overflow-x-auto max-w-[120px]">
+                        <img 
+                          src={menu.fotoUrl} 
+                          alt={menu.namaMenu}
+                          className="w-10 h-10 object-cover rounded flex-shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFRUVGRUUiIHJ4PSI0Ii8+PHBhdGggZD0iTTE2IDMwTDI0IDMwTTIwIDI2TDIwIDM0TTIwIDI2QzE3Ljc5IDE2IDE2IDE2IDE2IDE2QzE2IDE2IDE0IDE4IDE0IDIwQzE0IDIyIDE2IDI0IDIwIDI2Wk0yNiAyMEMyNiAxOCAyNCAxNiAyNCAxNkMyNCAxNiAyMiAxOCAyMiAyMEMyMiAyMiAyNCAyNCAyNiAyNloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==';
+                          }}
+                        />
+                        {menu.fotoUrls?.slice(1).map((url, idx) => (
+                          <img 
+                            key={idx}
+                            src={url} 
+                            alt={`${menu.namaMenu} ${idx + 2}`}
+                            className="w-10 h-10 object-cover rounded flex-shrink-0"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFRUVGRUUiIHJ4PSI0Ii8+PHBhdGggZD0iTTE2IDMwTDI0IDMwTTIwIDI2TDIwIDM0TTIwIDI2QzE3Ljc5IDE2IDE2IDE2IDE2IDE2QzE2IDE2IDE0IDE4IDE0IDIwQzE0IDIyIDE2IDI0IDIwIDI2Wk0yNiAyMEMyNiAxOCAyNCAxNiAyNCAxNkMyNCAxNiAyMiAxOCAyMiAyMEMyMiAyMiAyNCAyNCAyNiAyNloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==';
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                        <ImageIcon className="w-4 h-4 text-gray-400" />
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-2">
                     <div className="max-w-xs">
-                      <p className="font-medium truncate">{menu.namaMenu}</p>
+                      <p className="font-medium text-sm truncate">{menu.namaMenu}</p>
                       {menu.deskripsi && (
-                        <p className="text-sm text-gray-500 truncate" title={menu.deskripsi}>
+                        <p className="text-xs text-gray-500 truncate" title={menu.deskripsi}>
                           {menu.deskripsi}
                         </p>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{menu.kategori.namaKategori}</TableCell>
-                  <TableCell>{formatHarga(menu.harga)}</TableCell>
-                  <TableCell>
-                    <Badge className={statusColors[menu.statusMenu]}>
+                  <TableCell className="py-2 text-sm">{menu.kategori.namaKategori}</TableCell>
+                  <TableCell className="py-2 text-sm">{formatHarga(menu.harga)}</TableCell>
+                  <TableCell className="py-2">
+                    <Badge className={`${statusColors[menu.statusMenu]} text-xs`}>
                       {statusLabels[menu.statusMenu]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => openDialog(menu)}
-                      >
-                        <Pencil className="w-4 h-4" />
+                  <TableCell className="py-2 text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(menu)}>
+                        <Pencil className="w-3 h-3" />
                       </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleDelete(menu.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
+                      <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDelete(menu.id)}>
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
                   </TableCell>
@@ -237,82 +505,106 @@ export default function MenuPage() {
         </Table>
       </div>
 
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-4">
+        <div className="flex items-center justify-center gap-2">
           <Button
             variant="outline"
-            size="icon"
+            size="sm"
+            className="h-7 w-7 p-0"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-3 h-3" />
           </Button>
-          <span className="text-sm">
-            Halaman {currentPage} dari {totalPages}
+          <span className="text-xs">
+            {currentPage}/{totalPages}
           </span>
           <Button
             variant="outline"
-            size="icon"
+            size="sm"
+            className="h-7 w-7 p-0"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-3 h-3" />
           </Button>
         </div>
       )}
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingId ? 'Edit Menu' : 'Tambah Menu Baru'}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="namaMenu">Nama Menu</Label>
-                <Input
-                  id="namaMenu"
-                  value={form.namaMenu}
-                  onChange={(e) =>
-                    setForm({ ...form, namaMenu: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="deskripsi">Deskripsi</Label>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingId ? 'Edit Menu' : 'Tambah Menu Baru'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                {editingId ? 'Ubah detail menu dan foto' : 'Tambah menu baru dengan foto'}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit}>
+              <div className="grid gap-2 py-2">
+                <div className="grid gap-1">
+                  <Label htmlFor="namaMenu" className="text-xs">Nama Menu</Label>
+                  <Input
+                    id="namaMenu"
+                    value={form.namaMenu}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setForm({ ...form, namaMenu: value });
+                      // Check duplicate
+                      if (value && !editingId) {
+                        const duplicate = menus.find(m => 
+                          m.namaMenu.toLowerCase() === value.toLowerCase() && 
+                          m.deletedAt === null
+                        );
+                        setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
+                      } else if (editingId && value) {
+                        const duplicate = menus.find(m => 
+                          m.namaMenu.toLowerCase() === value.toLowerCase() && 
+                          m.id !== editingId && 
+                          m.deletedAt === null
+                        );
+                        setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
+                      } else {
+                        setDuplicateWarning('');
+                      }
+                    }}
+                    className={`h-7 text-xs ${duplicateWarning ? 'border-red-500' : ''}`}
+                    required
+                  />
+                  {duplicateWarning && (
+                    <p className="text-xs text-red-500 mt-1">{duplicateWarning}</p>
+                  )}
+                </div>
+              <div className="grid gap-1">
+                <Label htmlFor="deskripsi" className="text-xs">Deskripsi</Label>
                 <Input
                   id="deskripsi"
                   value={form.deskripsi}
-                  onChange={(e) =>
-                    setForm({ ...form, deskripsi: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
+                  className="h-7 text-xs"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="harga">Harga</Label>
+              <div className="grid gap-1">
+                <Label htmlFor="harga" className="text-xs">Harga</Label>
                 <Input
                   id="harga"
                   type="number"
                   min="0"
                   value={form.harga}
-                  onChange={(e) =>
-                    setForm({ ...form, harga: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, harga: e.target.value })}
+                  className="h-7 text-xs"
                   required
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="kategoriId">Kategori</Label>
+              <div className="grid gap-1">
+                <Label htmlFor="kategoriId" className="text-xs">Kategori</Label>
                 <Select
                   value={form.kategoriId}
-                  onValueChange={(value) =>
-                    setForm({ ...form, kategoriId: value })
-                  }
+                  onValueChange={(value) => setForm({ ...form, kategoriId: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs">
                     <SelectValue placeholder="Pilih kategori" />
                   </SelectTrigger>
                   <SelectContent>
@@ -324,15 +616,13 @@ export default function MenuPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="statusMenu">Status</Label>
+              <div className="grid gap-1">
+                <Label htmlFor="statusMenu" className="text-xs">Status</Label>
                 <Select
                   value={form.statusMenu}
-                  onValueChange={(value) =>
-                    setForm({ ...form, statusMenu: value as StatusMenu })
-                  }
+                  onValueChange={(value) => setForm({ ...form, statusMenu: value as StatusMenu })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -342,22 +632,241 @@ export default function MenuPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+                {/* Photo Upload Section */}
+                <div className="grid gap-2">
+                  <Label className="text-xs font-medium">Foto Menu</Label>
+                  
+                  {/* Existing Photos */}
+                  {existingFotos.length > 0 && (
+                    <div className="flex gap-2 mb-2 overflow-x-auto pb-2 max-w-full">
+                      {existingFotos.map((foto) => (
+                        <div key={foto.id} className="relative group flex-shrink-0">
+                          <img 
+                            src={foto.fotoUrl} 
+                            alt="Menu" 
+                            className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" 
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFoto(foto.id, foto.fotoUrl)}
+                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Newly Uploaded Photos Preview */}
+                  {uploadedFotoUrls.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {uploadedFotoUrls.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <img 
+                            src={url} 
+                            alt="Preview" 
+                            className="w-20 h-20 object-cover rounded-lg border-2 border-blue-200" 
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUploadedFotoUrls(prev => prev.filter((_, i) => i !== index));
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* UploadThing Upload Button */}
+                  <div className="flex items-center gap-2">
+                    <UploadButton
+                      endpoint="menuFoto"
+                      appearance={{
+                        button: {
+                          background: "transparent",
+                          padding: "0",
+                          width: "32px",
+                          height: "32px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        },
+                        allowedContent: { display: "none" },
+                        container: { display: "flex", alignItems: "center" },
+                      }}
+                      content={{
+                        button({ ready }: { ready: boolean }) {
+                          return ready ? (
+                            <Upload className="w-5 h-5 text-blue-600 hover:text-blue-800" />
+                          ) : (
+                            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                          );
+                        },
+                      }}
+                      onClientUploadComplete={(res: { url: string; key: string }[]) => {
+                        if (res) {
+                          const urls = res.map((file) => file.url);
+                          const keys = res.map((file) => file.key);
+                          setUploadedFotoUrls(prev => {
+                            const total = [...prev, ...urls];
+                            return total.slice(0, 5);
+                          });
+                          setUploadedFileKeys(prev => {
+                            const total = [...prev, ...keys];
+                            return total.slice(0, 5);
+                          });
+                        }
+                      }}
+                      disabled={totalPhotos >= 5}
+                      onUploadError={(error: Error) => {
+                        alert('Gagal upload: ' + error.message);
+                      }}
+                    />
+                    <p className="text-xs text-gray-500">
+                      📷 Maksimal 5 foto. Setiap file maksimal 4MB.
+                    </p>
+                  </div>
+                </div>
             </div>
             <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsOpen(false)}
+                className="h-7 text-xs"
               >
                 Batal
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="h-7 text-xs">
                 {submitting ? 'Menyimpan...' : 'Simpan'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+
+       {/* Category Dialog */}
+       <Dialog open={isKategoriOpen} onOpenChange={(open) => {
+         setIsKategoriOpen(open);
+         if (!open) {
+           setEditingKategori(null);
+           setKategoriForm({ namaKategori: '' });
+           setError(null);
+         }
+       }}>
+         <DialogContent className="max-w-md">
+           <DialogHeader>
+             <DialogTitle>Kelola Kategori Menu</DialogTitle>
+           </DialogHeader>
+           
+           {/* Daftar Kategori */}
+           <div className="max-h-48 overflow-y-auto space-y-2 my-3">
+             {kategoris.length === 0 ? (
+               <p className="text-center text-sm text-gray-500 py-4">Belum ada kategori</p>
+             ) : (
+               kategoris.map((kat) => (
+                 <div key={kat.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                   <span className="text-sm font-medium">{kat.namaKategori}</span>
+                   <div className="flex gap-1">
+                     <Button
+                       type="button"
+                       variant="ghost"
+                       size="sm"
+                       className="h-7 w-7 p-0"
+                       onClick={() => openKategoriDialog(kat)}
+                     >
+                       <Pencil className="w-3 h-3" />
+                     </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                        onClick={() => handleDeleteKategori(kat.id, kat.namaKategori)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                   </div>
+                 </div>
+               ))
+             )}
+           </div>
+
+           {/* Form Tambah/Edit */}
+           <form onSubmit={handleKategoriSubmit}>
+             <div className="grid gap-2 py-2 border-t pt-3">
+               <Label htmlFor="namaKategori" className="text-xs">
+                 {editingKategori ? 'Edit Kategori' : 'Tambah Kategori Baru'}
+               </Label>
+               <div className="flex gap-2">
+                 <Input
+                   id="namaKategori"
+                   value={kategoriForm.namaKategori}
+                   onChange={(e) => setKategoriForm({ namaKategori: e.target.value })}
+                   placeholder="Nama kategori..."
+                   className="h-8 text-xs"
+                   required
+                 />
+                 <Button type="submit" disabled={submitting} className="h-8">
+                   {submitting ? '...' : (editingKategori ? 'Update' : 'Tambah')}
+                 </Button>
+               </div>
+               {error && (
+                 <p className="text-xs text-red-500">{error}</p>
+               )}
+             </div>
+           </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Foto Dialog */}
+        <Dialog open={isDeleteFotoOpen} onOpenChange={setIsDeleteFotoOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Konfirmasi Hapus Foto</DialogTitle>
+              <DialogDescription className="text-sm text-gray-500">
+                Yakin ingin menghapus foto ini? Tindakan ini tidak dapat dibatalkan.
+              </DialogDescription>
+            </DialogHeader>
+            {deleteFotoUrl && (
+              <img src={deleteFotoUrl} alt="Preview" className="w-full max-h-48 object-contain rounded-lg my-2" />
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteFotoOpen(false)}>
+                Batal
+              </Button>
+              <Button variant="destructive" onClick={confirmDeleteFoto}>
+                Hapus
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Kategori Dialog */}
+        <Dialog open={isDeleteKategoriOpen} onOpenChange={setIsDeleteKategoriOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Konfirmasi Hapus Kategori</DialogTitle>
+              <DialogDescription className="text-sm text-gray-500">
+                Yakin ingin menghapus kategori `{deleteKategoriName}`? Menu dengan kategori ini akan tersisa.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteKategoriOpen(false)}>
+                Batal
+              </Button>
+              <Button variant="destructive" onClick={confirmDeleteKategori}>
+                Hapus
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+     </div>
   );
 }

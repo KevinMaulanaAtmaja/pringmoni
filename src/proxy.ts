@@ -6,6 +6,7 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const session = await auth()
   const isLoggedIn = !!session?.user
+  const userRole = session?.user?.role
 
   // Public routes: home, login, reset-password, customer routes (token meja)
   const isPublicRoute = 

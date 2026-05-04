@@ -1,173 +1,230 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ChevronDown, ChevronUp } from "lucide-react"
-import { StatusPesanan } from "@/types"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Card, CardContent } from "@/components/ui/card"
+import { getPesananForDashboard, getMeja } from "@/app/actions/pesanan"
+import { getMeja as getMejaList } from "@/app/actions/meja"
+import type { Meja } from "@/types"
+import { Eye, Filter, RotateCcw } from "lucide-react"
+import Link from "next/link"
 
-// Sync with @/types/index.ts
-// StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan'
-
-const statusColors: Record<StatusPesanan, string> = {
+const statusColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
   diproses: "bg-blue-100 text-blue-800",
   selesai: "bg-green-100 text-green-800",
   dibatalkan: "bg-red-100 text-red-800",
 }
 
-const statusLabels: Record<StatusPesanan, string> = {
-  menunggu: "Menunggu",
-  diproses: "Diproses",
-  selesai: "Selesai",
-  dibatalkan: "Dibatalkan",
+const statusBayarColors: Record<string, string> = {
+  menunggu: "bg-yellow-100 text-yellow-800",
+  berhasil: "bg-green-100 text-green-800",
+  dibatalkan: "bg-red-100 text-red-800",
 }
 
-// Sync with @/types/index.ts
-// StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan'
-
-const mockPesananList = [
-  {
-    id: 1,
-    mejaId: 1,
-    waiterId: 1,
-    kasirId: null,
-    statusPesanan: 'menunggu' as StatusPesanan,
-    catatan: 'Tidak pedas',
-    totalHarga: 75000,
-    metodePembayaran: null,
-    jumlahBayar: null,
-    kembalian: 0,
-    statusPembayaran: 'menunggu',
-    createdAt: new Date(),
-    updatedAt: null,
-    deletedAt: null,
-    meja: { id: 1, nomorMeja: 'A1', kapasitas: 4, tokenMeja: 'ABC123' },
-    waiter: { id: 1, username: 'waiter1' },
-    kasir: null,
-    detailPesanan: [
-      { id: 1, menuId: 1, pesananId: 1, jumlah: 2, hargaSaatPesan: 25000, catatanItem: null, menu: { id: 1, namaMenu: 'Nasi Gudeg' } },
-      { id: 2, menuId: 2, pesananId: 1, jumlah: 1, hargaSaatPesan: 25000, catatanItem: 'Kurang es', menu: { id: 2, namaMenu: 'Es Teh Manis' } },
-    ],
-  },
-  {
-    id: 2,
-    mejaId: 2,
-    waiterId: 1,
-    kasirId: null,
-    statusPesanan: 'diproses' as StatusPesanan,
-    catatan: null,
-    totalHarga: 50000,
-    metodePembayaran: null,
-    jumlahBayar: null,
-    kembalian: 0,
-    statusPembayaran: 'menunggu',
-    createdAt: new Date(),
-    updatedAt: null,
-    deletedAt: null,
-    meja: { id: 2, nomorMeja: 'B2', kapasitas: 2, tokenMeja: 'DEF456' },
-    waiter: { id: 1, username: 'waiter1' },
-    kasir: null,
-    detailPesanan: [
-      { id: 3, menuId: 3, pesananId: 2, jumlah: 2, hargaSaatPesan: 25000, catatanItem: null, menu: { id: 3, namaMenu: 'Ayam Bakar' } },
-    ],
-  },
-]
-
 export default function PesananPage() {
-  const pageTitle = <h1 className="text-2xl font-bold">Daftar Pesanan</h1>
-  const role = 'waiter' as string // TODO: Ambil dari session BE nanti
-  const isOwner = role === 'owner'
-  const [pesananList] = useState(mockPesananList)
-  const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [itemStatus, setItemStatus] = useState<Record<number, Record<number, boolean>>>({})
-  const [filterStatus, setFilterStatus] = useState<string>("semua")
+  const [pesanan, setPesanan] = useState<any[]>([])
+  const [mejas, setMejas] = useState<Meja[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [filterTanggal, setFilterTanggal] = useState<string>("")
+  const [filterMejaId, setFilterMejaId] = useState<string>("")
 
-  function toggleItem(pesananId: number, detailId: number) {
-    setItemStatus((prev) => ({
-      ...prev,
-      [pesananId]: { ...prev[pesananId], [detailId]: !(prev[pesananId]?.[detailId] ?? false) },
-    }))
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const [pesananResult, mejaResult] = await Promise.all([
+        getPesananForDashboard({
+          status: filterStatus !== 'all' ? filterStatus : undefined,
+          tanggal: filterTanggal || undefined,
+          mejaId: filterMejaId ? parseInt(filterMejaId) : undefined,
+        }),
+        getMejaList()
+      ])
+
+      if ('error' in pesananResult) {
+        setError(pesananResult.error as string)
+      } else {
+        setPesanan(pesananResult as any[])
+      }
+
+      if (!('error' in mejaResult)) {
+        setMejas(mejaResult as Meja[])
+      }
+    } catch {
+      setError("Gagal memuat data")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function formatHarga(harga: number) {
-    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(harga)
+  useEffect(() => {
+    fetchData()
+  }, [filterStatus, filterTanggal, filterMejaId])
+
+  const resetFilter = () => {
+    setFilterStatus("all")
+    setFilterTanggal("")
+    setFilterMejaId("")
   }
 
-  function handleStatusChange(id: number, status: string) {
-    alert(`Simulasi: Pesanan #${id} status diubah ke ${status}`)
-  }
-
-  const filteredPesanan = filterStatus === "semua" ? pesananList : pesananList.filter((p) => p.statusPesanan === filterStatus as StatusPesanan)
+  if (loading) return <div className="p-8 text-center">Memuat...</div>
+  if (error) return <div className="p-8 text-center text-red-500">{error}</div>
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {pageTitle}
-
-      <div className="flex gap-2 flex-wrap">
-          {["semua", "menunggu", "diproses", "selesai", "dibatalkan"].map((status) => (
-          <Button key={status} variant={filterStatus === status ? "default" : "outline"} size="sm" onClick={() => setFilterStatus(status)}>
-            {status === "semua" ? `Semua (${pesananList.length})` : `${statusLabels[status as StatusPesanan]} (${(pesananList as Array<{statusPesanan: StatusPesanan}>).filter((p) => p.statusPesanan === status).length})`}
-          </Button>
-        ))}
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Kelola Pesanan</h1>
+        <Button onClick={fetchData} variant="outline" size="sm">
+          <RotateCcw className="w-4 h-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filteredPesanan.map((pesanan) => {
-          const isExpanded = expandedId === pesanan.id
-          return (
-            <Card key={pesanan.id} className={`border-l-4 ${pesanan.statusPesanan === 'dibatalkan' ? 'border-l-red-500' : pesanan.statusPesanan === 'selesai' ? 'border-l-green-500' : pesanan.statusPesanan === 'diproses' ? 'border-l-blue-500' : 'border-l-yellow-500'}`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Meja {pesanan.meja.nomorMeja}</CardTitle>
-                    <p className="text-sm text-gray-500">{new Date(pesanan.createdAt).toLocaleString()}</p>
-                  </div>
-                  <Badge className={statusColors[pesanan.statusPesanan as StatusPesanan]}>{statusLabels[pesanan.statusPesanan as StatusPesanan]}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">{pesanan.detailPesanan.length} item</span>
-                    <span className="font-semibold">{formatHarga(pesanan.totalHarga)}</span>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full" onClick={() => setExpandedId(isExpanded ? null : pesanan.id)}>
-                    {isExpanded ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
-                    {isExpanded ? "Sembunyikan" : "Lihat Detail"}
-                  </Button>
-                  {isExpanded && (
-                    <div className="border-t pt-3">
-                      {pesanan.detailPesanan.map((item) => (
-                        <div key={item.id} className="flex items-start gap-3 p-2 bg-gray-50 rounded-lg mb-2">
-                          <Checkbox
-                            checked={itemStatus[pesanan.id]?.[item.id] || false}
-                            onCheckedChange={(checked) => {
-                              if (typeof checked === 'boolean') {
-                                toggleItem(pesanan.id, item.id)
-                              }
-                            }}
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{item.menu.namaMenu}</p>
-                            <p className="text-xs text-gray-500">{item.jumlah}x {formatHarga(item.hargaSaatPesan)}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {!isOwner && pesanan.statusPesanan !== 'dibatalkan' && (
-                    <Button size="sm" className="w-full" onClick={() => handleStatusChange(pesanan.id, pesanan.statusPesanan === 'menunggu' ? 'diproses' : 'selesai')}>
-                      {pesanan.statusPesanan === 'menunggu' ? 'Proses' : 'Selesai'}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid gap-2">
+              <Label>Status Pesanan</Label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Semua Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="menunggu">Menunggu</SelectItem>
+                  <SelectItem value="diproses">Diproses</SelectItem>
+                  <SelectItem value="selesai">Selesai</SelectItem>
+                  <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Tanggal</Label>
+              <Input 
+                type="date" 
+                value={filterTanggal}
+                onChange={(e) => setFilterTanggal(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Meja</Label>
+              <Select value={filterMejaId} onValueChange={setFilterMejaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Semua Meja" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Meja</SelectItem>
+                  {mejas.map((meja) => (
+                    <SelectItem key={meja.id} value={meja.id.toString()}>
+                      {meja.nomorMeja} ({meja.tipeMeja === 'lesehan' ? 'L' : 'K'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-end">
+              <Button onClick={resetFilter} variant="outline" className="w-full">
+                <Filter className="w-4 h-4 mr-2" />
+                Reset Filter
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <div className="bg-white rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>Meja</TableHead>
+              <TableHead>Tipe</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Status Bayar</TableHead>
+              <TableHead>Total</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead>Waktu</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pesanan.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                  Tidak ada pesanan
+                </TableCell>
+              </TableRow>
+            ) : (
+              pesanan.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">#{p.id}</TableCell>
+                  <TableCell>{p.meja}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {p.tipeMeja === 'lesehan' ? 'Lesehan' : 'Kursi'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={statusColors[p.status]}>
+                      {p.status === 'menunggu' ? 'Menunggu' : 
+                       p.status === 'diproses' ? 'Diproses' :
+                       p.status === 'selesai' ? 'Selesai' : 'Dibatalkan'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={statusBayarColors[p.statusBayar]}>
+                      {p.statusBayar === 'menunggu' ? 'Menunggu' : 
+                       p.statusBayar === 'berhasil' ? 'Berhasil' : 'Dibatalkan'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>Rp {p.total.toLocaleString("id-ID")}</TableCell>
+                  <TableCell>{p.items} item</TableCell>
+                  <TableCell>
+                    {new Date(p.waktu).toLocaleString("id-ID", {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link href={`/dashboard/pesanan/${p.id}`}>
+                      <Button variant="outline" size="sm">
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

@@ -1,4 +1,6 @@
-export type RoleUser = 'owner' | 'admin' | 'kasir' | 'waiter'
+export type RoleUser = 'owner' | 'cashier' | 'waiter'
+
+export type TipeMeja = 'lesehan' | 'kursi'
 
 export interface User {
   id: number
@@ -13,6 +15,7 @@ export type StatusMeja = 'kosong' | 'terpakai'
 export interface Meja {
   id: number
   nomorMeja: string
+  tipeMeja: TipeMeja
   kapasitas: number
   tokenMeja?: string
   statusMeja: StatusMeja

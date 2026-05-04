@@ -20,8 +20,11 @@ export default function CustomerMenuPage() {
     const router = useRouter();
     const params = useParams();
     const tokenMeja = params.tokenMeja as string;
-    const [menus, setMenus] = useState<Menu[]>([]);
-    const [kategoris, setKategoris] = useState<{ id: number; nama: string }[]>([]);
+const [menus, setMenus] = useState<Menu[]>([]);
+const [mejaData, setMejaData] = useState<{ nomor_meja: string; nomorMeja?: string } | null>(null);
+const [kategoris, setKategoris] = useState<{ id: number; nama: string }[]>([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
     const [keranjang, setKeranjang] = useState<KeranjangItem[]>([]);
     const [showToastBerhasil, setShowToastBerhasil] = useState(false);
     const [sudahPesan, setSudahPesan] = useState(false);
@@ -40,6 +43,18 @@ export default function CustomerMenuPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
+                setLoading(true);
+                setError(null);
+                
+                // Validasi token meja
+                 const meja = await getMejaByToken(tokenMeja);
+                 if (!meja) {
+                     setError("Token meja salah. Silahkan scan QR code meja lagi.");
+                     setLoading(false);
+                     return;
+                 }
+                setMejaData(meja);
+                
                 const [menuData, kategoriData] = await Promise.all([
                     getMenusForCustomer(),
                     getKategoriMenus()
@@ -49,8 +64,10 @@ export default function CustomerMenuPage() {
                     { id: 0, nama: "Semua Menu" },
                     ...kategoriData.map((kat) => ({ id: kat.id, nama: kat.namaKategori }))
                 ]);
+                setLoading(false);
             } catch {
-                // Fallback
+                setError("Terjadi kesalahan saat memuat data");
+                setLoading(false);
             }
         };
         loadData();
@@ -129,114 +146,142 @@ export default function CustomerMenuPage() {
         router.push("pesanan");
     };
 
-    return (
+return (
         <div className="min-h-screen bg-background">
             {/* Header */}
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div className="max-w-2xl mx-auto flex h-16 items-center justify-between px-4">
                     <div className="flex items-center gap-2">
                         <h1 className="font-heading text-xl font-bold">Pringmoni</h1>
-                        <Badge variant="outline" className="rounded-full">
-                            Meja {tokenMeja}
-                        </Badge>
+                        {!error && (
+                            <Badge variant="outline" className="rounded-full">
+                                 Meja {mejaData?.nomor_meja || tokenMeja}
+                             </Badge>
+                        )}
                     </div>
 
-                    <CartSheet
-                        keranjang={keranjang}
-                        onUpdateJumlah={updateJumlah}
-                        onHapus={hapusDariKeranjang}
-                        onCheckout={handleCheckout}
-                        subtotal={subtotal}
-                        voucher={voucher}
-                        onApplyVoucher={setVoucher}
-                    >
-                        <Button variant="outline" size="icon" className="relative" data-cart-button>
-                            <ShoppingCart className="size-5" />
-                            {totalItem > 0 && (
-                                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                                    {totalItem}
-                                </span>
-                            )}
-                        </Button>
-                    </CartSheet>
+                    {!loading && !error && (
+                        <CartSheet
+                            keranjang={keranjang}
+                            onUpdateJumlah={updateJumlah}
+                            onHapus={hapusDariKeranjang}
+                            onCheckout={handleCheckout}
+                            subtotal={subtotal}
+                            voucher={voucher}
+                            onApplyVoucher={setVoucher}
+                        >
+                            <Button variant="outline" size="icon" className="relative" data-cart-button>
+                                <ShoppingCart className="size-5" />
+                                {totalItem > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                                        {totalItem}
+                                    </span>
+                                )}
+                            </Button>
+                        </CartSheet>
+                    )}
                 </div>
             </header>
 
             {/* Main Content */}
             <main className="max-w-2xl mx-auto px-4 py-6">
-                {/* Search */}
-                <div className="relative mb-4">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
-                    <Input
-                        type="search"
-                        placeholder="Cari menu..."
-                        className="pl-10 rounded-full bg-muted/50"
-                        value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            setItemsToShow(12);
-                        }}
-                    />
-                </div>
-
-                {/* Kategori - Pill buttons */}
-                <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                    {kategoris.map((kat) => (
-                        <Button
-                            key={kat.id}
-                            variant={activeKategori === kat.nama ? "default" : "outline"}
-                            size="sm"
-                            className="rounded-full px-4 shrink-0"
-                            onClick={() => {
-                            setActiveKategori(kat.nama);
-                            setItemsToShow(12);
-                        }}
-                        >
-                            {kat.nama}
-                        </Button>
-                    ))}
-                </div>
-
-                {/* Menu Grid */}
-                <div className="grid grid-cols-3 gap-3">
-                    {displayedMenu.map((menu) => {
-                        const itemKeranjang = keranjang.find((k) => k.id === menu.id);
-                        const jumlahDipesan = itemKeranjang?.jumlah || 0;
-                        return (
-                            <MenuCard
-                                key={menu.id}
-                                menu={menu}
-                                onTambah={tambahKeranjang}
-                                onSuccess={handleMenuDitambahkan}
-                                jumlahDipesan={jumlahDipesan}
-                            />
-                        );
-                    })}
-                </div>
-
-                {hasMore && (
-                    <div className="mt-4 text-center">
-                        <Button
-                            variant="outline"
-                            className="rounded-full px-6"
-                            onClick={() => setItemsToShow((prev) => prev + 12)}
-                        >
-                            Tampilkan Lainnya ({filteredMenu.length - itemsToShow} menu)
-                        </Button>
+                {loading && (
+                    <div className="flex justify-center items-center py-20">
+                        <p className="text-muted-foreground">Memuat menu...</p>
                     </div>
                 )}
 
-                {filteredMenu.length === 0 && (
-                    <Card className="py-12">
-                        <CardContent className="text-center text-muted-foreground">
-                            <p>Menu tidak ditemukan</p>
+                {error && (
+                    <Card className="py-12 border-destructive">
+                        <CardContent className="text-center">
+                            <div className="mb-4">
+                                <p className="text-destructive font-semibold text-lg mb-2">Token Tidak Valid</p>
+                                <p className="text-muted-foreground mb-4">{error}</p>
+                            </div>
+                            <Button variant="outline" onClick={() => window.location.href = "/"}>
+                                Kembali ke Beranda
+                            </Button>
                         </CardContent>
                     </Card>
+                )}
+
+                {!loading && !error && (
+                    <>
+                        {/* Search */}
+                        <div className="relative mb-4">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Cari menu..."
+                                className="pl-10 rounded-full bg-muted/50"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setItemsToShow(12);
+                                }}
+                            />
+                        </div>
+
+                        {/* Kategori - Pill buttons */}
+                        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                            {kategoris.map((kat) => (
+                                <Button
+                                    key={kat.id}
+                                    variant={activeKategori === kat.nama ? "default" : "outline"}
+                                    size="sm"
+                                    className="rounded-full px-4 shrink-0"
+                                    onClick={() => {
+                                    setActiveKategori(kat.nama);
+                                    setItemsToShow(12);
+                                }}
+                                >
+                                    {kat.nama}
+                                </Button>
+                            ))}
+                        </div>
+
+                        {/* Menu Grid */}
+                        <div className="grid grid-cols-3 gap-3">
+                            {displayedMenu.map((menu) => {
+                                const itemKeranjang = keranjang.find((k) => k.id === menu.id);
+                                const jumlahDipesan = itemKeranjang?.jumlah || 0;
+                                return (
+                                    <MenuCard
+                                        key={menu.id}
+                                        menu={menu}
+                                        onTambah={tambahKeranjang}
+                                        onSuccess={handleMenuDitambahkan}
+                                        jumlahDipesan={jumlahDipesan}
+                                    />
+                                );
+                            })}
+                        </div>
+
+                        {hasMore && (
+                            <div className="mt-4 text-center">
+                                <Button
+                                    variant="outline"
+                                    className="rounded-full px-6"
+                                    onClick={() => setItemsToShow((prev) => prev + 12)}
+                                >
+                                    Tampilkan Lainnya ({filteredMenu.length - itemsToShow} menu)
+                                </Button>
+                            </div>
+                        )}
+
+                        {filteredMenu.length === 0 && (
+                            <Card className="py-12">
+                                <CardContent className="text-center text-muted-foreground">
+                                    <p>Menu tidak ditemukan</p>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </>
                 )}
             </main>
 
             {/* Bottom Cart Bar (Mobile) */}
-            {keranjang.length > 0 && !sudahPesan && (
+            {!loading && !error && keranjang.length > 0 && !sudahPesan && (
                 <div className="fixed bottom-0 left-0 right-0 border-t bg-background p-4 md:hidden">
                     <div className="max-w-2xl mx-auto flex items-center justify-between">
                         <div>
@@ -258,7 +303,7 @@ export default function CustomerMenuPage() {
             )}
 
             {/* Bottom Pesanan Berhasil */}
-            {sudahPesan && (
+            {!loading && !error && sudahPesan && (
                 <div className="fixed bottom-0 left-0 right-0 border-t bg-primary text-primary-foreground p-4 md:hidden">
                     <div className="max-w-2xl mx-auto flex items-center justify-between">
                         <div>

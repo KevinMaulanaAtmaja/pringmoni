@@ -36,6 +36,26 @@ export async function createUser(data: {
   password: string
   role: RoleUser
 }) {
+  if (data.password.length < 8) {
+    return { error: "Password minimal 8 karakter" }
+  }
+  
+  if (!/[A-Z]/.test(data.password)) {
+    return { error: "Password harus mengandung huruf besar (A-Z)" }
+  }
+  
+  if (!/[a-z]/.test(data.password)) {
+    return { error: "Password harus mengandung huruf kecil (a-z)" }
+  }
+  
+  if (!/[0-9]/.test(data.password)) {
+    return { error: "Password harus mengandung angka (0-9)" }
+  }
+  
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(data.password)) {
+    return { error: "Password harus mengandung simbol (!@#$%^&*)" }
+  }
+
   const hashedPassword = await bcrypt.hash(data.password, 10)
   
   await prisma.users.create({
@@ -48,6 +68,7 @@ export async function createUser(data: {
     },
   })
   revalidatePath('/dashboard/users')
+  return { success: true }
 }
 
 export async function updateUser(data: {
@@ -72,6 +93,26 @@ export async function updateUser(data: {
   }
 
   if (data.password) {
+    if (data.password.length < 8) {
+      return { error: "Password minimal 8 karakter" }
+    }
+    
+    if (!/[A-Z]/.test(data.password)) {
+      return { error: "Password harus mengandung huruf besar (A-Z)" }
+    }
+    
+    if (!/[a-z]/.test(data.password)) {
+      return { error: "Password harus mengandung huruf kecil (a-z)" }
+    }
+    
+    if (!/[0-9]/.test(data.password)) {
+      return { error: "Password harus mengandung angka (0-9)" }
+    }
+    
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(data.password)) {
+      return { error: "Password harus mengandung simbol (!@#$%^&*)" }
+    }
+    
     updateData.password = await bcrypt.hash(data.password, 10)
   }
 
@@ -80,6 +121,7 @@ export async function updateUser(data: {
     data: updateData,
   })
   revalidatePath('/dashboard/users')
+  return { success: true }
 }
 
 export async function deleteUser(id: number) {

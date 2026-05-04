@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Wallet, Banknote, ArrowLeft, CreditCard, Smartphone, Loader2 } from "lucide-react";
-import { getPesananById, updatePembayaran } from "@/app/actions/pesanan";
+import { getPesananForCheckout, updatePembayaran } from "@/app/actions/pesanan";
 
 interface CheckoutItem {
   id: number;
@@ -45,7 +45,7 @@ export default function CheckoutPage() {
       }
 
       try {
-        const data = await getPesananById(parseInt(orderId));
+        const data = await getPesananForCheckout(parseInt(orderId));
         if (data) {
           setCheckoutData(data);
         } else {

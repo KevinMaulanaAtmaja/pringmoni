@@ -13,3 +13,12 @@ npx prisma db push/pull
 npx prisma db seed
 npx prisma generate
 npx tsx prisma/testPrisma.ts
+
+
+list
+-upload gambar ke uploadthing,
+-perbaiki kasir dan pesanan
+-customer bisa akses /dashboard, role lain sesuai fungsi
+-Create Pesanan Detail Page (/dashboard/pesanan/[id]) → Lihat detail pesanan
+-laporan page, create pesanan page(kasir)
+-konsisten ada error dibwh input, minimal huruf ditiap2 input
