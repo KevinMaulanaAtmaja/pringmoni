@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6 capitalize">
-        Dashboard {role === 'owner' ? 'Owner' : role === 'kasir' ? 'Kasir' : 'Waiter'}
+        Dashboard {role === 'owner' ? 'Owner' : role === 'cashier' ? 'Kasir' : 'Waiter'}
       </h1>
       <StatGrid stats={stats} role={role} />
     </div>

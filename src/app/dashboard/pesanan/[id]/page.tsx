@@ -38,10 +38,33 @@ export default function PesananDetailPage() {
     setLoading(true)
     try {
       const result = await getPesananById(orderId)
-      if (!result) {
+      if (!result || 'error' in result) {
         setError("Pesanan tidak ditemukan")
       } else {
-        setPesanan(result as Pesanan)
+        // Map snake_case to camelCase for Pesanan type
+        const mappedResult = {
+          id: result.id,
+          mejaId: result.meja_id,
+          statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "selesai" | "dibatalkan",
+          statusPembayaran: result.status_pembayaran as "menunggu" | "berhasil" | "dibatalkan",
+          totalHarga: Number(result.total_harga),
+          metodePembayaran: result.metode_pembayaran as "qris" | "tunai" | undefined,
+          jumlahBayar: result.jumlah_bayar ? Number(result.jumlah_bayar) : undefined,
+          kembalian: Number(result.kembalian),
+          createdAt: result.created_at.toISOString(),
+          meja: {
+            id: result.meja_id,
+            nomorMeja: result.nomor_meja,
+            tipeMeja: result.tipe_meja as "lesehan" | "kursi",
+            kapasitas: 0,
+            statusMeja: "kosong" as const,
+          },
+          waiterId: undefined,
+          kasirId: undefined,
+          catatan: null,
+          detailPesanan: [],
+        } as Pesanan
+        setPesanan(mappedResult)
       }
     } catch {
       setError("Gagal memuat detail pesanan")
@@ -56,7 +79,7 @@ export default function PesananDetailPage() {
     }
   }, [orderId])
 
-  const handleUpdateStatus = async (status: string) => {
+  const handleUpdateStatus = async (status: "menunggu" | "diproses" | "selesai" | "dibatalkan") => {
     const result = await updateStatusPesanan(orderId, status)
     if ('error' in result && result.error) {
       alert(result.error)
@@ -142,13 +165,12 @@ export default function PesananDetailPage() {
           <CardContent className="space-y-4">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">Rp {pesanan.subtotal.toLocaleString("id-ID")}</span>
+              <span className="font-medium">Rp {pesanan.totalHarga.toLocaleString("id-ID")}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Metode</span>
               <span className="font-medium">
-                {pesanan.metodePembayaran === 'tunai' ? 'Tunai' : 
-                 pesanan.metodePembayaran === 'qris' ? 'QRIS' : '-'}
+                {pesanan.kasirId ? 'Kasir #' + pesanan.kasirId : '-'}
               </span>
             </div>
             <div className="flex justify-between">
@@ -163,15 +185,15 @@ export default function PesananDetailPage() {
             </div>
             <div className="flex justify-between border-t pt-4">
               <span className="font-bold">Total</span>
-              <span className="font-bold text-lg">Rp {pesanan.total.toLocaleString("id-ID")}</span>
+              <span className="font-bold text-lg">Rp {pesanan.totalHarga.toLocaleString("id-ID")}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Waiter</span>
-              <span className="font-medium">{pesanan.waiter?.username || '-'}</span>
+              <span className="font-medium">{pesanan.waiterId ? 'Waiter #' + pesanan.waiterId : '-'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Kasir</span>
-              <span className="font-medium">{pesanan.kasir?.username || '-'}</span>
+              <span className="font-medium">{pesanan.kasirId ? 'Kasir #' + pesanan.kasirId : '-'}</span>
             </div>
           </CardContent>
         </Card>

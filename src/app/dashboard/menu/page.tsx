@@ -90,13 +90,20 @@ export default function MenuPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Price formatting
+  const [priceDisplay, setPriceDisplay] = useState('');
+  const [priceValue, setPriceValue] = useState<number | ''>('');
+
   // Photo states
   const [uploadedFotoUrls, setUploadedFotoUrls] = useState<string[]>([]);
   const [uploadedFileKeys, setUploadedFileKeys] = useState<string[]>([]);
-  const [existingFotos, setExistingFotos] = useState<{ id: number; fotoUrl: string; fileKey: string | null }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [existingFotos, setExistingFotos] = useState<Array<{ id: number; fotoUrl: string; fileKey: string | null }>>([]);
   const [deleteFotoId, setDeleteFotoId] = useState<number | null>(null);
   const [deleteFotoUrl, setDeleteFotoUrl] = useState<string>('');
-  const [isDeleteFotoOpen, setIsDeleteFotoOpen] = useState(false);
+   const [isDeleteFotoOpen, setIsDeleteFotoOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState<Record<string, boolean>>({});
   const totalPhotos = existingFotos.length + uploadedFotoUrls.length;
   
   // Menu name states
@@ -146,6 +153,8 @@ export default function MenuPage() {
         kategoriId: menu.kategoriId.toString(),
         statusMenu: menu.statusMenu,
       });
+       // Set price value (in thousands)
+       setPriceValue(Math.floor(menu.harga / 1000));
       // Load existing photos
       loadMenuFotos(menu.id);
     } else {
@@ -157,6 +166,8 @@ export default function MenuPage() {
         kategoriId: kategoris[0]?.id.toString() || '',
         statusMenu: 'tersedia',
       });
+      setPriceDisplay('');
+      setPriceValue('');
       setExistingFotos([]);
     }
     setDuplicateWarning('');
@@ -170,7 +181,16 @@ export default function MenuPage() {
   async function loadMenuFotos(menuId: number) {
     try {
       const fotos = await getMenuFotos(menuId);
-      setExistingFotos(fotos as { id: number; fotoUrl: string; fileKey: string | null }[]);
+      // Map Prisma result to match state type
+      const mappedFotos = fotos.map(f => {
+        const foto = f as unknown as { id: number; fotoUrl: string; fileKey?: string | null };
+        return {
+          id: foto.id,
+          fotoUrl: foto.fotoUrl,
+          fileKey: foto.fileKey ?? null,
+        };
+      });
+      setExistingFotos(mappedFotos);
     } catch {
       setExistingFotos([]);
     }
@@ -225,7 +245,7 @@ export default function MenuPage() {
 
       if (editingId) {
         const result = await updateMenu({ id: editingId, ...data });
-        if ('error' in result && result.error) {
+        if (result && 'error' in result && result.error) {
           alert(result.error);
           setSubmitting(false);
           return;
@@ -237,7 +257,7 @@ export default function MenuPage() {
         }
       } else {
         const result = await createMenu(data);
-        if ('error' in result && result.error) {
+        if (result && 'error' in result && result.error) {
           alert(result.error);
           setSubmitting(false);
           return;
@@ -448,9 +468,10 @@ export default function MenuPage() {
                         <img 
                           src={menu.fotoUrl} 
                           alt={menu.namaMenu}
-                          className="w-10 h-10 object-cover rounded flex-shrink-0"
+                          className="w-10 h-10 object-cover rounded flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setPreviewImage(menu.fotoUrl)}
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFRUVGRUUiIHJ4PSI0Ii8+PHBhdGggZD0iTTE2IDMwTDI0IDMwTTIwIDI2TDIwIDM0TTIwIDI2QzE3Ljc5IDE2IDE2IDE2IDE2IDE2QzE2IDE2IDE0IDE4IDE0IDIwQzE0IDIyIDE2IDI0IDIwIDI2Wk0yNiAyMEMyNiAxOCAyNCAxNiAyNCAxNkMyNCAxNiAyMiAxOCAyMiAyMEMyMiAyMiAyNCAyNCAyNiAyNloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==';
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFRUVGRUYiIHJ4PSI0Ii8+PHBhdGggZD0iTTE2IDMwTDI0IDMwTTIwIDI2TDIwIDM0TTIwIDI2QzE3Ljc5IDE2IDE2IDE2IDE2IDE2QzE2IDE2IDE0IDE4IDE0IDIwQzE0IDIyIDE2IDI0IDIwIDI2Wk0yNiAyMEMyNiAxOCAyNCAxNiAyNCAxNkMyNCAxNiAyMiAxOCAyMiAyMEMyMiAyMiAyNCAyNCAyNiAyNloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==';
                           }}
                         />
                         {menu.fotoUrls?.slice(1).map((url, idx) => (
@@ -458,9 +479,10 @@ export default function MenuPage() {
                             key={idx}
                             src={url} 
                             alt={`${menu.namaMenu} ${idx + 2}`}
-                            className="w-10 h-10 object-cover rounded flex-shrink-0"
+                            className="w-10 h-10 object-cover rounded flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => setPreviewImage(url)}
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFRUVGRUUiIHJ4PSI0Ii8+PHBhdGggZD0iTTE2IDMwTDI0IDMwTTIwIDI2TDIwIDM0TTIwIDI2QzE3Ljc5IDE2IDE2IDE2IDE2IDE2QzE2IDE2IDE0IDE4IDE0IDIwQzE0IDIyIDE2IDI0IDIwIDI2Wk0yNiAyMEMyNiAxOCAyNCAxNiAyNCAxNkMyNCAxNiAyMiAxOCAyMiAyMEMyMiAyMiAyNCAyNCAyNiAyNloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==';
+                              (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFRUVGRUYiIHJ4PSI0Ii8+PHBhdGggZD0iTTE2IDMwTDI0IDMwTTIwIDI2TDIwIDM0TTIwIDI2QzE3Ljc5IDE2IDE2IDE2IDE2IDE2QzE2IDE2IDE0IDE4IDE0IDIwQzE0IDIyIDE2IDI0IDIwIDI2Wk0yNiAyMEMyNiAxOCAyNCAxNiAyNCAxNkMyNCAxNiAyMiAxOCAyMiAyMEMyMiAyMiAyNCAyNCAyNiAyNloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==';
                             }}
                           />
                         ))}
@@ -542,212 +564,288 @@ export default function MenuPage() {
                 {editingId ? 'Ubah detail menu dan foto' : 'Tambah menu baru dengan foto'}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit}>
-              <div className="grid gap-2 py-2">
-                <div className="grid gap-1">
-                  <Label htmlFor="namaMenu" className="text-xs">Nama Menu</Label>
-                  <Input
-                    id="namaMenu"
-                    value={form.namaMenu}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setForm({ ...form, namaMenu: value });
-                      // Check duplicate
-                      if (value && !editingId) {
-                        const duplicate = menus.find(m => 
-                          m.namaMenu.toLowerCase() === value.toLowerCase() && 
-                          m.deletedAt === null
-                        );
-                        setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
-                      } else if (editingId && value) {
-                        const duplicate = menus.find(m => 
-                          m.namaMenu.toLowerCase() === value.toLowerCase() && 
-                          m.id !== editingId && 
-                          m.deletedAt === null
-                        );
-                        setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
-                      } else {
-                        setDuplicateWarning('');
-                      }
-                    }}
-                    className={`h-7 text-xs ${duplicateWarning ? 'border-red-500' : ''}`}
-                    required
-                  />
-                  {duplicateWarning && (
-                    <p className="text-xs text-red-500 mt-1">{duplicateWarning}</p>
-                  )}
-                </div>
-              <div className="grid gap-1">
-                <Label htmlFor="deskripsi" className="text-xs">Deskripsi</Label>
-                <Input
-                  id="deskripsi"
-                  value={form.deskripsi}
-                  onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
-                  className="h-7 text-xs"
-                />
-              </div>
-              <div className="grid gap-1">
-                <Label htmlFor="harga" className="text-xs">Harga</Label>
-                <Input
-                  id="harga"
-                  type="number"
-                  min="0"
-                  value={form.harga}
-                  onChange={(e) => setForm({ ...form, harga: e.target.value })}
-                  className="h-7 text-xs"
-                  required
-                />
-              </div>
-              <div className="grid gap-1">
-                <Label htmlFor="kategoriId" className="text-xs">Kategori</Label>
-                <Select
-                  value={form.kategoriId}
-                  onValueChange={(value) => setForm({ ...form, kategoriId: value })}
-                >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue placeholder="Pilih kategori" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {kategoris.map((kat) => (
-                      <SelectItem key={kat.id} value={kat.id.toString()}>
-                        {kat.namaKategori}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1">
-                <Label htmlFor="statusMenu" className="text-xs">Status</Label>
-                <Select
-                  value={form.statusMenu}
-                  onValueChange={(value) => setForm({ ...form, statusMenu: value as StatusMenu })}
-                >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tersedia">Tersedia</SelectItem>
-                    <SelectItem value="habis">Habis</SelectItem>
-                    <SelectItem value="nonaktif">Nonaktif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+             <form onSubmit={handleSubmit}>
+               <div className="grid gap-2 py-2">
+                 <div className="grid gap-1">
+                   <Label htmlFor="namaMenu" className="text-xs">Nama Menu</Label>
+                   <Input
+                     id="namaMenu"
+                     value={form.namaMenu}
+                     onChange={(e) => {
+                       const value = e.target.value;
+                       setForm({ ...form, namaMenu: value });
+                       if (value && !editingId) {
+                         const duplicate = menus.find(m => 
+                           m.namaMenu.toLowerCase() === value.toLowerCase() && 
+                           m.deletedAt === null
+                         );
+                         setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
+                       } else if (editingId && value) {
+                         const duplicate = menus.find(m => 
+                           m.namaMenu.toLowerCase() === value.toLowerCase() && 
+                           m.id !== editingId && 
+                           m.deletedAt === null
+                         );
+                         setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
+                       } else {
+                         setDuplicateWarning('');
+                       }
+                     }}
+                     className={`h-7 text-xs ${duplicateWarning ? 'border-red-500' : ''}`}
+                     required
+                   />
+                   {duplicateWarning && (
+                     <p className="text-xs text-red-500 mt-1">{duplicateWarning}</p>
+                   )}
+                 </div>
+                 
+                 <div className="grid gap-1">
+                   <Label htmlFor="deskripsi" className="text-xs">Deskripsi</Label>
+                   <Input
+                     id="deskripsi"
+                     value={form.deskripsi}
+                     onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
+                     className="h-7 text-xs"
+                   />
+                 </div>
 
-                {/* Photo Upload Section */}
-                <div className="grid gap-2">
-                  <Label className="text-xs font-medium">Foto Menu</Label>
-                  
-                  {/* Existing Photos */}
-                  {existingFotos.length > 0 && (
-                    <div className="flex gap-2 mb-2 overflow-x-auto pb-2 max-w-full">
-                      {existingFotos.map((foto) => (
-                        <div key={foto.id} className="relative group flex-shrink-0">
-                          <img 
-                            src={foto.fotoUrl} 
-                            alt="Menu" 
-                            className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200" 
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteFoto(foto.id, foto.fotoUrl)}
-                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                 <div className="grid gap-1">
+                   <Label htmlFor="harga" className="text-xs">Harga (Ribuan) *</Label>
+                   <div className="relative">
+                     <Input
+                       id="harga"
+                       type="text"
+                       inputMode="numeric"
+                       value={priceValue || ''}
+                       onChange={(e) => {
+                         const raw = e.target.value.replace(/[^\d]/g, '');
+                         const num = parseInt(raw) || 0;
+                         setPriceValue(num);
+                         setForm({ ...form, harga: (num * 1000).toString() });
+                       }}
+                       className="h-7 text-xs pr-12"
+                       placeholder="25"
+                       required
+                     />
+                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none">
+                       .000
+                     </span>
+                   </div>
+                   <p className="text-[10px] text-muted-foreground">
+                     Masukkan angka saja (dalam ribuan). Contoh: ketik &quot;25&quot; untuk Rp25.000
+                   </p>
+                 </div>
 
-                  {/* Newly Uploaded Photos Preview */}
-                  {uploadedFotoUrls.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {uploadedFotoUrls.map((url, index) => (
-                        <div key={index} className="relative group">
-                          <img 
-                            src={url} 
-                            alt="Preview" 
-                            className="w-20 h-20 object-cover rounded-lg border-2 border-blue-200" 
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setUploadedFotoUrls(prev => prev.filter((_, i) => i !== index));
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                 <div className="grid gap-1">
+                   <Label htmlFor="kategoriId" className="text-xs">Kategori</Label>
+                   <Select
+                     value={form.kategoriId}
+                     onValueChange={(value) => setForm({ ...form, kategoriId: value })}
+                   >
+                     <SelectTrigger className="h-7 text-xs">
+                       <SelectValue placeholder="Pilih kategori" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       {kategoris.map((kat) => (
+                         <SelectItem key={kat.id} value={kat.id.toString()}>
+                           {kat.namaKategori}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 </div>
 
-                  {/* UploadThing Upload Button */}
-                  <div className="flex items-center gap-2">
-                    <UploadButton
-                      endpoint="menuFoto"
-                      appearance={{
-                        button: {
-                          background: "transparent",
-                          padding: "0",
-                          width: "32px",
-                          height: "32px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        },
-                        allowedContent: { display: "none" },
-                        container: { display: "flex", alignItems: "center" },
-                      }}
-                      content={{
-                        button({ ready }: { ready: boolean }) {
-                          return ready ? (
-                            <Upload className="w-5 h-5 text-blue-600 hover:text-blue-800" />
-                          ) : (
-                            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                          );
-                        },
-                      }}
-                      onClientUploadComplete={(res: { url: string; key: string }[]) => {
-                        if (res) {
-                          const urls = res.map((file) => file.url);
-                          const keys = res.map((file) => file.key);
-                          setUploadedFotoUrls(prev => {
-                            const total = [...prev, ...urls];
-                            return total.slice(0, 5);
-                          });
-                          setUploadedFileKeys(prev => {
-                            const total = [...prev, ...keys];
-                            return total.slice(0, 5);
-                          });
-                        }
-                      }}
-                      disabled={totalPhotos >= 5}
-                      onUploadError={(error: Error) => {
-                        alert('Gagal upload: ' + error.message);
-                      }}
-                    />
-                    <p className="text-xs text-gray-500">
-                      📷 Maksimal 5 foto. Setiap file maksimal 4MB.
-                    </p>
-                  </div>
-                </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsOpen(false)}
-                className="h-7 text-xs"
-              >
-                Batal
-              </Button>
-              <Button type="submit" disabled={submitting} className="h-7 text-xs">
-                {submitting ? 'Menyimpan...' : 'Simpan'}
-              </Button>
-            </DialogFooter>
-          </form>
+                 <div className="grid gap-1">
+                   <Label htmlFor="statusMenu" className="text-xs">Status</Label>
+                   <Select
+                     value={form.statusMenu}
+                     onValueChange={(value) => setForm({ ...form, statusMenu: value as StatusMenu })}
+                   >
+                     <SelectTrigger className="h-7 text-xs">
+                       <SelectValue />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="tersedia">Tersedia</SelectItem>
+                       <SelectItem value="habis">Habis</SelectItem>
+                       <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+  
+                 {/* Photo Upload Section */}
+                 <div className="grid gap-2">
+                   <Label className="text-xs font-medium">Foto Menu</Label>
+                   
+                   {/* Existing Photos */}
+                   {existingFotos.length > 0 && (
+                     <div className="flex gap-2 mb-2 overflow-x-auto pb-2 max-w-full">
+                       {existingFotos.map((foto) => (
+                         <div key={foto.id} className="relative group flex-shrink-0">
+                           {imageLoading[foto.fotoUrl] && (
+                             <div className="w-20 h-20 rounded-lg border-2 border-gray-200 bg-gray-50 flex items-center justify-center">
+                               <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                             </div>
+                           )}
+                           <img 
+                             src={foto.fotoUrl} 
+                             alt="Menu" 
+                             className={`w-20 h-20 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:opacity-80 transition-opacity ${imageLoading[foto.fotoUrl] ? 'hidden' : ''}`}
+                             onClick={() => setPreviewImage(foto.fotoUrl)}
+                             onLoad={() => setImageLoading(prev => ({ ...prev, [foto.fotoUrl]: false }))}
+                             onLoadStart={() => setImageLoading(prev => ({ ...prev, [foto.fotoUrl]: true }))}
+                           />
+                           <button
+                             type="button"
+                             onClick={() => handleDeleteFoto(foto.id, foto.fotoUrl)}
+                             className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                           >
+                             ✕
+                           </button>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+  
+                   {/* Newly Uploaded Photos Preview */}
+                   {uploadedFotoUrls.length > 0 && (
+                     <div className="flex flex-wrap gap-2 mb-2">
+                       {uploadedFotoUrls.map((url, index) => (
+                         <div key={index} className="relative group">
+                           {imageLoading[url] && (
+                             <div className="w-20 h-20 rounded-lg border-2 border-blue-200 bg-gray-50 flex items-center justify-center">
+                               <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                             </div>
+                           )}
+                           <img 
+                             src={url} 
+                             alt="Preview" 
+                             className={`w-20 h-20 object-cover rounded-lg border-2 border-blue-200 cursor-pointer hover:opacity-80 transition-opacity ${imageLoading[url] ? 'hidden' : ''}`}
+                             onClick={() => !imageLoading[url] && setPreviewImage(url)}
+                             onLoad={() => setImageLoading(prev => ({ ...prev, [url]: false }))}
+                             onLoadStart={() => setImageLoading(prev => ({ ...prev, [url]: true }))}
+                           />
+                           <button
+                             type="button"
+                             onClick={async () => {
+                               const fileKey = uploadedFileKeys[index];
+                               if (fileKey) {
+                                 try {
+                                   const response = await fetch('/api/uploadthing/delete', {
+                                     method: 'POST',
+                                     headers: { 'Content-Type': 'application/json' },
+                                     body: JSON.stringify({ fileKey })
+                                   });
+                                   if (!response.ok) {
+                                     console.error('Failed to delete file from UploadThing');
+                                   }
+                                 } catch (error) {
+                                   console.error('Error deleting file:', error);
+                                 }
+                               }
+                               setUploadedFotoUrls(prev => prev.filter((_, i) => i !== index));
+                               setUploadedFileKeys(prev => prev.filter((_, i) => i !== index));
+                             }}
+                             className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                           >
+                             ✕
+                           </button>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+  
+                   {/* UploadThing Upload Button */}
+                   <div className="flex items-center gap-2">
+                     <UploadButton
+                       endpoint="menuFoto"
+                       appearance={{
+                         button: {
+                           background: "transparent",
+                           padding: "0",
+                           width: "48px",
+                           height: "48px",
+                           display: "flex",
+                           alignItems: "center",
+                           justifyContent: "center",
+                           border: "none",
+                         },
+                         allowedContent: { display: "none" },
+                         container: { display: "flex", alignItems: "center" },
+                       }}
+                       content={{
+                         button({ ready }: { ready: boolean }) {
+                           if (uploading) {
+                             return <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />;
+                           }
+                           return ready ? (
+                             <Upload className="w-10 h-10 text-blue-600 hover:text-blue-800" />
+                           ) : (
+                             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                           );
+                         },
+                       }}
+onClientUploadComplete={(res: { url: string; key: string }[]) => {
+                          setUploading(false);
+                          if (res) {
+                            const urls = res.map((file) => file.url);
+                            const keys = res.map((file) => file.key);
+                            
+                            // Check if adding new photos would exceed 5
+                            const currentTotal = existingFotos.length + uploadedFotoUrls.length;
+                            if (currentTotal + urls.length > 5) {
+                              alert('Maksimal 5 foto per menu. Hapus foto lama jika ingin menambah foto baru.');
+                              // Delete uploaded files from UploadThing
+                              keys.forEach(async (key) => {
+                                try {
+                                  await fetch('/api/uploadthing/delete', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ fileKey: key })
+                                  });
+                                } catch (error) {
+                                  console.error('Error deleting file:', error);
+                                }
+                              });
+                              return;
+                            }
+                            
+                            const newLoadingState: Record<string, boolean> = {};
+                            urls.forEach(url => {
+                              newLoadingState[url] = true;
+                            });
+                            setImageLoading(prev => ({ ...prev, ...newLoadingState }));
+                            
+                            setUploadedFotoUrls(prev => [...prev, ...urls]);
+                            setUploadedFileKeys(prev => [...prev, ...keys]);
+                          }
+                        }}
+                       onUploadBegin={() => setUploading(true)}
+                       disabled={totalPhotos >= 5 || uploading}
+                       onUploadError={(error: Error) => {
+                         setUploading(false);
+                         alert('Gagal upload: ' + error.message);
+                       }}
+                     />
+<p className="text-xs text-gray-500">
+                        {totalPhotos}/5 foto, 4MB per file
+                      </p>
+                   </div>
+                 </div>
+               </div>
+               <DialogFooter>
+                 <Button
+                   type="button"
+                   variant="outline"
+                   onClick={() => setIsOpen(false)}
+                   className="h-7 text-xs"
+                 >
+                   Batal
+                 </Button>
+                 <Button type="submit" disabled={submitting} className="h-7 text-xs">
+                   {submitting ? 'Menyimpan...' : 'Simpan'}
+                 </Button>
+               </DialogFooter>
+             </form>
         </DialogContent>
       </Dialog>
 
@@ -848,25 +946,48 @@ export default function MenuPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Kategori Dialog */}
-        <Dialog open={isDeleteKategoriOpen} onOpenChange={setIsDeleteKategoriOpen}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Konfirmasi Hapus Kategori</DialogTitle>
-              <DialogDescription className="text-sm text-gray-500">
-                Yakin ingin menghapus kategori `{deleteKategoriName}`? Menu dengan kategori ini akan tersisa.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteKategoriOpen(false)}>
-                Batal
-              </Button>
-              <Button variant="destructive" onClick={confirmDeleteKategori}>
-                Hapus
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-     </div>
-  );
+         {/* Delete Kategori Dialog */}
+         <Dialog open={isDeleteKategoriOpen} onOpenChange={setIsDeleteKategoriOpen}>
+           <DialogContent className="max-w-sm">
+             <DialogHeader>
+               <DialogTitle>Konfirmasi Hapus Kategori</DialogTitle>
+               <DialogDescription className="text-sm text-gray-500">
+                 Kategori <strong>{deleteKategoriName}</strong> akan dihapus permanen. Menu yang menggunakan kategori ini tidak akan terhapus, tetapi akan kehilangan kategori-nya. Yakin ingin melanjutkan?
+               </DialogDescription>
+             </DialogHeader>
+             <DialogFooter>
+               <Button variant="outline" onClick={() => setIsDeleteKategoriOpen(false)}>
+                 Batal
+               </Button>
+               <Button variant="destructive" onClick={confirmDeleteKategori}>
+                 Hapus
+               </Button>
+             </DialogFooter>
+           </DialogContent>
+         </Dialog>
+
+         {/* Image Preview Dialog */}
+         <Dialog open={previewImage !== null} onOpenChange={() => setPreviewImage(null)}>
+           <DialogContent className="max-w-2xl max-h-[90vh]">
+             <DialogHeader>
+               <DialogTitle>Preview Foto</DialogTitle>
+             </DialogHeader>
+             {previewImage && (
+               <div className="flex items-center justify-center p-4">
+                 <img 
+                   src={previewImage} 
+                   alt="Preview" 
+                   className="max-w-full max-h-[60vh] object-contain rounded-lg"
+                 />
+               </div>
+             )}
+             <DialogFooter>
+               <Button variant="outline" onClick={() => setPreviewImage(null)}>
+                 Tutup
+               </Button>
+             </DialogFooter>
+           </DialogContent>
+         </Dialog>
+      </div>
+   );
 }

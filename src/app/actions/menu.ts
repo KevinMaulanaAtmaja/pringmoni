@@ -116,14 +116,51 @@ export async function toggleStatusMenu(id: number, status: StatusMenu) {
 }
 
 export async function createKategori(data: { namaKategori: string }) {
-  await prisma.kategoriMenu.create({
-    data: { namaKategori: data.namaKategori },
+  // Check if kategori with same name exists (including soft-deleted)
+  const existing = await prisma.kategoriMenu.findFirst({
+    where: {
+      namaKategori: data.namaKategori,
+    },
   });
+
+  if (existing) {
+    if (existing.deletedAt) {
+      // Restore soft-deleted kategori
+      await prisma.kategoriMenu.update({
+        where: { id: existing.id },
+        data: {
+          deletedAt: null,
+          namaKategori: data.namaKategori,
+        },
+      });
+    } else {
+      return { error: "Kategori dengan nama ini sudah ada" };
+    }
+  } else {
+    // Create new kategori
+    await prisma.kategoriMenu.create({
+      data: { namaKategori: data.namaKategori },
+    });
+  }
+  
   revalidatePath('/dashboard/menu');
   return { success: true };
 }
 
 export async function updateKategori(id: number, data: { namaKategori: string }) {
+  // Check if namaKategori already exists (excluding current id, ONLY active ones)
+  const existing = await prisma.kategoriMenu.findFirst({
+    where: {
+      namaKategori: data.namaKategori,
+      id: { not: id },
+      deletedAt: null, // Only check non-deleted categories
+    },
+  });
+
+  if (existing) {
+    return { error: "Kategori dengan nama ini sudah ada" };
+  }
+
   await prisma.kategoriMenu.update({
     where: { id },
     data: { namaKategori: data.namaKategori },
@@ -133,14 +170,19 @@ export async function updateKategori(id: number, data: { namaKategori: string })
 }
 
 export async function deleteKategori(id: number) {
-  const menuExists = await prisma.menu.findFirst({
-    where: { kategoriId: id, deletedAt: null },
+  // Count active menus using this category
+  const menuCount = await prisma.menu.count({
+    where: { 
+      kategoriId: id, 
+      deletedAt: null // Only count non-deleted menus
+    },
   });
 
-  if (menuExists) {
-    return { error: "Kategori masih digunakan oleh menu aktif" };
+  if (menuCount > 0) {
+    return { error: `Kategori masih digunakan oleh ${menuCount} menu aktif` };
   }
 
+  // Safe to soft delete
   await prisma.kategoriMenu.update({
     where: { id },
     data: { deletedAt: new Date() },

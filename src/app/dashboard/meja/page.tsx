@@ -256,7 +256,6 @@ export default function MejaPage() {
     img.src = 'data:image/svg+xml;base64,' + btoa(svgData)
   }
 
-  if (loading) return <div className="p-8 text-center">Memuat...</div>
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>
 
   return (
@@ -313,7 +312,13 @@ export default function MejaPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedMejas.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-4">
+                  Memuat...
+                </TableCell>
+              </TableRow>
+            ) : paginatedMejas.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-4">
                   {search || filterTipe !== "all" || filterStatus !== "all"

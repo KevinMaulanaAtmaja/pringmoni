@@ -21,10 +21,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
-import { getPesananForDashboard, getMeja } from "@/app/actions/pesanan"
-import { getMeja as getMejaList } from "@/app/actions/meja"
+import { getPesananForDashboard } from "@/app/actions/pesanan"
+import { getMeja } from "@/app/actions/meja"
 import type { Meja } from "@/types"
 import { Eye, Filter, RotateCcw } from "lucide-react"
+import { updateStatusPesanan } from "@/app/actions/pesanan"
 import Link from "next/link"
 
 const statusColors: Record<string, string> = {
@@ -40,8 +41,19 @@ const statusBayarColors: Record<string, string> = {
   dibatalkan: "bg-red-100 text-red-800",
 }
 
+interface PesananItem {
+  id: number
+  meja: string
+  tipeMeja: string
+  status: string
+  statusBayar: string
+  total: number
+  items: number
+  waktu: string
+}
+
 export default function PesananPage() {
-  const [pesanan, setPesanan] = useState<any[]>([])
+  const [pesanan, setPesanan] = useState<PesananItem[]>([])
   const [mejas, setMejas] = useState<Meja[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +61,7 @@ export default function PesananPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [filterTanggal, setFilterTanggal] = useState<string>("")
   const [filterMejaId, setFilterMejaId] = useState<string>("")
-
+  
   const fetchData = async () => {
     setLoading(true)
     try {
@@ -59,15 +71,15 @@ export default function PesananPage() {
           tanggal: filterTanggal || undefined,
           mejaId: filterMejaId ? parseInt(filterMejaId) : undefined,
         }),
-        getMejaList()
+        getMeja()
       ])
-
+      
       if ('error' in pesananResult) {
         setError(pesananResult.error as string)
       } else {
-        setPesanan(pesananResult as any[])
+        setPesanan(pesananResult as PesananItem[])
       }
-
+      
       if (!('error' in mejaResult)) {
         setMejas(mejaResult as Meja[])
       }
@@ -77,20 +89,20 @@ export default function PesananPage() {
       setLoading(false)
     }
   }
-
+  
   useEffect(() => {
     fetchData()
   }, [filterStatus, filterTanggal, filterMejaId])
-
+  
   const resetFilter = () => {
     setFilterStatus("all")
     setFilterTanggal("")
     setFilterMejaId("")
   }
-
+  
   if (loading) return <div className="p-8 text-center">Memuat...</div>
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>
-
+  
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -100,7 +112,7 @@ export default function PesananPage() {
           Refresh
         </Button>
       </div>
-
+      
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
@@ -120,7 +132,7 @@ export default function PesananPage() {
                 </SelectContent>
               </Select>
             </div>
-
+            
             <div className="grid gap-2">
               <Label>Tanggal</Label>
               <Input 
@@ -129,7 +141,7 @@ export default function PesananPage() {
                 onChange={(e) => setFilterTanggal(e.target.value)}
               />
             </div>
-
+            
             <div className="grid gap-2">
               <Label>Meja</Label>
               <Select value={filterMejaId} onValueChange={setFilterMejaId}>
@@ -146,7 +158,7 @@ export default function PesananPage() {
                 </SelectContent>
               </Select>
             </div>
-
+            
             <div className="flex items-end">
               <Button onClick={resetFilter} variant="outline" className="w-full">
                 <Filter className="w-4 h-4 mr-2" />
@@ -156,7 +168,7 @@ export default function PesananPage() {
           </div>
         </CardContent>
       </Card>
-
+      
       {/* Table */}
       <div className="bg-white rounded-lg border">
         <Table>
@@ -214,11 +226,45 @@ export default function PesananPage() {
                     })}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link href={`/dashboard/pesanan/${p.id}`}>
-                      <Button variant="outline" size="sm">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </Link>
+                    <div className="flex justify-end gap-2">
+                      <Link href={`/dashboard/pesanan/${p.id}`}>
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                      {p.status === 'menunggu' && (
+                        <Button 
+                          size="sm" 
+                          onClick={async () => {
+                            const result = await updateStatusPesanan(p.id, 'diproses')
+                            if ('error' in result && result.error) {
+                              alert(result.error)
+                              return
+                            }
+                            fetchData()
+                          }}
+                          className="bg-blue-500 hover:bg-blue-600"
+                        >
+                          Proses
+                        </Button>
+                      )}
+                      {p.status === 'diproses' && (
+                        <Button 
+                          size="sm" 
+                          onClick={async () => {
+                            const result = await updateStatusPesanan(p.id, 'selesai')
+                            if ('error' in result && result.error) {
+                              alert(result.error)
+                              return
+                            }
+                            fetchData()
+                          }}
+                          className="bg-green-500 hover:bg-green-600"
+                        >
+                          Selesai
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

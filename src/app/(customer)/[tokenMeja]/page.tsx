@@ -29,7 +29,7 @@ const [error, setError] = useState<string | null>(null);
     const [showToastBerhasil, setShowToastBerhasil] = useState(false);
     const [sudahPesan, setSudahPesan] = useState(false);
     const [totalCheckout, setTotalCheckout] = useState(0);
-    const [activeKategori, setActiveKategori] = useState("Semua Menu");
+    const [activeKategori, setActiveKategori] = useState("Semua");
     const [searchQuery, setSearchQuery] = useState("");
     const [voucher, setVoucher] = useState<Voucher | null>(null);
     const [itemsToShow, setItemsToShow] = useState(12);
@@ -61,7 +61,7 @@ const [error, setError] = useState<string | null>(null);
                 ]);
                 setMenus(menuData);
                 setKategoris([
-                    { id: 0, nama: "Semua Menu" },
+                    { id: 0, nama: "Semua" },
                     ...kategoriData.map((kat) => ({ id: kat.id, nama: kat.namaKategori }))
                 ]);
                 setLoading(false);
@@ -74,7 +74,7 @@ const [error, setError] = useState<string | null>(null);
     }, [tokenMeja]);
 
     const filteredMenu = menus.filter((menu) => {
-        const matchKategori = activeKategori === "Semua Menu" || menu.kategori === activeKategori;
+        const matchKategori = activeKategori === "Semua" || menu.kategori === activeKategori;
         const matchSearch = menu.namaMenu.toLowerCase().includes(searchQuery.toLowerCase());
         return matchKategori && matchSearch;
     });
@@ -196,10 +196,11 @@ return (
                         <CardContent className="text-center">
                             <div className="mb-4">
                                 <p className="text-destructive font-semibold text-lg mb-2">Token Tidak Valid</p>
-                                <p className="text-muted-foreground mb-4">{error}</p>
+                                <p className="text-muted-foreground mb-2">{error}</p>
+                                <p className="text-sm text-muted-foreground mb-4">Silakan tutup browser dan scan ulang QR code meja</p>
                             </div>
                             <Button variant="outline" onClick={() => window.location.href = "/"}>
-                                Kembali ke Beranda
+                                Scan QR Lagi
                             </Button>
                         </CardContent>
                     </Card>
