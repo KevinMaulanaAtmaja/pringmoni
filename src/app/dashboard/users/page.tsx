@@ -164,7 +164,7 @@ export default function UsersPage() {
   async function handleDeleteConfirm() {
     if (deleteId) {
       const result = await deleteUser(deleteId)
-      if ('error' in result && result.error) {
+      if (result?.error) {
         alert(result.error)
         setDeleteId(null)
         return
@@ -365,7 +365,7 @@ export default function UsersPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email (opsional)</Label>
                 <Input
                   id="email"
                   type="email"
