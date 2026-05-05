@@ -45,26 +45,35 @@ export async function getMenusForCustomer() {
     status_menu: string
     kategori_id: number
     nama_kategori: string
-    foto_url: string | null
   }>>`
     SELECT m.id, m.nama_menu, m.deskripsi, m.harga, m.status_menu, 
-           m.kategori_id, k.nama_kategori,
-           (SELECT foto_url FROM menu_foto WHERE menu_id = m.id ORDER BY urutan ASC LIMIT 1) as foto_url
+           m.kategori_id, k.nama_kategori
     FROM menu m
     JOIN kategori_menu k ON m.kategori_id = k.id
     WHERE m.status_menu = 'tersedia' AND m.deleted_at IS NULL
     ORDER BY m.nama_menu ASC
   `
   
-  return menus.map(menu => ({
-    id: menu.id,
-    namaMenu: menu.nama_menu,
-    deskripsi: menu.deskripsi,
-    harga: Number(menu.harga),
-    kategori: menu.nama_kategori,
-    statusMenu: menu.status_menu as "tersedia" | "habis" | "nonaktif",
-    fotoUrl: menu.foto_url,
-  }))
+  // Get all fotos for each menu
+  const menusWithFotos = await Promise.all(
+    menus.map(async (menu) => {
+      const fotos = await prisma.$queryRaw<Array<{ id: number; foto_url: string }>>`
+        SELECT id, foto_url FROM menu_foto WHERE menu_id = ${menu.id} ORDER BY urutan ASC
+      `
+      return {
+        id: menu.id,
+        namaMenu: menu.nama_menu,
+        deskripsi: menu.deskripsi,
+        harga: Number(menu.harga),
+        kategori: menu.nama_kategori,
+        statusMenu: menu.status_menu as "tersedia" | "habis" | "nonaktif",
+        fotoUrl: fotos[0]?.foto_url || null,
+        menuFoto: fotos.map(f => ({ id: f.id, fotoUrl: f.foto_url })),
+      }
+    })
+  )
+  
+  return menusWithFotos
 }
 
 export async function createPesanan(data: CreatePesananData) {
@@ -262,7 +271,38 @@ export async function getPesananById(id: number) {
     return { error: "Pesanan tidak ditemukan" }
   }
 
-  return pesanan[0]
+  // Get order items with menu foto URLs
+  const items = await prisma.$queryRaw<Array<{
+    id: number
+    menu_id: number
+    nama_menu: string
+    jumlah: number
+    harga_saat_pesan: number
+    catatan_item: string | null
+  }>>`
+    SELECT dp.id, dp.menu_id, m.nama_menu, dp.jumlah, dp.harga_saat_pesan, dp.catatan_item
+    FROM detail_pesanan dp
+    JOIN menu m ON dp.menu_id = m.id
+    WHERE dp.pesanan_id = ${id}
+  `
+
+  // Get foto URLs for each menu item
+  const itemsWithFotos = await Promise.all(
+    items.map(async (item) => {
+      const fotos = await prisma.$queryRaw<Array<{ foto_url: string }>>`
+        SELECT foto_url FROM menu_foto WHERE menu_id = ${item.menu_id} ORDER BY urutan ASC
+      `
+      return {
+        ...item,
+        foto_urls: fotos.map(f => f.foto_url),
+      }
+    })
+  )
+
+  return {
+    ...pesanan[0],
+    items: itemsWithFotos,
+  }
 }
 
 export async function getPesananForCheckout(id: number) {

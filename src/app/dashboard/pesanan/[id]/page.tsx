@@ -7,9 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { getPesananById, updateStatusPesanan, cancelPesanan } from "@/app/actions/pesanan"
-import { getMeja } from "@/app/actions/meja"
-import type { Pesanan } from "@/types"
-import { Eye, ArrowLeft, CheckCircle, XCircle } from "lucide-react"
+import type { Pesanan, DetailPesananItem } from "@/types"
+import { ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 
 const statusColors: Record<string, string> = {
@@ -33,6 +32,7 @@ export default function PesananDetailPage() {
   const [pesanan, setPesanan] = useState<Pesanan | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
 
   const loadPesanan = async () => {
     setLoading(true)
@@ -41,7 +41,16 @@ export default function PesananDetailPage() {
       if (!result || 'error' in result) {
         setError("Pesanan tidak ditemukan")
       } else {
-        // Map snake_case to camelCase for Pesanan type
+        const items = (result.items || []).map((item: { id: number; menu_id: number; nama_menu: string; jumlah: number; harga_saat_pesan: number; catatan_item: string | null; foto_urls?: string[] }) => ({
+          id: item.id,
+          menuId: item.menu_id,
+          menuName: item.nama_menu,
+          jumlah: item.jumlah,
+          hargaSaatPesan: Number(item.harga_saat_pesan),
+          catatanItem: item.catatan_item,
+          fotoUrls: item.foto_urls || [],
+        }))
+
         const mappedResult = {
           id: result.id,
           mejaId: result.meja_id,
@@ -62,7 +71,7 @@ export default function PesananDetailPage() {
           waiterId: undefined,
           kasirId: undefined,
           catatan: null,
-          detailPesanan: [],
+          detailPesanan: items,
         } as Pesanan
         setPesanan(mappedResult)
       }
@@ -78,6 +87,16 @@ export default function PesananDetailPage() {
       loadPesanan()
     }
   }, [orderId])
+
+  const handleImageNav = (itemId: number, direction: 'prev' | 'next', maxLength: number) => {
+    setImageIndexes(prev => {
+      const current = prev[itemId] || 0
+      const newIndex = direction === 'next' 
+        ? (current + 1) % maxLength
+        : (current - 1 + maxLength) % maxLength
+      return { ...prev, [itemId]: newIndex }
+    })
+  }
 
   const handleUpdateStatus = async (status: "menunggu" | "diproses" | "selesai" | "dibatalkan") => {
     const result = await updateStatusPesanan(orderId, status)
@@ -208,6 +227,7 @@ export default function PesananDetailPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Foto</TableHead>
                 <TableHead>Menu</TableHead>
                 <TableHead>Harga</TableHead>
                 <TableHead>Jumlah</TableHead>
@@ -216,15 +236,70 @@ export default function PesananDetailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pesanan.detailPesanan.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.menuName}</TableCell>
-                  <TableCell>Rp {item.hargaSaatPesan.toLocaleString("id-ID")}</TableCell>
-                  <TableCell>{item.jumlah}</TableCell>
-                  <TableCell>Rp {(item.hargaSaatPesan * item.jumlah).toLocaleString("id-ID")}</TableCell>
-                  <TableCell>{item.catatanItem || '-'}</TableCell>
-                </TableRow>
-              ))}
+              {pesanan.detailPesanan.map((item: DetailPesananItem) => {
+                const fotoUrls = item.fotoUrls || []
+                const currentIndex = imageIndexes[item.id] || 0
+                const hasMultiple = fotoUrls.length > 1
+                
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      {fotoUrls.length > 0 ? (
+                        <div className="w-20">
+                          <div className="relative w-20 h-20">
+                            <img 
+                              src={fotoUrls[currentIndex]} 
+                              alt={item.menuName}
+                              className="w-20 h-20 object-cover rounded-lg"
+                            />
+                            {hasMultiple && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleImageNav(item.id, 'prev', fotoUrls.length)}
+                                  className="absolute left-0.5 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80 transition-colors"
+                                >
+                                  <ChevronLeft className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleImageNav(item.id, 'next', fotoUrls.length)}
+                                  className="absolute right-0.5 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80 transition-colors"
+                                >
+                                  <ChevronRight className="w-3 h-3" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                          {hasMultiple && (
+                            <div className="flex justify-center gap-1 mt-1">
+                              {fotoUrls.map((_, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => setImageIndexes(prev => ({ ...prev, [item.id]: idx }))}
+                                  className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                                    idx === currentIndex ? 'bg-blue-600' : 'bg-gray-300 hover:bg-gray-400'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                          <span className="text-xs text-gray-400">No img</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{item.menuName}</TableCell>
+                    <TableCell>Rp {item.hargaSaatPesan.toLocaleString("id-ID")}</TableCell>
+                    <TableCell>{item.jumlah}</TableCell>
+                    <TableCell>Rp {(item.hargaSaatPesan * item.jumlah).toLocaleString("id-ID")}</TableCell>
+                    <TableCell>{item.catatanItem || '-'}</TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </CardContent>

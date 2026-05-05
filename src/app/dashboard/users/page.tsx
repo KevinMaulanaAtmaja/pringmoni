@@ -163,13 +163,14 @@ export default function UsersPage() {
 
   async function handleDeleteConfirm() {
     if (deleteId) {
-      try {
-        await deleteUser(deleteId)
+      const result = await deleteUser(deleteId)
+      if ('error' in result && result.error) {
+        alert(result.error)
         setDeleteId(null)
-        loadData()
-      } catch {
-        alert('Gagal hapus akun')
+        return
       }
+      setDeleteId(null)
+      loadData()
     }
   }
 
@@ -302,9 +303,11 @@ export default function UsersPage() {
                       <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(user)}>
                         <Pencil className="w-3 h-3" />
                       </Button>
-                      <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(user.id)}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      {user.role !== 'owner' && (
+                        <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(user.id)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

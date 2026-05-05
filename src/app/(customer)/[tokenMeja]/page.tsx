@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
-import { Search, ShoppingCart } from "lucide-react";
+import { Search, ShoppingCart, Camera, X } from "lucide-react";
 import { getMenusForCustomer, getMejaByToken, createPesanan } from "@/app/actions/pesanan";
 import { getKategoriMenus } from "@/app/actions/menu";
 import type { CustomerMenu } from "@/types";
@@ -33,6 +33,10 @@ const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [voucher, setVoucher] = useState<Voucher | null>(null);
     const [itemsToShow, setItemsToShow] = useState(12);
+    const [showScanner, setShowScanner] = useState(false);
+    const [scanError, setScanError] = useState<string | null>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const scannerRef = useRef<{ stream?: MediaStream; detector?: any }>({});
 
     interface Voucher {
         kode: string;
@@ -84,7 +88,10 @@ const [error, setError] = useState<string | null>(null);
 
     const totalItem = keranjang.reduce((sum, item) => sum + item.jumlah, 0);
     const subtotal = keranjang.reduce((sum, item) => sum + item.harga * item.jumlah, 0);
-    const totalHarga = voucher ? subtotal - voucher.potongan : subtotal;
+
+    // Validasi voucher: reset jika subtotal < minPembelian
+    const effectiveVoucher = voucher && subtotal >= voucher.minPembelian ? voucher : null;
+    const totalHarga = effectiveVoucher ? subtotal - effectiveVoucher.potongan : subtotal;
 
     const tambahKeranjang = (menu: Menu, jumlah: number = 1, catatan: string | null = null) => {
         setKeranjang((prev) => {
@@ -146,6 +153,62 @@ const [error, setError] = useState<string | null>(null);
         router.push("pesanan");
     };
 
+    const startScanner = async () => {
+        setScanError(null);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                scannerRef.current.stream = stream;
+            }
+
+            if ("BarcodeDetector" in window) {
+                const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+                scannerRef.current.detector = detector;
+                detectQR(detector, stream);
+            }
+        } catch {
+            setScanError("Tidak dapat mengakses kamera. Masukkan token secara manual.");
+        }
+    };
+
+    const detectQR = async (detector: any, stream: MediaStream) => {
+        try {
+            const barcodes = await detector.detect(videoRef.current);
+            if (barcodes.length > 0) {
+                const token = barcodes[0].rawValue.split("/").pop() || barcodes[0].rawValue;
+                stopScanner();
+                window.location.href = `/${token}`;
+                return;
+            }
+            requestAnimationFrame(() => detectQR(detector, stream));
+        } catch {
+            // continue scanning
+        }
+    };
+
+    const stopScanner = () => {
+        scannerRef.current.stream?.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+        scannerRef.current = {};
+        setShowScanner(false);
+    };
+
+    const handleManualToken = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const token = formData.get("token") as string;
+        if (token) {
+            window.location.href = `/${token.trim()}`;
+        }
+    };
+
+    useEffect(() => {
+        if (showScanner) {
+            startScanner();
+        }
+        return () => stopScanner();
+    }, [showScanner]);
+
 return (
         <div className="min-h-screen bg-background">
             {/* Header */}
@@ -161,25 +224,26 @@ return (
                     </div>
 
                     {!loading && !error && (
-                        <CartSheet
-                            keranjang={keranjang}
-                            onUpdateJumlah={updateJumlah}
-                            onHapus={hapusDariKeranjang}
-                            onCheckout={handleCheckout}
-                            subtotal={subtotal}
-                            voucher={voucher}
-                            onApplyVoucher={setVoucher}
-                        >
-                            <Button variant="outline" size="icon" className="relative" data-cart-button>
-                                <ShoppingCart className="size-5" />
-                                {totalItem > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                                        {totalItem}
-                                    </span>
-                                )}
-                            </Button>
-                        </CartSheet>
-                    )}
+                     <CartSheet
+                             keranjang={keranjang}
+                             onUpdateJumlah={updateJumlah}
+                             onHapus={hapusDariKeranjang}
+                             onCheckout={handleCheckout}
+                             subtotal={subtotal}
+                             totalHarga={totalHarga}
+                             voucher={effectiveVoucher}
+                             onApplyVoucher={setVoucher}
+                         >
+                             <Button variant="outline" size="icon" className="relative" data-cart-button>
+                                 <ShoppingCart className="size-5" />
+                                 {totalItem > 0 && (
+                                     <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                                         {totalItem}
+                                     </span>
+                                 )}
+                             </Button>
+                         </CartSheet>
+                     )}
                 </div>
             </header>
 
@@ -197,11 +261,46 @@ return (
                             <div className="mb-4">
                                 <p className="text-destructive font-semibold text-lg mb-2">Token Tidak Valid</p>
                                 <p className="text-muted-foreground mb-2">{error}</p>
-                                <p className="text-sm text-muted-foreground mb-4">Silakan tutup browser dan scan ulang QR code meja</p>
                             </div>
-                            <Button variant="outline" onClick={() => window.location.href = "/"}>
-                                Scan QR Lagi
-                            </Button>
+
+                            {!showScanner ? (
+                                <Button variant="outline" onClick={() => setShowScanner(true)}>
+                                    <Camera className="size-4 mr-2" />
+                                    Scan QR Lagi
+                                </Button>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="relative mx-auto max-w-sm overflow-hidden rounded-lg border bg-black">
+                                        <video
+                                            ref={videoRef}
+                                            autoPlay
+                                            playsInline
+                                            className="w-full aspect-square object-cover"
+                                        />
+                                        <Button
+                                            variant="secondary"
+                                            size="icon"
+                                            className="absolute top-2 right-2 rounded-full"
+                                            onClick={stopScanner}
+                                        >
+                                            <X className="size-4" />
+                                        </Button>
+                                    </div>
+
+                                    {scanError && (
+                                        <p className="text-sm text-destructive">{scanError}</p>
+                                    )}
+
+                                    <form onSubmit={handleManualToken} className="flex gap-2 max-w-sm mx-auto">
+                                        <Input
+                                            name="token"
+                                            placeholder="Atau masukkan token manual"
+                                            className="flex-1"
+                                        />
+                                        <Button type="submit" size="sm">Cek</Button>
+                                    </form>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 )}

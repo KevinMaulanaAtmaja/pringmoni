@@ -62,6 +62,7 @@ export interface DetailPesananItem {
   jumlah: number
   hargaSaatPesan: number
   catatanItem: string | null
+  fotoUrls?: string[]
 }
 
 export interface Pesanan {

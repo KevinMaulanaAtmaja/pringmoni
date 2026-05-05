@@ -16,9 +16,13 @@ npx tsx prisma/testPrisma.ts
 
 
 list
--upload gambar ke uploadthing,
+-nama pelanggan di saat pembayaran, orderid randomin berdasarkan waktu pesan aja,
+-utk identikasi pesanan kasir pake nama? no pesanan/apa? 
 -perbaiki kasir dan pesanan
 -customer bisa akses /dashboard, role lain sesuai fungsi
 -Create Pesanan Detail Page (/dashboard/pesanan/[id]) → Lihat detail pesanan
 -laporan page, create pesanan page(kasir)
 -konsisten ada error dibwh input, minimal huruf ditiap2 input
+-sanitasi input, hak akses tiap halaman role
+- halaman buat pesanan(kasir), laporan,
+- halaman cara bayar, connect ke midtrans

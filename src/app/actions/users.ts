@@ -125,6 +125,20 @@ export async function updateUser(data: {
 }
 
 export async function deleteUser(id: number) {
+  // Check if user is owner
+  const user = await prisma.users.findUnique({
+    where: { id },
+    select: { role: true },
+  })
+  
+  if (!user) {
+    return { error: "User tidak ditemukan" }
+  }
+  
+  if (user.role === 'owner') {
+    return { error: "Akun owner tidak dapat dihapus" }
+  }
+  
   await prisma.users.delete({
     where: { id },
   })
