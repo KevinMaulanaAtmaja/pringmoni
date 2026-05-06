@@ -13,7 +13,8 @@ export interface CreatePesananItem {
 }
 
 export interface CreatePesananData {
-  tokenMeja: string
+  tokenMeja?: string
+  mejaId?: number
   items: CreatePesananItem[]
 }
 
@@ -77,11 +78,28 @@ export async function getMenusForCustomer() {
 }
 
 export async function createPesanan(data: CreatePesananData) {
-  const { tokenMeja, items } = data
+  const { tokenMeja, mejaId, items } = data
 
-  const meja = await getMejaByToken(tokenMeja)
-  if (!meja) {
-    return { error: "Token meja tidak valid" }
+  let mejaIdResolved: number
+
+  if (mejaId) {
+    // Kasir memilih meja manual
+    const meja = await prisma.$queryRaw<Array<{ id: number; nomor_meja: string; status_meja: string }>>`
+      SELECT id, nomor_meja, status_meja FROM meja WHERE id = ${mejaId} AND deleted_at IS NULL
+    `
+    if (!meja[0]) {
+      return { error: "Meja tidak ditemukan" }
+    }
+    mejaIdResolved = meja[0].id
+  } else if (tokenMeja) {
+    // Customer scan QR
+    const meja = await getMejaByToken(tokenMeja)
+    if (!meja) {
+      return { error: "Token meja tidak valid" }
+    }
+    mejaIdResolved = meja.id
+  } else {
+    return { error: "Meja harus dipilih atau token harus valid" }
   }
 
   if (!items || items.length === 0) {
@@ -111,7 +129,7 @@ export async function createPesanan(data: CreatePesananData) {
 
   const result = await prisma.$queryRaw<Array<{ id: number }>>`
     INSERT INTO pesanan (meja_id, status_pesanan, total_harga)
-    VALUES (${meja.id}, 'menunggu', ${totalHarga})
+    VALUES (${mejaIdResolved}, 'menunggu', ${totalHarga})
     RETURNING id
   `
 
@@ -119,17 +137,20 @@ export async function createPesanan(data: CreatePesananData) {
 
   for (const item of items) {
     await prisma.$executeRaw`
-      INSERT INTO detail_pesanan (pesanan_id, menu_id, jumlah, harga_saat_pesan, catatan_item)
+      INSERT INTO detail_pesanan (pesanan_id, menu_id, jumlah, harga_saat_selesai, catatan_item)
       VALUES (${pesananId}, ${item.menuId}, ${item.jumlah}, ${itemPrices[item.menuId]}, ${item.catatan || null})
     `
   }
 
   await prisma.$executeRaw`
-    UPDATE meja SET status_meja = 'terpakai' WHERE id = ${meja.id}
+    UPDATE meja SET status_meja = 'terpakai' WHERE id = ${mejaIdResolved}
   `
 
   revalidatePath("/dashboard/pesanan")
-  revalidatePath(`/${tokenMeja}`)
+  revalidatePath("/dashboard/kasir")
+  if (tokenMeja) {
+    revalidatePath(`/${tokenMeja}`)
+  }
 
   return { success: true, orderId: pesananId }
 }

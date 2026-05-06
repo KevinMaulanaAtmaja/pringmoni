@@ -19,7 +19,7 @@ export type MejaResult = {
 
 export async function getMeja() {
   const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'waiter')) {
+  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'waiter' && session.user.role !== 'cashier')) {
     return { error: "Unauthorized" }
   }
 

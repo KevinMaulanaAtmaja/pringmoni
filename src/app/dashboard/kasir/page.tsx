@@ -21,6 +21,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   CreditCard,
   Wallet,
   Banknote,
@@ -29,6 +36,9 @@ import {
   XCircle,
   Eye,
   Clock,
+  Plus,
+  Minus,
+  ShoppingCart,
 } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
 
@@ -58,9 +68,20 @@ const statusBayarLabels: Record<StatusBayar, string> = {
   dibatalkan: "Dibatalkan",
 }
 
-// Sync with @/types/index.ts
-// MetodePembayaran = 'qris' | 'tunai'
-// StatusBayar = 'menunggu' | 'berhasil' | 'dibatalkan'
+// Mock menus for kasir order creation
+const mockMenus = [
+  { id: 1, namaMenu: "Nasi Gudeg", harga: 25000, kategori: "Makanan Utama" },
+  { id: 2, namaMenu: "Es Teh Manis", harga: 5000, kategori: "Minuman" },
+  { id: 3, namaMenu: "Ayam Bakar", harga: 30000, kategori: "Makanan Utama" },
+  { id: 4, namaMenu: "Sate Ayam", harga: 25000, kategori: "Makanan Utama" },
+]
+
+// Mock meja for kasir order creation
+const mockMeja = [
+  { id: 1, nomorMeja: "A1", statusMeja: "kosong" },
+  { id: 2, nomorMeja: "B2", statusMeja: "kosong" },
+  { id: 3, nomorMeja: "C3", statusMeja: "terpakai" },
+]
 
 const mockPesananBelum = [
   {
@@ -133,6 +154,15 @@ const mockPesananRiwayat = [
   },
 ]
 
+// Cart item type
+interface CartItem {
+  menuId: number
+  namaMenu: string
+  harga: number
+  jumlah: number
+  catatan: string
+}
+
 export default function KasirPage() {
   // Note: RoleUser type uses 'kasir' (not 'cashier')
   const role = 'kasir' as string // TODO: Ambil dari session BE nanti
@@ -140,7 +170,7 @@ export default function KasirPage() {
 
   const pageTitle = <h1 className="text-2xl font-bold">Cashier</h1>
 
-  const [activeTab, setActiveTab] = useState<"belum" | "riwayat">("belum")
+  const [activeTab, setActiveTab] = useState<"belum" | "riwayat" | "buat">("belum")
   const [pesananBelum] = useState(mockPesananBelum)
   const [pesananRiwayat] = useState(mockPesananRiwayat)
   const [selectedPesanan, setSelectedPesanan] = useState<(typeof mockPesananBelum)[0] | (typeof mockPesananRiwayat)[0] | null>(null)
@@ -150,6 +180,13 @@ export default function KasirPage() {
   const [jumlahBayar, setJumlahBayar] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
+
+  // Create order states
+  const [selectedMejaId, setSelectedMejaId] = useState<string>("")
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [selectedMenuForNote, setSelectedMenuForNote] = useState<typeof mockMenus[0] | null>(null)
+  const [noteInput, setNoteInput] = useState("")
+  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false)
 
   function openPayment(pesanan: (typeof mockPesananBelum)[0] | (typeof mockPesananRiwayat)[0]) {
     setSelectedPesanan(pesanan)
@@ -203,7 +240,31 @@ export default function KasirPage() {
       ? parseFloat(jumlahBayar) - (selectedPesanan?.totalHarga || 0)
       : 0
 
+  // Cart functions
+  function updateCartItemJumlah(index: number, jumlah: number) {
+    if (jumlah < 1) return
+    setCart(prev => prev.map((item, i) =>
+      i === index ? { ...item, jumlah } : item
+    ))
+  }
+
+  function getCartTotal() {
+    return cart.reduce((total, item) => total + (item.harga * item.jumlah), 0)
+  }
+
+  function handleCreateOrder() {
+    if (!selectedMejaId || cart.length === 0) {
+      alert("Pilih meja dan tambahkan menu")
+      return
+    }
+    alert("Simulasi: Pesanan baru dibuat untuk Meja " + mockMeja.find(m => m.id === parseInt(selectedMejaId))?.nomorMeja)
+    setIsCreateOrderOpen(false)
+    setSelectedMejaId("")
+    setCart([])
+  }
+
   return (
+    <>
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         {pageTitle}
@@ -227,6 +288,13 @@ export default function KasirPage() {
         >
           <ArrowRightLeft className="w-4 h-4 mr-2" />
           Riwayat ({pesananRiwayat.length})
+        </Button>
+        <Button
+          variant={activeTab === "buat" ? "default" : "outline"}
+          onClick={() => setActiveTab("buat")}
+        >
+          <ShoppingCart className="w-4 h-4 mr-2" />
+          Buat Pesanan
         </Button>
       </div>
 
@@ -271,7 +339,7 @@ export default function KasirPage() {
             ))}
           </div>
         )
-      ) : (
+      ) : activeTab === "riwayat" ? (
         pesananRiwayat.length === 0 ? (
           <div className="text-center py-12 text-gray-500 bg-white rounded-lg border">
             <p className="text-lg font-medium">Belum ada riwayat pembayaran</p>
@@ -300,7 +368,9 @@ export default function KasirPage() {
                     <TableCell className="font-medium">{formatRupiah(p.totalHarga)}</TableCell>
                     <TableCell>{p.jumlahBayar ? formatRupiah(p.jumlahBayar) : "-"}</TableCell>
                     <TableCell>{p.kembalian > 0 ? formatRupiah(p.kembalian) : "-"}</TableCell>
-                    <TableCell>                  <Badge className={statusBayarColors[p.statusPembayaran as StatusBayar]}>{statusBayarLabels[p.statusPembayaran as StatusBayar]}</Badge></TableCell>
+                    <TableCell>
+                      <Badge className={statusBayarColors[p.statusPembayaran as StatusBayar]}>{statusBayarLabels[p.statusPembayaran as StatusBayar]}</Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" onClick={() => openDetail(p)}>
                         <Eye className="w-4 h-4 mr-1" />Detail
@@ -312,8 +382,200 @@ export default function KasirPage() {
             </Table>
           </div>
         )
-      )}
+      ) : (
+        // Tab Buat Pesanan
+        <div className="space-y-4">
+          {/* Pilih Meja */}
+          <div className="space-y-2">
+            <Label>Pilih Meja</Label>
+            <Select value={selectedMejaId} onValueChange={setSelectedMejaId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih meja" />
+              </SelectTrigger>
+              <SelectContent>
+                {mockMeja.map((meja) => (
+                  <SelectItem key={meja.id} value={meja.id.toString()}>
+                    Meja {meja.nomorMeja} ({meja.statusMeja === 'kosong' ? 'Kosong' : 'Terpakai'})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
+          {/* Menu Grid */}
+          <div className="space-y-2">
+            <Label>Pilih Menu</Label>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {mockMenus.map((menu) => {
+                const itemInCart = cart.find(item => item.menuId === menu.id)
+                const qty = itemInCart?.jumlah || 0
+                return (
+                  <div
+                    key={menu.id}
+                    className="bg-white rounded-lg border overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                      <span className="text-4xl">🍽️</span>
+                    </div>
+                    <div className="p-3">
+                      <h4 className="font-medium text-sm line-clamp-2">{menu.namaMenu}</h4>
+                      <p className="text-green-700 font-bold text-sm mt-1">
+                        {formatRupiah(menu.harga)}
+                      </p>
+                      {itemInCart?.catatan && (
+                        <p className="text-xs text-gray-400 mt-1 truncate">📝 {itemInCart.catatan}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-3">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="h-12 w-12 p-0 rounded-xl"
+                          onClick={() => {
+                            if (qty <= 1) {
+                              setCart(prev => prev.filter(item => item.menuId !== menu.id))
+                            } else {
+                              updateCartItemJumlah(cart.indexOf(itemInCart!), qty - 1)
+                            }
+                          }}
+                        >
+                          <Minus className="w-5 h-5" />
+                        </Button>
+                        <span className="w-8 text-center text-base font-bold">{qty}</span>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="h-12 w-12 p-0 rounded-xl"
+                          onClick={() => {
+                            if (itemInCart) {
+                              updateCartItemJumlah(cart.indexOf(itemInCart), qty + 1)
+                            } else {
+                              setCart(prev => [...prev, {
+                                menuId: menu.id,
+                                namaMenu: menu.namaMenu,
+                                harga: menu.harga,
+                                jumlah: 1,
+                                catatan: "",
+                              }])
+                            }
+                          }}
+                        >
+                          <Plus className="w-5 h-5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="lg"
+                          className="h-12 px-3 rounded-xl text-base ml-auto"
+                          onClick={() => {
+                            setSelectedMenuForNote(menu)
+                            setNoteInput(itemInCart?.catatan || "")
+                            setIsNoteDialogOpen(true)
+                          }}
+                        >
+                          📝
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Cart */}
+          {cart.length > 0 && (
+            <div className="space-y-2">
+              <Label>Keranjang ({cart.length} item)</Label>
+              <div className="border rounded-lg divide-y">
+                {cart.map((item, index) => (
+                  <div key={index} className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{item.namaMenu}</p>
+                        <p className="text-xs text-gray-500">{formatRupiah(item.harga)} x {item.jumlah}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="h-10 w-10 p-0 rounded-xl"
+                          onClick={() => {
+                            updateCartItemJumlah(index, item.jumlah - 1)
+                            if (item.jumlah - 1 === 0) {
+                              setCart(prev => prev.filter((_, i) => i !== index))
+                            }
+                          }}
+                        >
+                          <Minus className="w-4 h-4" />
+                        </Button>
+                        <span className="w-8 text-center text-base font-bold">{item.jumlah}</span>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="h-10 w-10 p-0 rounded-xl"
+                          onClick={() => updateCartItemJumlah(index, item.jumlah + 1)}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="lg"
+                          className="h-10 w-10 p-0 rounded-xl"
+                          onClick={() => {
+                            setCart(prev => prev.filter((_, i) => i !== index))
+                          }}
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="mt-1 flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-gray-500"
+                        onClick={() => {
+                          const menu = mockMenus.find(m => m.id === item.menuId)
+                          if (menu) {
+                            setSelectedMenuForNote(menu)
+                            setNoteInput(item.catatan || "")
+                            setIsNoteDialogOpen(true)
+                          }
+                        }}
+                      >
+                        📝 {item.catatan || "Tambah catatan"}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="flex justify-between font-bold">
+                  <span>Total</span>
+                  <span className="text-green-700">{formatRupiah(getCartTotal())}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              setSelectedMejaId("")
+              setCart([])
+              setMenuQuantities({})
+            }}>
+              Batal
+            </Button>
+            <Button onClick={handleCreateOrder} disabled={!selectedMejaId || cart.length === 0}>
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Buat Pesanan
+            </Button>
+          </div>
+        </div>
+        )}
+       </div>
+
+      {/* Dialog Payment */}
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
         <DialogContent className="max-w-lg">
           {paymentSuccess ? (
@@ -372,6 +634,42 @@ export default function KasirPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Note Per Item */}
+      <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Catatan - {selectedMenuForNote?.namaMenu}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>Catatan (opsional)</Label>
+            <Input
+              placeholder="Contoh: tanpa bawang, extra pedas..."
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsNoteDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button onClick={() => {
+              if (selectedMenuForNote) {
+                const index = cart.findIndex(item => item.menuId === selectedMenuForNote.id)
+                if (index >= 0) {
+                  setCart(prev => prev.map((item, i) =>
+                    i === index ? { ...item, catatan: noteInput } : item
+                  ))
+                }
+              }
+              setIsNoteDialogOpen(false)
+            }}>
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Detail */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -399,6 +697,7 @@ export default function KasirPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  )
+
+    </>
+  );
 }

@@ -9,6 +9,7 @@ import {
   User,
   Armchair,
   Receipt,
+  BarChart3,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -41,6 +42,7 @@ export function Sidebar({ role }: SidebarProps) {
         { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Akun", icon: User, href: "/dashboard/users" },
+        { name: "Laporan", icon: BarChart3, href: "/dashboard/laporan" },
       ]
 
   return (
