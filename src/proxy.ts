@@ -9,13 +9,14 @@ export async function proxy(request: NextRequest) {
   const userRole = session?.user?.role
 
   // Public routes: home, login, reset-password, customer routes (token meja)
-  const isPublicRoute = 
-    pathname === "/" || 
-    pathname === "/login" || 
+  const isPublicRoute =
+    pathname === "/" ||
+    pathname === "/login" ||
     pathname === "/reset-password" ||
     pathname.match(/^\/[a-zA-Z0-9-]+$/) || // Customer token route: /[tokenMeja]
     pathname.match(/^\/[a-zA-Z0-9-]+\/pesanan$/) || // /[tokenMeja]/pesanan
-    pathname.match(/^\/[a-zA-Z0-9-]+\/checkout$/) // /[tokenMeja]/checkout
+    pathname.match(/^\/[a-zA-Z0-9-]+\/checkout$/) || // /[tokenMeja]/checkout
+    pathname.match(/^\/[a-zA-Z0-9-]+\/pembayaran/) // /[tokenMeja]/pembayaran*
 
   // Kalau sudah login dan akses login, redirect ke dashboard
   if (isLoggedIn && pathname === "/login") {

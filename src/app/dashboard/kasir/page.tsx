@@ -30,20 +30,22 @@ import {
   Eye,
   Clock,
 } from "lucide-react"
-import { MetodePembayaran, StatusBayar } from "@/types"
+import { MetodePembayaranFrontend, StatusBayar } from "@/types"
+type MetodePembayaran = MetodePembayaranFrontend
 
-// Sync with @/types/index.ts
-// MetodePembayaran = 'qris' | 'tunai'
+// MetodePembayaranFrontend = 'tunai' | 'transfer' | 'qris'
 // StatusBayar = 'menunggu' | 'berhasil' | 'dibatalkan'
 
 const metodeLabels: Record<MetodePembayaran, string> = {
-  qris: "QRIS",
   tunai: "Tunai",
+  transfer: "Transfer",
+  qris: "QRIS",
 }
 
 const metodeIcons: Record<MetodePembayaran, React.ReactNode> = {
-  qris: <CreditCard className="w-6 h-6" />,
   tunai: <Banknote className="w-6 h-6" />,
+  transfer: <ArrowRightLeft className="w-6 h-6" />,
+  qris: <CreditCard className="w-6 h-6" />,
 }
 
 const statusBayarColors: Record<StatusBayar, string> = {
@@ -58,8 +60,7 @@ const statusBayarLabels: Record<StatusBayar, string> = {
   dibatalkan: "Dibatalkan",
 }
 
-// Sync with @/types/index.ts
-// MetodePembayaran = 'qris' | 'tunai'
+// MetodePembayaranFrontend = 'tunai' | 'transfer' | 'qris'
 // StatusBayar = 'menunggu' | 'berhasil' | 'dibatalkan'
 
 const mockPesananBelum = [
@@ -337,7 +338,7 @@ export default function KasirPage() {
               <div className="space-y-3">
                 <Label>Pilih Metode Pembayaran</Label>
                 <div className="grid grid-cols-3 gap-3">
-                  {(["qris", "tunai"] as MetodePembayaran[]).map((metode) => (
+                  {(["tunai", "transfer", "qris"] as MetodePembayaran[]).map((metode) => (
                     <button key={metode} type="button" onClick={() => setSelectedMetode(metode)}
                       className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
                         selectedMetode === metode ? "border-green-600 bg-green-50" : "border-gray-200"

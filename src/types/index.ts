@@ -53,7 +53,10 @@ export interface CustomerMenu {
 
 export type StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan'
 export type StatusBayar = 'menunggu' | 'berhasil' | 'dibatalkan'
+// Backend type (sync with Prisma)
 export type MetodePembayaran = 'qris' | 'tunai'
+// Frontend display only (3 metode)
+export type MetodePembayaranFrontend = 'tunai' | 'transfer' | 'qris'
 
 export interface DetailPesananItem {
   id: number
