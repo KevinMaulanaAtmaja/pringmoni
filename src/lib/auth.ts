@@ -94,6 +94,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.role = (user as CustomUser).role
         token.id = (user as CustomUser).id
+        token.username = user.name
       }
       return token
     },
@@ -101,6 +102,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token) {
         session.user.role = (token.role as RoleUser) ?? "waiter"
         session.user.id = (token.id as string) ?? ""
+        session.user.username = token.username as string
       }
       return session
     },
@@ -114,6 +116,7 @@ declare module "next-auth" {
       name?: string | null
       email?: string | null
       role: RoleUser
+      username?: string
     }
   }
 }

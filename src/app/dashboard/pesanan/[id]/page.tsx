@@ -8,12 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { getPesananById, updateStatusPesanan, cancelPesanan } from "@/app/actions/pesanan"
 import type { Pesanan, DetailPesananItem } from "@/types"
+import { StatusPesanan } from "@prisma/client"
 import { ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 
 const statusColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
   diproses: "bg-blue-100 text-blue-800",
+  siap: "bg-purple-100 text-purple-800",
   selesai: "bg-green-100 text-green-800",
   dibatalkan: "bg-red-100 text-red-800",
 }
@@ -54,10 +56,10 @@ export default function PesananDetailPage() {
         const mappedResult = {
           id: result.id,
           mejaId: result.meja_id,
-          statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "selesai" | "dibatalkan",
+          statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "siap" | "selesai" | "dibatalkan",
           statusPembayaran: result.status_pembayaran as "menunggu" | "berhasil" | "dibatalkan",
           totalHarga: Number(result.total_harga),
-          metodePembayaran: result.metode_pembayaran as "qris" | "tunai" | undefined,
+          metodePembayaran: (result.metode_pembayaran || undefined) as "qris" | "tunai" | "transfer" | undefined,
           jumlahBayar: result.jumlah_bayar ? Number(result.jumlah_bayar) : undefined,
           kembalian: Number(result.kembalian),
           createdAt: result.created_at.toISOString(),
@@ -98,7 +100,7 @@ export default function PesananDetailPage() {
     })
   }
 
-  const handleUpdateStatus = async (status: "menunggu" | "diproses" | "selesai" | "dibatalkan") => {
+  const handleUpdateStatus = async (status: StatusPesanan) => {
     const result = await updateStatusPesanan(orderId, status)
     if ('error' in result && result.error) {
       alert(result.error)
@@ -146,6 +148,7 @@ export default function PesananDetailPage() {
               <Badge className={statusColors[pesanan.statusPesanan]}>
                 {pesanan.statusPesanan === 'menunggu' ? 'Menunggu' : 
                  pesanan.statusPesanan === 'diproses' ? 'Diproses' :
+                 pesanan.statusPesanan === 'siap' ? 'Siap Diantar' :
                  pesanan.statusPesanan === 'selesai' ? 'Selesai' : 'Dibatalkan'}
               </Badge>
             </div>
@@ -305,30 +308,24 @@ export default function PesananDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Actions */}
-      <div className="flex gap-4">
-        {pesanan.statusPesanan === 'menunggu' && (
-          <>
-            <Button onClick={() => handleUpdateStatus('diproses')}>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Proses Pesanan
-            </Button>
-            <Button variant="destructive" onClick={handleCancel}>
-              <XCircle className="w-4 h-4 mr-2" />
-              Batalkan
-            </Button>
-          </>
-        )}
-        {pesanan.statusPesanan === 'diproses' && (
-          <Button onClick={() => handleUpdateStatus('selesai')}>
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Selesai
-          </Button>
-        )}
-        <Button variant="outline" asChild>
-          <Link href="/dashboard/pesanan">Kembali ke Daftar</Link>
-        </Button>
-      </div>
+       {/* Actions */}
+       <div className="flex gap-4">
+         {pesanan.statusPesanan === 'menunggu' && (
+           <>
+             <Button onClick={() => handleUpdateStatus('selesai')}>
+               <CheckCircle className="w-4 h-4 mr-2" />
+               Selesai
+             </Button>
+             <Button variant="destructive" onClick={handleCancel}>
+               <XCircle className="w-4 h-4 mr-2" />
+               Batalkan
+             </Button>
+           </>
+         )}
+         <Button variant="outline" asChild>
+           <Link href="/dashboard/pesanan">Kembali ke Daftar</Link>
+         </Button>
+       </div>
     </div>
   )
 }
