@@ -1,139 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Wallet, Banknote, ArrowLeft, CreditCard, Smartphone, Loader2 } from "lucide-react";
-import { getPesananForCheckout, updatePembayaran } from "@/app/actions/pesanan";
+import { CheckCircle, Wallet, ArrowLeft, Banknote, CreditCard, Smartphone, Copy, QrCode, Barcode } from "lucide-react";
 
-interface CheckoutItem {
-  id: number;
-  namaMenu: string;
-  harga: number;
-  jumlah: number;
-  catatan: string | null;
-}
+const total = 60000;
+const orderId = "001";
 
-interface CheckoutData {
-  items: CheckoutItem[];
-  subtotal: number;
-  total: number;
-}
-
-type MetodeBayar = "tunai" | "qris" | "debit" | "kredit";
+const metodeOptions = [
+  { value: "tunai", label: "Tunai", icon: <Banknote className="size-5" /> },
+  { value: "transfer", label: "Transfer", icon: <CreditCard className="size-5" /> },
+  { value: "qris", label: "QRIS", icon: <Smartphone className="size-5" /> },
+];
 
 export default function CheckoutPage() {
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
   const tokenMeja = params.tokenMeja as string;
-  const orderId = searchParams.get("orderId");
-  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [metodeBayar, setMetodeBayar] = useState<MetodeBayar | null>(null);
-  const [jumlahBayar, setJumlahBayar] = useState("");
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [nama, setNama] = useState("");
+  const [metode, setMetode] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!orderId) {
-        router.push(`/${tokenMeja}`);
-        return;
-      }
-
-      try {
-        const data = await getPesananForCheckout(parseInt(orderId));
-        if (data) {
-          setCheckoutData(data);
-        } else {
-          router.push(`/${tokenMeja}`);
-        }
-      } catch {
-        router.push(`/${tokenMeja}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [orderId, router, tokenMeja]);
-
-  if (!checkoutData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  const { items, subtotal = 0, total = 0 } = checkoutData;
-  const jumlahBayarNum = parseInt(jumlahBayar) || 0;
-  const kembalian = jumlahBayarNum - total;
-
-  const metodeOptions: { value: MetodeBayar; label: string; icon: React.ReactNode }[] = [
-    { value: "tunai", label: "Tunai", icon: <Banknote className="size-5" /> },
-    { value: "qris", label: "QRIS", icon: <Smartphone className="size-5" /> },
-    { value: "debit", label: "Debit", icon: <CreditCard className="size-5" /> },
-    { value: "kredit", label: "Kredit", icon: <CreditCard className="size-5" /> },
-  ];
-
-  const handleBayar = async () => {
-    if (!metodeBayar) return;
-
-    try {
-      const result = await updatePembayaran(parseInt(orderId!), {
-        metodePembayaran: metodeBayar,
-        jumlahBayar: metodeBayar === "tunai" ? jumlahBayarNum : null,
-        kembalian: metodeBayar === "tunai" ? kembalian : 0,
-      });
-
-      if (result.error) {
-        alert(result.error);
-        return;
-      }
-
-      setShowSuccess(true);
-      setTimeout(() => {
-        router.push(`/${tokenMeja}/pesanan`);
-      }, 2000);
-    } catch (error) {
-      console.error("Payment error:", error);
-      alert("Terjadi kesalahan");
-    }
+  const handleLanjut = () => {
+    if (!nama.trim() || !metode) return;
+    router.push(`/${tokenMeja}/pembayaran/${metode}?nama=${encodeURIComponent(nama)}`);
   };
-
-  if (showSuccess) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="flex flex-col items-center py-12">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-              <CheckCircle className="size-8 text-green-600" />
-            </div>
-            <h2 className="font-bold text-lg mb-2">Pembayaran Berhasil!</h2>
-            <p className="text-muted-foreground text-sm text-center mb-4">
-              Silakan lakukan pembayaran ke kasir
-            </p>
-            <p className="text-2xl font-bold text-primary">
-              Rp {total.toLocaleString("id-ID")}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
-          <button
-            onClick={() => router.back()}
-            className="text-muted-foreground hover:text-foreground"
-          >
+          <button onClick={() => router.back()} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-5" />
           </button>
           <h1 className="flex-1 text-center font-bold">Checkout</h1>
@@ -146,26 +44,37 @@ export default function CheckoutPage() {
           <CardContent className="p-4">
             <h3 className="font-bold mb-3">Ringkasan Pesanan</h3>
             <div className="space-y-2">
-              {items.map((item, index) => (
-                <div key={index} className="flex justify-between text-sm">
-                  <span>{item.jumlah}x {item.namaMenu}</span>
-                  <span className="font-medium">
-                    Rp {(item.harga * item.jumlah).toLocaleString("id-ID")}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="border-t mt-3 pt-3 space-y-1">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>Rp {subtotal.toLocaleString("id-ID")}</span>
+                <span>2x Nasi Gudeg</span>
+                <span className="font-medium">Rp 50.000</span>
               </div>
-              <div className="border-t pt-2 flex justify-between font-bold">
+              <div className="flex justify-between text-sm">
+                <span>2x Es Teh Manis</span>
+                <span className="font-medium">Rp 10.000</span>
+              </div>
+            </div>
+            <div className="border-t mt-3 pt-3">
+              <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span className="text-lg text-primary">
-                  Rp {total.toLocaleString("id-ID")}
-                </span>
+                <span className="text-primary">Rp {total.toLocaleString("id-ID")}</span>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div>
+              <label htmlFor="nama" className="text-sm font-medium">Nama Pelanggan</label>
+              <input
+                id="nama"
+                type="text"
+                placeholder="Masukkan nama Anda"
+                value={nama}
+                onChange={(e) => setNama(e.target.value)}
+                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-1">*Nama pelanggan wajib diisi</p>
             </div>
           </CardContent>
         </Card>
@@ -176,13 +85,13 @@ export default function CheckoutPage() {
               <Wallet className="size-5" />
               Metode Pembayaran
             </h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {metodeOptions.map((opt) => (
                 <button
                   key={opt.value}
-                  onClick={() => setMetodeBayar(opt.value)}
+                  onClick={() => setMetode(opt.value)}
                   className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
-                    metodeBayar === opt.value
+                    metode === opt.value
                       ? "border-primary bg-primary/5"
                       : "border-muted hover:border-muted-foreground/50"
                   }`}
@@ -195,66 +104,13 @@ export default function CheckoutPage() {
           </CardContent>
         </Card>
 
-        {metodeBayar === "tunai" && (
-          <Card>
-            <CardContent className="p-4 space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Jumlah Bayar (Rp)
-                </label>
-                <Input
-                  type="number"
-                  placeholder="Masukkan jumlah uang"
-                  value={jumlahBayar}
-                  onChange={(e) => setJumlahBayar(e.target.value)}
-                  className="text-lg"
-                />
-              </div>
-              {jumlahBayarNum > 0 && (
-                <div className="space-y-2">
-                  {jumlahBayarNum < total ? (
-                    <Badge variant="destructive" className="w-full justify-center py-2">
-                      Jumlah bayar kurang Rp {(total - jumlahBayarNum).toLocaleString("id-ID")}
-                    </Badge>
-                  ) : (
-                    <div className="flex justify-between items-center p-3 rounded-lg bg-green-50 border border-green-200">
-                      <span className="text-sm text-green-700">Kembalian</span>
-                      <span className="text-lg font-bold text-green-700">
-                        Rp {kembalian.toLocaleString("id-ID")}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {metodeBayar && metodeBayar !== "tunai" && (
-          <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="p-4 flex items-center gap-3">
-              <CheckCircle className="size-5 text-primary shrink-0" />
-              <div>
-                <p className="font-medium text-sm">
-                  {metodeBayar === "qris" && "Pembayaran via QRIS"}
-                  {metodeBayar === "debit" && "Pembayaran via Debit"}
-                  {metodeBayar === "kredit" && "Pembayaran via Kredit"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Selesaikan pembayaran di kasir
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         <div className="pt-4 pb-8">
           <Button
             className="w-full h-14 rounded-full text-lg font-bold"
-            disabled={!metodeBayar}
-            onClick={handleBayar}
+            disabled={!nama.trim() || !metode}
+            onClick={handleLanjut}
           >
-            Bayar Rp {total.toLocaleString("id-ID")}
+            Lanjut ke Pembayaran
           </Button>
         </div>
       </main>
