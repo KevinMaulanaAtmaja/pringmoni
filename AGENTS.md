@@ -29,6 +29,13 @@ Project ini adalah **Project Based Learning (PBL)** untuk mitra kami: **Restoran
 | `npm run build` | ✅ Diizinkan |
 | `npm run lint` | ✅ Diizinkan |
 | Install dependencies baru | ⚠️ Hanya BE yang boleh |
+| **Mengosongkan database** | ❌ **Hanya atas perintah eksplisit user** |
+
+**⚠️ ATURAN PENTING:**
+- **DILARANG** mengosongkan (DELETE/DROP) tabel database secara otomatis tanpa perintah tegas dari user
+- **DILARANG** menjalankan script seed yang menghapus data tanpa instruksi "kosongkan DB" atau "seed ulang"
+- Jika perlu menguji fitur, gunakan **mock data** daripada menghapus data asli
+- Selaalu tanya user dulu sebelum melakukan operasi `DELETE FROM` atau `prisma.*.deleteMany()`
 
 ### Pembagian Role
 

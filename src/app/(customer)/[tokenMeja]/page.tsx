@@ -16,12 +16,18 @@ import type { KeranjangItem } from "@/components/customer/cart-sheet";
 
 type Menu = CustomerMenu;
 
+interface CreatePesananResult {
+    success?: boolean;
+    orderId?: number;
+    error?: string;
+}
+
 export default function CustomerMenuPage() {
     const router = useRouter();
     const params = useParams();
     const tokenMeja = params.tokenMeja as string;
 const [menus, setMenus] = useState<Menu[]>([]);
-const [mejaData, setMejaData] = useState<{ nomor_meja: string; nomorMeja?: string } | null>(null);
+const [mejaData, setMejaData] = useState<{ nomorMeja: string } | null>(null);
 const [kategoris, setKategoris] = useState<{ id: number; nama: string }[]>([]);
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState<string | null>(null);
@@ -135,14 +141,19 @@ const [error, setError] = useState<string | null>(null);
                 catatan: item.catatan,
             }));
 
-            const result = await createPesanan({ tokenMeja, items });
+            const result: CreatePesananResult = await createPesanan({ tokenMeja, items });
 
-            if (result.error) {
+            if (result && 'error' in result) {
                 alert(result.error);
                 return;
             }
 
-            router.push(`/${tokenMeja}/checkout?orderId=${result.orderId}`);
+            if (result && 'orderId' in result && result.orderId) {
+                router.push(`/${tokenMeja}/checkout?orderId=${result.orderId}`);
+            } else {
+                alert("Pesanan berhasil dibuat!");
+                setKeranjang([]);
+            }
         } catch (error) {
             console.error("Checkout error:", error);
             alert("Terjadi kesalahan");
@@ -218,7 +229,7 @@ return (
                         <h1 className="font-heading text-xl font-bold">Pringmoni</h1>
                         {!error && (
                             <Badge variant="outline" className="rounded-full">
-                                 Meja {mejaData?.nomor_meja || tokenMeja}
+                                 Meja {mejaData?.nomorMeja || tokenMeja}
                              </Badge>
                         )}
                     </div>

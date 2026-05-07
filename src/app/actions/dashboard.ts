@@ -12,44 +12,39 @@ export async function getDashboardStats() {
   today.setHours(0, 0, 0, 0)
 
   try {
-    const [pesananHariIni, totalPendapatan, mejaStats, pesananMenunggu, pesananDiproses] = await Promise.all([
-      prisma.pesanan.findMany({
-        where: { createdAt: { gte: today } },
-      }),
-      prisma.pesanan.findMany({
-        where: { 
-          createdAt: { gte: today },
-          statusPembayaran: 'berhasil',
-        },
-      }),
-      prisma.meja.findMany({
-        select: { statusMeja: true },
-      }),
-      prisma.pesanan.findMany({
-        where: { statusPesanan: 'menunggu' },
-      }),
-      prisma.pesanan.findMany({
-        where: { statusPesanan: 'diproses' },
-      }),
-    ])
+  const [pesananHariIni, totalPendapatan, mejaStats, pesananMenunggu] = await Promise.all([
+    prisma.pesanan.findMany({
+      where: { createdAt: { gte: today } },
+    }),
+    prisma.pesanan.findMany({
+      where: { 
+        createdAt: { gte: today },
+        statusPembayaran: 'berhasil',
+      },
+    }),
+    prisma.meja.findMany({
+      select: { statusMeja: true },
+    }),
+    prisma.pesanan.findMany({
+      where: { statusPesanan: 'menunggu' },
+    }),
+  ])
 
-    const mejaKosong = mejaStats.filter(m => m.statusMeja === 'kosong').length
-    const mejaTerpakai = mejaStats.filter(m => m.statusMeja === 'terpakai').length
+  const mejaKosong = mejaStats.filter(m => m.statusMeja === 'kosong').length
+  const mejaTerpakai = mejaStats.filter(m => m.statusMeja === 'terpakai').length
 
-    const stats = {
-      pesananHariIni: pesananHariIni.length,
-      totalPendapatan: totalPendapatan.reduce((sum, p) => sum + Number(p.totalHarga), 0),
-      mejaKosong,
-      mejaTerpakai,
-      pesananMenunggu: pesananMenunggu.length,
-      pesananDiproses: pesananDiproses.length,
-    }
+  const stats = {
+    pesananHariIni: pesananHariIni.length,
+    totalPendapatan: totalPendapatan.reduce((sum, p) => sum + Number(p.totalHarga), 0),
+    mejaKosong,
+    mejaTerpakai,
+    pesananMenunggu: pesananMenunggu.length,
+  }
 
     if (role === 'cashier') {
       return {
         ...stats,
         showMeja: false,
-        showPesananDiproses: false,
       }
     }
 
@@ -59,14 +54,12 @@ export async function getDashboardStats() {
         pesananMenunggu: stats.pesananMenunggu,
         showPendapatan: false,
         showMeja: false,
-        showPesananDiproses: true,
       }
     }
 
     return {
       ...stats,
       showMeja: true,
-      showPesananDiproses: true,
     }
   } catch (error) {
     console.error('Dashboard stats error:', error)
@@ -76,9 +69,7 @@ export async function getDashboardStats() {
       mejaKosong: 0,
       mejaTerpakai: 0,
       pesananMenunggu: 0,
-      pesananDiproses: 0,
       showMeja: role !== 'cashier',
-      showPesananDiproses: true,
     }
   }
 }
