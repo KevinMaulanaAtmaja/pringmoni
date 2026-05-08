@@ -17,6 +17,7 @@ npx tsx prisma/testPrisma.ts
 
 list
 -midleware bedsarkan role, session login expired
+-meja dipake ga bisa buat pesen orang lain, tpi bsa jika pake hp yg sama pesen lagi
 -nama pelanggan di saat pembayaran, orderid randomin berdasarkan waktu pesan aja,
 -utk identikasi pesanan kasir pake nama? no pesanan/apa? 
 -perbaiki kasir dan pesanan

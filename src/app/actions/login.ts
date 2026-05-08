@@ -19,6 +19,6 @@ export async function loginAction(prevState: { error: string }, formData: FormDa
     if (errMsg === 'DATABASE_ERROR') {
       return { success: false, error: 'Database tidak dapat dihubungi. Silakan coba lagi.' }
     }
-    return { success: false, error: 'Username atau password salah' }
+    return { success: false, error: 'Username/Email atau password salah' }
   }
 }

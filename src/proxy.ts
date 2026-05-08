@@ -13,6 +13,7 @@ export async function proxy(request: NextRequest) {
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/reset-password" ||
+    pathname.match(/^\/reset-password\/[a-zA-Z0-9]+$/) ||
     pathname.match(/^\/[a-zA-Z0-9-]+$/) || // Customer token route: /[tokenMeja]
     pathname.match(/^\/[a-zA-Z0-9-]+\/pesanan$/) || // /[tokenMeja]/pesanan
     pathname.match(/^\/[a-zA-Z0-9-]+\/checkout$/) || // /[tokenMeja]/checkout

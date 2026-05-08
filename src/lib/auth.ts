@@ -33,8 +33,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           console.log('Attempting database query...')
           
-          const user = await prisma.users.findUnique({
-            where: { username: credentials.username as string },
+          const user = await prisma.users.findFirst({
+            where: {
+              OR: [
+                { username: credentials.username as string },
+                { email: credentials.username as string },
+              ],
+            },
           })
 
           console.log('User found:', user ? 'YES' : 'NO')
