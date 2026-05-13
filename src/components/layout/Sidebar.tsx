@@ -29,16 +29,15 @@ export function Sidebar({ role }: SidebarProps) {
       ]
     : (role === 'cashier')
     ? [
-        // Kasir: Proses pembayaran + bisa buat pesanan manual (butuh lihat menu)
+        // Kasir: Proses pembayaran
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Kasir", icon: Receipt, href: "/dashboard/kasir" },
       ]
     : [
-        // Owner: Full access
+        // Owner: Monitor saja, tidak perlu Kasir
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
-        { name: "Kasir", icon: Receipt, href: "/dashboard/kasir" },
         { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Akun", icon: User, href: "/dashboard/users" },

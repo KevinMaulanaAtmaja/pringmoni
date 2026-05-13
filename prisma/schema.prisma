@@ -87,6 +87,7 @@ model Pesanan {
   kasirId          Int?              @map("kasir_id")
   statusPesanan    StatusPesanan     @default(menunggu) @map("status_pesanan")
   catatan          String?           @map("catatan")
+  namaPelanggan    String?           @map("nama_pelanggan")
   totalHarga       Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
   metodePembayaran MetodePembayaran? @map("metode_pembayaran")
   jumlahBayar      Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
@@ -148,6 +149,7 @@ enum StatusMenu {
 
 enum StatusPesanan {
   menunggu
+  diproses
   selesai
   dibatalkan
 }

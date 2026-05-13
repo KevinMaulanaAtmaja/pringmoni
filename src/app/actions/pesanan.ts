@@ -11,6 +11,10 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
     return { error: "Unauthorized" }
   }
 
+  if (session.user.role === 'owner') {
+    return { error: "Owner tidak bisa mengubah status pesanan" }
+  }
+
   const validStatuses = [StatusPesanan.menunggu, StatusPesanan.selesai, StatusPesanan.dibatalkan]
   if (!validStatuses.includes(status)) {
     return { error: "Status tidak valid" }
@@ -34,6 +38,7 @@ export interface CreatePesananItem {
 export interface CreatePesananData {
   tokenMeja: string
   items: CreatePesananItem[]
+  namaPelanggan?: string | null
 }
 
 export async function getMejaByToken(tokenMeja: string) {
@@ -62,7 +67,7 @@ export async function getMenusForCustomer() {
 }
 
 export async function createPesanan(data: CreatePesananData) {
-  const { tokenMeja, items } = data
+  const { tokenMeja, items, namaPelanggan } = data
 
   const meja = await getMejaByToken(tokenMeja)
   if (!meja) {
@@ -99,6 +104,7 @@ export async function createPesanan(data: CreatePesananData) {
       mejaId: meja.id,
       statusPesanan: StatusPesanan.menunggu,
       totalHarga: totalHarga,
+      namaPelanggan: namaPelanggan || null,
       detailPesanan: {
         create: items.map(item => ({
           menuId: item.menuId,
@@ -166,6 +172,7 @@ export async function getPesananForDashboard(filters?: {
 
   return pesanan.map(p => ({
     id: p.id,
+    mejaId: p.mejaId,
     meja: p.meja.nomorMeja,
     tipeMeja: p.meja.nomorMeja.startsWith('L') ? 'lesehan' as const : 'kursi' as const,
     status: p.statusPesanan,
@@ -173,6 +180,9 @@ export async function getPesananForDashboard(filters?: {
     total: Number(p.totalHarga),
     waktu: p.createdAt.toISOString(),
     items: p.detailPesanan.length,
+    waiterUsername: p.waiter?.username || null,
+    kasirUsername: p.kasir?.username || null,
+    namaPelanggan: p.namaPelanggan || null,
   }))
 }
 
@@ -252,6 +262,7 @@ export async function getPesananById(id: number) {
     created_at: pesanan.createdAt,
     waiter_username: pesanan.waiter?.username || null,
     kasir_username: pesanan.kasir?.username || null,
+    nama_pelanggan: pesanan.namaPelanggan || null,
     items: pesanan.detailPesanan.map(item => ({
       id: item.id,
       menu_id: item.menuId,
@@ -330,7 +341,7 @@ export async function markPesananSelesai(id: number) {
     return { error: "Unauthorized" }
   }
 
-  if (session.user.role !== 'waiter' && session.user.role !== 'owner') {
+  if (session.user.role !== 'waiter') {
     return { error: "Hanya waiter yang bisa menandai pesanan selesai" }
   }
 
@@ -363,6 +374,10 @@ export async function cancelPesanan(id: number) {
   const session = await auth()
   if (!session?.user) {
     return { error: "Unauthorized" }
+  }
+
+  if (session.user.role === 'owner') {
+    return { error: "Owner tidak bisa membatalkan pesanan" }
   }
 
   const pesanan = await prisma.pesanan.findFirst({
@@ -424,5 +439,6 @@ export async function getActivePesananByToken(tokenMeja: string) {
     total: Number(pesanan.totalHarga),
     status: pesanan.statusPesanan,
     waktu: pesanan.createdAt.toISOString(),
+    namaPelanggan: pesanan.namaPelanggan || null,
   }
 }

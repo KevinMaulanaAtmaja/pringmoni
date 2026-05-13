@@ -19,6 +19,7 @@ export interface KasirPesananItem {
   updatedAt: Date
   waiterUsername: string | null
   kasirUsername?: string | null
+  namaPelanggan?: string | null
   items: Array<{
     id: number
     menuId: number
@@ -67,6 +68,7 @@ export async function getPesananBelumBayar() {
     kembalian: Number(p.kembalian),
     createdAt: p.createdAt,
     waiterUsername: p.waiter?.username || null,
+    namaPelanggan: p.namaPelanggan || null,
     items: p.detailPesanan.map(item => ({
       id: item.id,
       menuId: item.menuId,
@@ -113,7 +115,7 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
       startDate = new Date(0) // all time
     }
     
-    whereClause.updatedAt = { gte: startDate }
+    whereClause.createdAt = { gte: startDate }
   }
 
   const pesanan = await prisma.pesanan.findMany({
@@ -128,7 +130,7 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
         },
       },
     },
-    orderBy: { updatedAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
     take: period === 'all' ? 100 : undefined, // limit 100 only for 'all'
   })
 
@@ -146,6 +148,7 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
     updatedAt: p.updatedAt,
     waiterUsername: p.waiter?.username || null,
     kasirUsername: p.kasir?.username || null,
+    namaPelanggan: p.namaPelanggan || null,
     items: p.detailPesanan.map(item => ({
       id: item.id,
       menuId: item.menuId,
@@ -194,7 +197,6 @@ export async function prosesPembayaranTunai(
       kembalian: kembalian,
       statusPembayaran: 'menunggu',
       statusPesanan: 'menunggu',
-      kasirId: parseInt(session.user.id),
     },
   })
 
@@ -230,7 +232,7 @@ export async function prosesPembayaranQRIS(pesananId: number) {
       jumlahBayar: pesanan.totalHarga,
       kembalian: 0,
       statusPembayaran: 'berhasil',
-      statusPesanan: 'selesai',
+      statusPesanan: 'diproses' as any,
       kasirId: parseInt(session.user.id),
     },
   })
@@ -267,7 +269,7 @@ export async function prosesPembayaranTransfer(pesananId: number) {
       jumlahBayar: pesanan.totalHarga,
       kembalian: 0,
       statusPembayaran: 'berhasil',
-      statusPesanan: 'selesai',
+      statusPesanan: 'diproses' as any,
       kasirId: parseInt(session.user.id),
     },
   })
@@ -351,7 +353,8 @@ export async function konfirmasiPembayaran(pesananId: number) {
     where: { id: pesananId },
     data: {
       statusPembayaran: 'berhasil',
-      statusPesanan: 'selesai',
+      statusPesanan: 'diproses' as any,
+      kasirId: parseInt(session.user.id),
     },
   })
 

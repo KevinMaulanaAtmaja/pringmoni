@@ -11,11 +11,11 @@ import type { Pesanan, DetailPesananItem } from "@/types"
 import { StatusPesanan } from "@prisma/client"
 import { ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
 
 const statusColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
   diproses: "bg-blue-100 text-blue-800",
-  siap: "bg-purple-100 text-purple-800",
   selesai: "bg-green-100 text-green-800",
   dibatalkan: "bg-red-100 text-red-800",
 }
@@ -27,6 +27,9 @@ const statusBayarColors: Record<string, string> = {
 }
 
 export default function PesananDetailPage() {
+  const { data: session } = useSession()
+  const isOwner = session?.user?.role === 'owner'
+
   const params = useParams()
   const router = useRouter()
   const orderId = parseInt(params.id as string)
@@ -56,7 +59,7 @@ export default function PesananDetailPage() {
         const mappedResult = {
           id: result.id,
           mejaId: result.meja_id,
-          statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "siap" | "selesai" | "dibatalkan",
+          statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "selesai" | "dibatalkan",
           statusPembayaran: result.status_pembayaran as "menunggu" | "berhasil" | "dibatalkan",
           totalHarga: Number(result.total_harga),
           metodePembayaran: (result.metode_pembayaran || undefined) as "qris" | "tunai" | "transfer" | undefined,
@@ -148,7 +151,6 @@ export default function PesananDetailPage() {
               <Badge className={statusColors[pesanan.statusPesanan]}>
                 {pesanan.statusPesanan === 'menunggu' ? 'Menunggu' : 
                  pesanan.statusPesanan === 'diproses' ? 'Diproses' :
-                 pesanan.statusPesanan === 'siap' ? 'Siap Diantar' :
                  pesanan.statusPesanan === 'selesai' ? 'Selesai' : 'Dibatalkan'}
               </Badge>
             </div>
@@ -310,7 +312,7 @@ export default function PesananDetailPage() {
 
        {/* Actions */}
        <div className="flex gap-4">
-         {pesanan.statusPesanan === 'menunggu' && (
+         {!isOwner && pesanan.statusPesanan === 'menunggu' && (
            <>
              <Button onClick={() => handleUpdateStatus('selesai')}>
                <CheckCircle className="w-4 h-4 mr-2" />

@@ -15,16 +15,14 @@ npx prisma generate
 npx tsx prisma/testPrisma.ts
 
 
-list
+list0
 -midleware bedsarkan role, session login expired
 -meja dipake ga bisa buat pesen orang lain, tpi bsa jika pake hp yg sama pesen lagi
 -nama pelanggan di saat pembayaran, orderid randomin berdasarkan waktu pesan aja,
--utk identikasi pesanan kasir pake nama? no pesanan/apa? 
--perbaiki kasir dan pesanan
+-tampil nama pelanggan di kartu pesanan aktif+struk 
 -customer bisa akses /dashboard, role lain sesuai fungsi
 -Create Pesanan Detail Page (/dashboard/pesanan/[id]) → Lihat detail pesanan
 -laporan page, create pesanan page(kasir)
 -konsisten ada error dibwh input, minimal huruf ditiap2 input
 -sanitasi input, hak akses tiap halaman role
-- halaman buat pesanan(kasir), laporan,
 - halaman cara bayar, connect ke midtrans
