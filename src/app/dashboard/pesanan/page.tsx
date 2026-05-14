@@ -12,17 +12,8 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { getPesananForDashboard, updateStatusPesanan, markPesananSelesai, getPesananById } from "@/app/actions/pesanan"
 import { StatusPesanan } from "@prisma/client"
-import { getMeja } from "@/app/actions/meja"
-import type { Meja } from "@/types"
 import { Eye, RotateCcw, Printer, CheckCircle, SearchX, Inbox, XCircle, ChevronLeft, ChevronRight, Clock, ArrowRightLeft } from "lucide-react"
 import Link from "next/link"
 import {
@@ -37,7 +28,7 @@ import { printStruk } from "@/lib/print-struk"
 
 const statusColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
-  diproses: "bg-blue-100 text-blue-800",
+  diproses: "bg-chart-5/15 text-chart-5",
   selesai: "bg-green-100 text-green-800",
   dibatalkan: "bg-red-100 text-red-800",
 }
@@ -90,18 +81,15 @@ interface PesananDetail {
 
 export default function PesananPage() {
   const { data: session } = useSession()
-  const isOwner = session?.user?.role === 'owner'
 
   const [activeTab, setActiveTab] = useState<"aktif" | "riwayat">("aktif")
 
   const [pesanan, setPesanan] = useState<PesananItem[]>([])
-  const [mejas, setMejas] = useState<Meja[]>([])
   const [loading, setLoading] = useState(true)
 
   const [filterSearchAktif, setFilterSearchAktif] = useState("")
   const [filterStatusAktif, setFilterStatusAktif] = useState<string>("all")
   const [filterSearch, setFilterSearch] = useState("")
-  const [filterMejaId, setFilterMejaId] = useState<string>("all")
   const [filterPeriod, setFilterPeriod] = useState<'all' | 'today' | 'week' | 'month'>('all')
 
   const [selectedPesanan, setSelectedPesanan] = useState<PesananDetail | null>(null)
@@ -182,12 +170,8 @@ export default function PesananPage() {
       )
     }
 
-    if (filterMejaId && filterMejaId !== "all") {
-      result = result.filter(p => p.mejaId === parseInt(filterMejaId))
-    }
-
     return result
-  }, [pesananRiwayat, filterPeriod, filterSearch, filterMejaId])
+  }, [pesananRiwayat, filterPeriod, filterSearch])
 
   const totalPendapatan = useMemo(() =>
     filteredRiwayat
@@ -233,22 +217,13 @@ export default function PesananPage() {
     setLoading(true)
     setDebugError(null)
     try {
-      const [pesananResult, mejaResult] = await Promise.all([
-        getPesananForDashboard(),
-        getMeja()
-      ])
+      const pesananResult = await getPesananForDashboard()
       
       if (pesananResult && 'error' in pesananResult) {
         setDebugError(pesananResult.error as string)
         setPesanan([])
       } else if (Array.isArray(pesananResult)) {
         setPesanan(pesananResult as PesananItem[])
-      }
-      
-      if (mejaResult && 'error' in mejaResult) {
-        // ignore meja error
-      } else if (Array.isArray(mejaResult)) {
-        setMejas(mejaResult as Meja[])
       }
     } catch (err) {
       console.error('Fetch error:', err)
@@ -265,7 +240,6 @@ export default function PesananPage() {
   const resetFilter = () => {
     setFilterSearchAktif("")
     setFilterSearch("")
-    setFilterMejaId("all")
     setFilterPeriod("all")
   }
 
@@ -375,7 +349,7 @@ export default function PesananPage() {
             size="lg"
             variant={activeTab === "aktif" ? "default" : "outline"}
             onClick={() => setActiveTab("aktif")}
-            className={`text-base px-6 ${activeTab === "aktif" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+            className={`text-base px-6 ${activeTab === "aktif" ? "bg-chart-5 hover:bg-chart-5/80" : ""}`}
           >
             <Clock className="w-5 h-5 mr-2" />
             Pesanan Aktif ({filteredAktif.length})
@@ -384,7 +358,7 @@ export default function PesananPage() {
             size="lg"
             variant={activeTab === "riwayat" ? "default" : "outline"}
             onClick={() => setActiveTab("riwayat")}
-            className={`text-base px-6 ${activeTab === "riwayat" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+            className={`text-base px-6 ${activeTab === "riwayat" ? "bg-chart-5 hover:bg-chart-5/80" : ""}`}
           >
             <ArrowRightLeft className="w-5 h-5 mr-2" />
             Riwayat ({pesananRiwayat.length})
@@ -400,7 +374,7 @@ export default function PesananPage() {
                   size="default"
                   variant={filterStatusAktif === s ? "default" : "outline"}
                   onClick={() => setFilterStatusAktif(s)}
-                  className={`text-sm ${filterStatusAktif === s ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+                  className={`text-sm ${filterStatusAktif === s ? "bg-chart-5 hover:bg-chart-5/80" : ""}`}
                 >
                   {s === 'all' ? 'Semua' : s === 'menunggu' ? 'Menunggu' : 'Diproses'}
                 </Button>
@@ -415,7 +389,7 @@ export default function PesananPage() {
                   size="default"
                   variant={filterPeriod === period ? "default" : "outline"}
                   onClick={() => setFilterPeriod(period)}
-                  className={`text-sm ${filterPeriod === period ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+                  className={`text-sm ${filterPeriod === period ? "bg-chart-5 hover:bg-chart-5/80" : ""}`}
                 >
                   {period === 'all' ? 'Semua' : 
                    period === 'today' ? 'Hari Ini' :
@@ -444,24 +418,11 @@ export default function PesananPage() {
           </div>
           {activeTab === "riwayat" && (
             <>
-              <Select value={filterMejaId} onValueChange={setFilterMejaId}>
-                <SelectTrigger className="w-[100px] h-9 text-sm">
-                  <SelectValue placeholder="Meja" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua</SelectItem>
-                  {mejas.map((meja) => (
-                    <SelectItem key={meja.id} value={meja.id.toString()}>
-                      Meja {meja.nomorMeja}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={resetFilter}
-                className={`h-9 px-2 ${filterSearch || filterMejaId || filterPeriod !== 'all' ? '' : 'invisible'}`}
+                className={`h-9 px-2 ${filterSearch || filterPeriod !== 'all' ? '' : 'invisible'}`}
               >
                 Reset
               </Button>
@@ -477,16 +438,16 @@ export default function PesananPage() {
             {filterSearchAktif ? (
               <SearchX className="w-20 h-20 mx-auto mb-4 text-orange-400" />
             ) : (
-              <Inbox className="w-20 h-20 mx-auto mb-4 text-blue-400" />
+              <Inbox className="w-20 h-20 mx-auto mb-4 text-chart-5/60" />
             )}
             <p className="text-xl font-medium">{filterSearchAktif ? `Tidak ditemukan "${filterSearchAktif}"` : "Tidak ada pesanan aktif"}</p>
           </div>
         ) : (
           <>
-<div className="h-[480px] overflow-y-auto">
+<div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
              {paginatedAktif.map((p) => (
-              <div key={p.id} className="bg-white rounded-xl border-2 border-l-blue-500 p-5 hover:shadow-lg transition-shadow flex flex-col">
+              <div key={p.id} className="bg-white rounded-xl border-2 border-l-chart-5 p-5 hover:shadow-lg transition-shadow flex flex-col">
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="text-2xl font-bold">Meja {p.meja}</h3>
@@ -500,16 +461,41 @@ export default function PesananPage() {
                 <div className="space-y-2 mb-4 bg-gray-50 rounded-lg p-3 flex-1">
                   <div className="flex justify-between text-gray-700">
                     <span className="text-base">{p.items} item</span>
-                    <span className="font-bold text-lg text-blue-700">Rp {p.total.toLocaleString("id-ID")}</span>
+                    <span className="font-bold text-lg text-chart-5">Rp {p.total.toLocaleString("id-ID")}</span>
                   </div>
                 </div>
                 <div className="border-t pt-4">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className={`grid gap-2 ${session?.user?.role === 'waiter' && p.statusBayar === 'berhasil' ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
                       <Eye className="w-5 h-5 mr-2" /> Detail
                     </Button>
-                    {!isOwner && p.statusBayar === 'berhasil' && (
-                      <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-blue-600 hover:bg-blue-700">
+                    {p.statusBayar === 'berhasil' && (
+                      <Button variant="outline" size="lg" onClick={async () => {
+                        const detail = await getPesananById(p.id)
+                        if ('error' in detail) return
+                        printStruk({
+                          id: detail.id,
+                          nomorMeja: detail.nomor_meja,
+                          items: detail.items.map(i => ({
+                            nama: i.nama_menu,
+                            jumlah: i.jumlah,
+                            harga: Number(i.harga_saat_pesan),
+                          })),
+                          totalHarga: Number(detail.total_harga),
+                          metodePembayaran: detail.metode_pembayaran,
+                          jumlahBayar: detail.jumlah_bayar ? Number(detail.jumlah_bayar) : undefined,
+                          kembalian: Number(detail.kembalian),
+                          createdAt: detail.created_at,
+                          waiterUsername: detail.waiter_username,
+                          kasirUsername: detail.kasir_username,
+                          namaPelanggan: detail.nama_pelanggan,
+                        })
+                      }} className="text-base">
+                        <Printer className="w-5 h-5 mr-2" /> Struk
+                      </Button>
+                    )}
+                    {session?.user?.role === 'waiter' && p.statusBayar === 'berhasil' && (
+                      <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
                         <CheckCircle className="w-5 h-5 mr-2" /> Selesai
                       </Button>
                     )}
@@ -566,7 +552,7 @@ export default function PesananPage() {
               </div>
               <div className="bg-white rounded-xl border p-4 text-center">
                 <p className="text-sm text-gray-500">Selesai</p>
-                <p className="text-3xl font-bold text-blue-600">{jumlahSelesai}</p>
+                <p className="text-3xl font-bold text-chart-5">{jumlahSelesai}</p>
               </div>
               <div className="bg-white rounded-xl border p-4 text-center">
                 <p className="text-sm text-gray-500">Dibatalkan</p>
@@ -584,7 +570,7 @@ export default function PesananPage() {
             </div>
 
           {/* Table Riwayat */}
-          <div className="h-[520px] overflow-y-auto">
+          <div>
           <div className="bg-white rounded-lg border">
             <Table>
               <TableHeader>
@@ -752,7 +738,7 @@ export default function PesananPage() {
                </div>
              ) : null}
             <DialogFooter className="gap-2">
-              {selectedPesanan && selectedPesanan.status_pesanan !== 'menunggu' && (
+              {activeTab === "riwayat" && selectedPesanan && selectedPesanan.status_pesanan !== 'menunggu' && (
                 <Button variant="outline" size="lg" onClick={() => printStruk({
                   id: selectedPesanan.id,
                   nomorMeja: selectedPesanan.nomor_meja,
@@ -813,7 +799,7 @@ export default function PesananPage() {
                         <div 
                           key={item.id} 
                           className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
-                            isChecked ? 'bg-blue-50' : 'hover:bg-gray-50'
+                            isChecked ? 'bg-chart-5/10' : 'hover:bg-gray-50'
                           }`}
                           onClick={() => toggleItemCheck(selectedPesananForComplete.id, item.id)}
                         >
@@ -822,7 +808,7 @@ export default function PesananPage() {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleItemCheck(selectedPesananForComplete.id, item.id)}
-                               className="w-5 h-5 rounded accent-blue-600"
+                               className="w-5 h-5 rounded accent-chart-5"
                             />
                             <div>
                               <p className={`font-medium ${isChecked ? 'line-through text-gray-400' : ''}`}>
@@ -864,7 +850,7 @@ export default function PesananPage() {
                    handleMarkArrived(selectedPesananForComplete.id)
                    setShowCompleteModal(false)
                  }}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-chart-5 hover:bg-chart-5/80"
                >
                  <CheckCircle className="w-4 h-4 mr-2" />
                  Selesai ({selectedPesananForComplete.items.filter(i => checkedMap[`${selectedPesananForComplete.id}-${i.id}`]).length}/{selectedPesananForComplete.items.length})

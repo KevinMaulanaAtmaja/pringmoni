@@ -15,7 +15,7 @@ import { useSession } from "next-auth/react"
 
 const statusColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
-  diproses: "bg-blue-100 text-blue-800",
+  diproses: "bg-chart-5/15 text-chart-5",
   selesai: "bg-green-100 text-green-800",
   dibatalkan: "bg-red-100 text-red-800",
 }
@@ -284,7 +284,7 @@ export default function PesananDetailPage() {
                                   type="button"
                                   onClick={() => setImageIndexes(prev => ({ ...prev, [item.id]: idx }))}
                                   className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                                    idx === currentIndex ? 'bg-blue-600' : 'bg-gray-300 hover:bg-gray-400'
+                                    idx === currentIndex ? 'bg-chart-5' : 'bg-gray-300 hover:bg-gray-400'
                                   }`}
                                 />
                               ))}

@@ -15,7 +15,7 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
     return { error: "Owner tidak bisa mengubah status pesanan" }
   }
 
-  const validStatuses = [StatusPesanan.menunggu, StatusPesanan.selesai, StatusPesanan.dibatalkan]
+  const validStatuses = [StatusPesanan.menunggu, StatusPesanan.diproses, StatusPesanan.selesai, StatusPesanan.dibatalkan]
   if (!validStatuses.includes(status)) {
     return { error: "Status tidak valid" }
   }

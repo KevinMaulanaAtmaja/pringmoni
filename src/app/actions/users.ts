@@ -152,3 +152,17 @@ export async function toggleUserStatus(id: number, status: boolean) {
   })
   revalidatePath('/dashboard/users')
 }
+
+export async function getKasirUsers() {
+  try {
+    const users = await prisma.users.findMany({
+      where: { role: 'cashier', status: true },
+      select: { id: true, username: true },
+      orderBy: { username: 'asc' },
+    })
+    return users
+  } catch (error) {
+    console.error("getKasirUsers error:", error)
+    return []
+  }
+}

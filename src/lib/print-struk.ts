@@ -59,7 +59,7 @@ function keyValue(doc: jsPDF, key: string, value: string, y: number) {
 }
 
 export function printStruk(data: StrukData) {
-  const doc = new jsPDF({ unit: "mm", format: [80, 250] })
+  const doc = new jsPDF({ unit: "mm", format: [80, 160] })
   const pageWidth = doc.internal.pageSize.getWidth()
   let y = 15
 
@@ -118,7 +118,7 @@ export function printStruk(data: StrukData) {
     rightText(doc, formatRupiah(item.harga * item.jumlah), y)
     y += 4
 
-    if (y > 230) {
+    if (y > 100) {
       doc.addPage()
       y = 15
     }
@@ -128,6 +128,12 @@ export function printStruk(data: StrukData) {
   doc.setDrawColor(180)
   doc.setLineWidth(0.5)
   doc.line(5, y, pageWidth - 5, y)
+  y += 6
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+  doc.text("Pajak (0%)", 10, y)
+  rightText(doc, "Rp 0", y)
   y += 6
 
   doc.setFont("helvetica", "bold")
@@ -160,6 +166,13 @@ export function printStruk(data: StrukData) {
   centerText(doc, "Terima kasih sudah memesan!", y, 9)
   y += 5
   centerText(doc, "~ Selamat menikmati ~", y, 9)
+  y += 7
+  doc.setDrawColor(200)
+  doc.setLineWidth(0.3)
+  doc.line(15, y, pageWidth - 15, y)
+  y += 5
+  doc.setFontSize(9)
+  centerText(doc, "WiFi: Pringmoni | Pass: pringsewu123", y, 9)
 
   doc.autoPrint()
   const blob = doc.output("blob")

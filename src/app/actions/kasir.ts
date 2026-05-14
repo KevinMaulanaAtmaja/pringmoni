@@ -92,11 +92,6 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
     statusPembayaran: { in: ['berhasil', 'dibatalkan'] },
     deletedAt: null,
   }
-  
-  // If cashier, only show their transactions
-  if (!isOwner && session.user.role === 'cashier') {
-    whereClause.kasirId = parseInt(session.user.id)
-  }
 
   // Date filter
   const period = filter?.period || 'all'
@@ -118,46 +113,56 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
     whereClause.createdAt = { gte: startDate }
   }
 
-  const pesanan = await prisma.pesanan.findMany({
-    where: whereClause,
-    include: {
-      meja: true,
-      waiter: true,
-      kasir: true,
-      detailPesanan: {
-        include: {
-          menu: true,
+  const [pesanan, kasirUsers] = await Promise.all([
+    prisma.pesanan.findMany({
+      where: whereClause,
+      include: {
+        meja: true,
+        waiter: true,
+        kasir: true,
+        detailPesanan: {
+          include: {
+            menu: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: period === 'all' ? 100 : undefined, // limit 100 only for 'all'
-  })
+      orderBy: { createdAt: 'desc' },
+      take: period === 'all' ? 100 : undefined,
+    }),
+    prisma.users.findMany({
+      where: { role: 'cashier', status: true },
+      select: { username: true },
+      orderBy: { username: 'asc' },
+    }),
+  ])
 
-  return pesanan.map(p => ({
-    id: p.id,
-    mejaId: p.mejaId,
-    nomorMeja: p.meja.nomorMeja,
-    statusPesanan: p.statusPesanan,
-    statusPembayaran: p.statusPembayaran,
-    totalHarga: Number(p.totalHarga),
-    metodePembayaran: p.metodePembayaran as MetodePembayaran,
-    jumlahBayar: Number(p.jumlahBayar),
-    kembalian: Number(p.kembalian),
-    createdAt: p.createdAt,
-    updatedAt: p.updatedAt,
-    waiterUsername: p.waiter?.username || null,
-    kasirUsername: p.kasir?.username || null,
-    namaPelanggan: p.namaPelanggan || null,
-    items: p.detailPesanan.map(item => ({
-      id: item.id,
-      menuId: item.menuId,
-      namaMenu: item.menu.namaMenu,
-      jumlah: item.jumlah,
-      hargaSaatPesan: Number(item.hargaSaatPesan),
-      catatanItem: item.catatanItem,
+  return {
+    pesanan: pesanan.map(p => ({
+      id: p.id,
+      mejaId: p.mejaId,
+      nomorMeja: p.meja.nomorMeja,
+      statusPesanan: p.statusPesanan,
+      statusPembayaran: p.statusPembayaran,
+      totalHarga: Number(p.totalHarga),
+      metodePembayaran: p.metodePembayaran as MetodePembayaran,
+      jumlahBayar: Number(p.jumlahBayar),
+      kembalian: Number(p.kembalian),
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      waiterUsername: p.waiter?.username || null,
+      kasirUsername: p.kasir?.username || null,
+      namaPelanggan: p.namaPelanggan || null,
+      items: p.detailPesanan.map(item => ({
+        id: item.id,
+        menuId: item.menuId,
+        namaMenu: item.menu.namaMenu,
+        jumlah: item.jumlah,
+        hargaSaatPesan: Number(item.hargaSaatPesan),
+        catatanItem: item.catatanItem,
+      })),
     })),
-  }))
+    daftarKasir: kasirUsers.map(u => u.username),
+  }
 }
 
 export async function prosesPembayaranTunai(

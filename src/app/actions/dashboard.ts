@@ -12,23 +12,25 @@ export async function getDashboardStats() {
   today.setHours(0, 0, 0, 0)
 
   try {
-  const [pesananHariIni, totalPendapatan, mejaStats, pesananMenunggu] = await Promise.all([
-    prisma.pesanan.findMany({
-      where: { createdAt: { gte: today } },
-    }),
-    prisma.pesanan.findMany({
-      where: { 
-        createdAt: { gte: today },
-        statusPembayaran: 'berhasil',
-      },
-    }),
-    prisma.meja.findMany({
-      select: { statusMeja: true },
-    }),
-    prisma.pesanan.findMany({
-      where: { statusPesanan: 'menunggu' },
-    }),
-  ])
+    const [pesananHariIni, totalPendapatan] = await Promise.all([
+      prisma.pesanan.findMany({
+        where: { createdAt: { gte: today } },
+      }),
+      prisma.pesanan.findMany({
+        where: { 
+          createdAt: { gte: today },
+          statusPembayaran: 'berhasil',
+        },
+      }),
+    ])
+    const [mejaStats, pesananMenunggu] = await Promise.all([
+      prisma.meja.findMany({
+        select: { statusMeja: true },
+      }),
+      prisma.pesanan.findMany({
+        where: { statusPesanan: 'menunggu' },
+      }),
+    ])
 
   const mejaKosong = mejaStats.filter(m => m.statusMeja === 'kosong').length
   const mejaTerpakai = mejaStats.filter(m => m.statusMeja === 'terpakai').length

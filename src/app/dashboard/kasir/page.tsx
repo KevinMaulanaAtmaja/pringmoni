@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -94,11 +94,9 @@ export default function KasirPage() {
   const [isTunaiConfirmOpen, setIsTunaiConfirmOpen] = useState(false)
   const [tunaiConfirmId, setTunaiConfirmId] = useState<number | null>(null)
   const [isBayarTunaiFinal, setIsBayarTunaiFinal] = useState(false)
-
-  const daftarKasir = useMemo(() => {
-    const set = new Set(pesananRiwayat.map(p => p.kasirUsername).filter(Boolean))
-    return [...set].sort()
-  }, [pesananRiwayat])
+  const [daftarKasir, setDaftarKasir] = useState<string[]>([])
+  const [showMethodWarning, setShowMethodWarning] = useState(false)
+  const pendingMethodAction = useRef<"bayar" | "confirm" | "tunai-step" | null>(null)
 
   const pesananBelumFiltered = pesananBelum.filter(p => {
     if (filterText) {
@@ -161,7 +159,7 @@ export default function KasirPage() {
     try {
       const [belumResult, riwayatResult] = await Promise.all([
         getPesananBelumBayar(),
-        getPesananRiwayatKasir({ period: filterPeriodRef.current })
+        getPesananRiwayatKasir({ period: filterPeriodRef.current }),
       ])
 
       if ('error' in belumResult) {
@@ -172,10 +170,11 @@ export default function KasirPage() {
       }
       
       if ('error' in riwayatResult) {
-        setError(riwayatResult.error)
+        setError(riwayatResult.error ?? null)
         setPesananRiwayat([])
       } else {
-        setPesananRiwayat(riwayatResult as unknown as Pesanan[])
+        setPesananRiwayat(riwayatResult.pesanan as unknown as Pesanan[])
+        setDaftarKasir(riwayatResult.daftarKasir)
       }
     } catch (error: any) {
       console.error("Error fetching data:", error)
@@ -194,10 +193,11 @@ export default function KasirPage() {
     try {
       const riwayatResult = await getPesananRiwayatKasir({ period: filterPeriodRef.current })
       if ('error' in riwayatResult) {
-        setError(riwayatResult.error)
+        setError(riwayatResult.error ?? null)
         setPesananRiwayat([])
       } else {
-        setPesananRiwayat(riwayatResult as unknown as Pesanan[])
+        setPesananRiwayat(riwayatResult.pesanan as unknown as Pesanan[])
+        setDaftarKasir(riwayatResult.daftarKasir)
       }
     } catch (error: any) {
       console.error("Error fetching riwayat:", error)
@@ -225,8 +225,14 @@ export default function KasirPage() {
     setIsDetailOpen(true)
   }
 
-  async function handleBayar() {
+  async function handleBayar(confirmed = false) {
     if (!selectedPesanan) return
+
+    if (!confirmed && selectedPesanan.metodePembayaran && selectedMetode !== selectedPesanan.metodePembayaran) {
+      pendingMethodAction.current = "bayar"
+      setShowMethodWarning(true)
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -288,8 +294,15 @@ export default function KasirPage() {
     }
   }
 
-  async function handlePaymentConfirm() {
+  async function handlePaymentConfirm(confirmed = false) {
     if (!selectedPesanan || !selectedMetode || selectedMetode === "tunai") return
+
+    if (!confirmed && selectedPesanan.metodePembayaran && selectedMetode !== selectedPesanan.metodePembayaran) {
+      pendingMethodAction.current = "confirm"
+      setShowMethodWarning(true)
+      return
+    }
+
     setSubmitting(true)
     try {
       const result = selectedMetode === "qris"
@@ -314,8 +327,13 @@ export default function KasirPage() {
     }
   }
 
-  function handleBayarTunaiStep() {
+  function handleBayarTunaiStep(confirmed = false) {
     if (selectedMetode !== "tunai") return
+    if (!confirmed && selectedPesanan?.metodePembayaran && selectedMetode !== selectedPesanan.metodePembayaran) {
+      pendingMethodAction.current = "tunai-step"
+      setShowMethodWarning(true)
+      return
+    }
     const jumlah = parseFloat(jumlahBayar)
     if (isNaN(jumlah) || jumlah < (selectedPesanan?.totalHarga || 0)) {
       alert("Jumlah bayar kurang dari total!")
@@ -327,6 +345,15 @@ export default function KasirPage() {
   function openTunaiConfirm(id: number) {
     setTunaiConfirmId(id)
     setIsTunaiConfirmOpen(true)
+  }
+
+  function handleMethodWarningProceed() {
+    setShowMethodWarning(false)
+    const action = pendingMethodAction.current
+    pendingMethodAction.current = null
+    if (action === "bayar") handleBayar(true)
+    else if (action === "confirm") handlePaymentConfirm(true)
+    else if (action === "tunai-step") handleBayarTunaiStep(true)
   }
 
   async function handleTunaiConfirm() {
@@ -518,7 +545,7 @@ export default function KasirPage() {
           </div>
         ) : (
           <>
-            <div className="h-[480px] overflow-y-auto">
+            <div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
              {paginatedBelum.map((p) => (
               <div key={p.id} className="bg-white rounded-xl border-2 p-5 hover:shadow-lg transition-shadow flex flex-col">
@@ -678,7 +705,7 @@ export default function KasirPage() {
               </div>
             </div>
 
-          <div className="h-[520px] overflow-y-auto">
+          <div>
           <div className="bg-white rounded-xl border overflow-x-auto">
             <Table>
                 <TableHeader>
@@ -867,7 +894,7 @@ export default function KasirPage() {
                   Batal
                 </Button>
                 <Button
-                  onClick={handlePaymentConfirm}
+                  onClick={() => handlePaymentConfirm()}
                   disabled={submitting}
                   className="text-sm flex-1 bg-green-600 hover:bg-green-700"
                 >
@@ -1009,7 +1036,7 @@ export default function KasirPage() {
                       Kembali
                     </Button>
                     <Button
-                      onClick={handleBayar}
+                      onClick={() => handleBayar()}
                       disabled={submitting}
                       className="text-sm flex-1 bg-green-600 hover:bg-green-700"
                     >
@@ -1018,7 +1045,7 @@ export default function KasirPage() {
                       ) : (
                         <CheckCircle className="w-4 h-4 mr-1" />
                       )}
-                      Ya, Bayar
+                      Bayar Tunai
                     </Button>
                   </>
                 ) : (
@@ -1031,7 +1058,7 @@ export default function KasirPage() {
                       Batal
                     </Button>
                     <Button
-                      onClick={selectedMetode === "tunai" ? handleBayarTunaiStep : handleBayar}
+                      onClick={selectedMetode === "tunai" ? () => handleBayarTunaiStep() : () => handleBayar()}
                       disabled={selectedMetode === "tunai" ? false : submitting}
                       className="text-sm flex-1"
                     >
@@ -1252,6 +1279,43 @@ export default function KasirPage() {
               className="text-base flex-1"
             >
               Konfirmasi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Method Change Warning */}
+      <Dialog open={showMethodWarning} onOpenChange={(open) => { if (!open) { setShowMethodWarning(false); pendingMethodAction.current = null } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg text-center text-amber-600">Peringatan!</DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-4 space-y-3">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto">
+              <span className="text-2xl font-bold text-amber-600">!</span>
+            </div>
+            <p className="text-base font-semibold">Metode pembayaran diubah!</p>
+            <p className="text-sm text-gray-500">
+              Customer memilih <strong>{selectedPesanan?.metodePembayaran ? metodeLabels[selectedPesanan.metodePembayaran as MetodePembayaran] : '-'}</strong>,
+              Anda akan memproses dengan <strong>{metodeLabels[selectedMetode]}</strong>.
+            </p>
+            <p className="text-sm text-amber-700 font-medium">
+              Pastikan pelanggan sudah setuju dengan perubahan ini.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => { setShowMethodWarning(false); pendingMethodAction.current = null }}
+              className="text-sm flex-1"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleMethodWarningProceed}
+              className="text-sm flex-1 bg-amber-600 hover:bg-amber-700"
+            >
+              Ya, Lanjutkan
             </Button>
           </DialogFooter>
         </DialogContent>
