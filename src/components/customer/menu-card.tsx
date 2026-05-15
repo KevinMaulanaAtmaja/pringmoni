@@ -10,7 +10,12 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+
+interface MenuFoto {
+  id: number;
+  fotoUrl: string;
+}
 
 interface Menu {
   id: number;
@@ -18,6 +23,7 @@ interface Menu {
   harga: number;
   deskripsi: string | null;
   fotoUrl: string | null;
+  menuFoto?: MenuFoto[];
   kategori: string;
   statusMenu: "tersedia" | "habis" | "nonaktif";
   jumlahDipesan?: number;
@@ -34,10 +40,27 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
   const isDisabled = menu.statusMenu !== "tersedia";
   const [jumlah, setJumlah] = useState(1);
   const [catatan, setCatatan] = useState("");
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Use menuFoto for slider, fallback to fotoUrl
+  const allImages = menu.menuFoto && menu.menuFoto.length > 0
+    ? menu.menuFoto.map(f => f.fotoUrl)
+    : (menu.fotoUrl ? [menu.fotoUrl] : []);
+  const hasMultiple = allImages.length > 1;
 
   const handleReset = () => {
     setJumlah(1);
     setCatatan("");
+    setCurrentImageIndex(0);
+  };
+
+  const handleImageNav = (direction: 'prev' | 'next') => {
+    if (!hasMultiple) return;
+    setCurrentImageIndex(prev => 
+      direction === 'next' 
+        ? (prev + 1) % allImages.length
+        : (prev - 1 + allImages.length) % allImages.length
+    );
   };
 
   const handleTambah = () => {
@@ -93,14 +116,47 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
 
       <DialogContent className="max-w-sm rounded-3xl p-0 gap-0" showCloseButton={true} onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogTitle className="sr-only">{menu.namaMenu}</DialogTitle>
-        {/* Image */}
-        <div className="aspect-video w-full bg-muted flex items-center justify-center rounded-t-3xl">
-          {menu.fotoUrl ? (
-            <img
-              src={menu.fotoUrl}
-              alt={menu.namaMenu}
-              className="w-full h-full object-cover"
-            />
+        {/* Image Slider */}
+        <div className="aspect-video w-full bg-muted flex items-center justify-center rounded-t-3xl relative">
+          {allImages.length > 0 ? (
+            <>
+              <img
+                src={allImages[currentImageIndex]}
+                alt={`${menu.namaMenu} ${currentImageIndex + 1}`}
+                className="w-full h-full object-cover"
+              />
+              {hasMultiple && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleImageNav('prev')}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleImageNav('next')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  {/* Dots indicator */}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                    {allImages.map((_, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setCurrentImageIndex(idx)}
+                        className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                          idx === currentImageIndex ? 'bg-white' : 'bg-white/50 hover:bg-white/70'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
           ) : (
             <span className="text-6xl">🍽️</span>
           )}

@@ -76,6 +76,10 @@ export default function MenuPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Delete menu states
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
   // Category states
   const [isKategoriOpen, setIsKategoriOpen] = useState(false);
   const [editingKategori, setEditingKategori] = useState<KategoriMenu | null>(null);
@@ -278,14 +282,21 @@ export default function MenuPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Yakin hapus menu ini?')) return;
-    if (!confirm('Menu akan dihapus. Lanjut?')) return;
-    
-    const result = await deleteMenu(id);
+    setDeleteId(id);
+    setIsDeleteOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!deleteId) return;
+    const result = await deleteMenu(deleteId);
     if ('error' in result && result.error) {
       alert(result.error);
+      setIsDeleteOpen(false);
+      setDeleteId(null);
       return;
     }
+    setIsDeleteOpen(false);
+    setDeleteId(null);
     loadData();
   }
 
@@ -555,204 +566,190 @@ export default function MenuPage() {
       )}
 
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-base">
                 {editingId ? 'Edit Menu' : 'Tambah Menu Baru'}
               </DialogTitle>
-              <DialogDescription className="text-xs text-gray-500">
-                {editingId ? 'Ubah detail menu dan foto' : 'Tambah menu baru dengan foto'}
-              </DialogDescription>
             </DialogHeader>
              <form onSubmit={handleSubmit}>
-               <div className="grid gap-2 py-2">
-                 <div className="grid gap-1">
-                   <Label htmlFor="namaMenu" className="text-xs">Nama Menu</Label>
-                   <Input
-                     id="namaMenu"
-                     value={form.namaMenu}
-                     onChange={(e) => {
-                       const value = e.target.value;
-                       setForm({ ...form, namaMenu: value });
-                       if (value && !editingId) {
-                         const duplicate = menus.find(m => 
-                           m.namaMenu.toLowerCase() === value.toLowerCase() && 
-                           m.deletedAt === null
-                         );
-                         setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
-                       } else if (editingId && value) {
-                         const duplicate = menus.find(m => 
-                           m.namaMenu.toLowerCase() === value.toLowerCase() && 
-                           m.id !== editingId && 
-                           m.deletedAt === null
-                         );
-                         setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
-                       } else {
-                         setDuplicateWarning('');
-                       }
-                     }}
-                     className={`h-7 text-xs ${duplicateWarning ? 'border-red-500' : ''}`}
-                     required
-                   />
-                   {duplicateWarning && (
-                     <p className="text-xs text-red-500 mt-1">{duplicateWarning}</p>
-                   )}
-                 </div>
-                 
-                 <div className="grid gap-1">
-                   <Label htmlFor="deskripsi" className="text-xs">Deskripsi</Label>
-                   <Input
-                     id="deskripsi"
-                     value={form.deskripsi}
-                     onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
-                     className="h-7 text-xs"
-                   />
-                 </div>
+                <div className="grid gap-1 py-1">
+                  <div className="grid gap-1">
+                    <Label htmlFor="namaMenu" className="text-xs">Nama Menu</Label>
+                    <Input
+                      id="namaMenu"
+                      value={form.namaMenu}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setForm({ ...form, namaMenu: value });
+                        if (value && !editingId) {
+                          const duplicate = menus.find(m => 
+                            m.namaMenu.toLowerCase() === value.toLowerCase() && 
+                            m.deletedAt === null
+                          );
+                          setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
+                        } else if (editingId && value) {
+                          const duplicate = menus.find(m => 
+                            m.namaMenu.toLowerCase() === value.toLowerCase() && 
+                            m.id !== editingId && 
+                            m.deletedAt === null
+                          );
+                          setDuplicateWarning(duplicate ? 'Menu dengan nama ini sudah ada' : '');
+                        } else {
+                          setDuplicateWarning('');
+                        }
+                      }}
+                      className={`h-7 text-xs ${duplicateWarning ? 'border-red-500' : ''}`}
+                      required
+                    />
+                    {duplicateWarning && (
+                      <p className="text-xs text-red-500">{duplicateWarning}</p>
+                    )}
+                  </div>
+                  
+                  <div className="grid gap-1">
+                    <Label htmlFor="deskripsi" className="text-xs">Deskripsi</Label>
+                    <textarea
+                      id="deskripsi"
+                      value={form.deskripsi}
+                      onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
+                      className="w-full min-h-[60px] rounded-lg border border-input bg-input/30 px-3 py-1 text-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[2px] focus-visible:ring-ring/50 resize-y"
+                      rows={2}
+                    ></textarea>
+                  </div>
 
-                 <div className="grid gap-1">
-                   <Label htmlFor="harga" className="text-xs">Harga (Ribuan) *</Label>
-                   <div className="relative">
-                     <Input
-                       id="harga"
-                       type="text"
-                       inputMode="numeric"
-                       value={priceValue || ''}
-                       onChange={(e) => {
-                         const raw = e.target.value.replace(/[^\d]/g, '');
-                         const num = parseInt(raw) || 0;
-                         setPriceValue(num);
-                         setForm({ ...form, harga: (num * 1000).toString() });
-                       }}
-                       className="h-7 text-xs pr-12"
-                       placeholder="25"
-                       required
-                     />
-                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none">
-                       .000
-                     </span>
+                  <div className="grid gap-2 mt-2">
+                   <div className="grid gap-1">
+                     <Label htmlFor="harga" className="text-xs">Harga (Ribuan) *</Label>
+                     <div className="relative">
+                       <Input
+                         id="harga"
+                         type="text"
+                         inputMode="numeric"
+                         value={priceValue || ''}
+                         onChange={(e) => {
+                           const raw = e.target.value.replace(/[^\d]/g, '');
+                           const num = parseInt(raw) || 0;
+                           setPriceValue(num);
+                           setForm({ ...form, harga: (num * 1000).toString() });
+                         }}
+                         className="h-6 text-xs pr-10"
+                         placeholder="Contoh: 25"
+                         required
+                       />
+                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none">
+                         .000
+                       </span>
+                     </div>
+                     <p className="text-[10px] text-muted-foreground">Isi angka dalam ribuan, misal: 25 untuk Rp 25.000</p>
                    </div>
-                   <p className="text-[10px] text-muted-foreground">
-                     Masukkan angka saja (dalam ribuan). Contoh: ketik &quot;25&quot; untuk Rp25.000
-                   </p>
-                 </div>
-
-                 <div className="grid gap-1">
-                   <Label htmlFor="kategoriId" className="text-xs">Kategori</Label>
-                   <Select
-                     value={form.kategoriId}
-                     onValueChange={(value) => setForm({ ...form, kategoriId: value })}
-                   >
-                     <SelectTrigger className="h-7 text-xs">
-                       <SelectValue placeholder="Pilih kategori" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       {kategoris.map((kat) => (
-                         <SelectItem key={kat.id} value={kat.id.toString()}>
-                           {kat.namaKategori}
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                 </div>
-
-                 <div className="grid gap-1">
-                   <Label htmlFor="statusMenu" className="text-xs">Status</Label>
-                   <Select
-                     value={form.statusMenu}
-                     onValueChange={(value) => setForm({ ...form, statusMenu: value as StatusMenu })}
-                   >
-                     <SelectTrigger className="h-7 text-xs">
-                       <SelectValue />
-                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="tersedia">Tersedia</SelectItem>
-                       <SelectItem value="habis">Habis</SelectItem>
-                       <SelectItem value="nonaktif">Nonaktif</SelectItem>
-                     </SelectContent>
-                   </Select>
-                 </div>
-  
-                 {/* Photo Upload Section */}
-                 <div className="grid gap-2">
-                   <Label className="text-xs font-medium">Foto Menu</Label>
-                   
-                   {/* Existing Photos */}
-                   {existingFotos.length > 0 && (
-                     <div className="flex gap-2 mb-2 overflow-x-auto pb-2 max-w-full">
-                       {existingFotos.map((foto) => (
-                         <div key={foto.id} className="relative group flex-shrink-0">
-                           {imageLoading[foto.fotoUrl] && (
-                             <div className="w-20 h-20 rounded-lg border-2 border-gray-200 bg-gray-50 flex items-center justify-center">
-                               <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                             </div>
-                           )}
-                           <img 
-                             src={foto.fotoUrl} 
-                             alt="Menu" 
-                             className={`w-20 h-20 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:opacity-80 transition-opacity ${imageLoading[foto.fotoUrl] ? 'hidden' : ''}`}
-                             onClick={() => setPreviewImage(foto.fotoUrl)}
-                             onLoad={() => setImageLoading(prev => ({ ...prev, [foto.fotoUrl]: false }))}
-                             onLoadStart={() => setImageLoading(prev => ({ ...prev, [foto.fotoUrl]: true }))}
-                           />
-                           <button
-                             type="button"
-                             onClick={() => handleDeleteFoto(foto.id, foto.fotoUrl)}
-                             className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                           >
-                             ✕
-                           </button>
-                         </div>
-                       ))}
+ 
+                    <div className="grid grid-cols-2 gap-1">
+                     <div className="grid gap-1">
+                       <Label htmlFor="kategoriId" className="text-xs">Kategori</Label>
+                       <Select
+                         value={form.kategoriId}
+                         onValueChange={(value) => setForm({ ...form, kategoriId: value })}
+                       >
+                         <SelectTrigger className="h-6 text-xs">
+                           <SelectValue placeholder="Kategori" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {kategoris.map((kat) => (
+                             <SelectItem key={kat.id} value={kat.id.toString()}>
+                               {kat.namaKategori}
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
                      </div>
-                   )}
-  
-                   {/* Newly Uploaded Photos Preview */}
-                   {uploadedFotoUrls.length > 0 && (
-                     <div className="flex flex-wrap gap-2 mb-2">
-                       {uploadedFotoUrls.map((url, index) => (
-                         <div key={index} className="relative group">
-                           {imageLoading[url] && (
-                             <div className="w-20 h-20 rounded-lg border-2 border-blue-200 bg-gray-50 flex items-center justify-center">
-                               <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                             </div>
-                           )}
-                           <img 
-                             src={url} 
-                             alt="Preview" 
-                             className={`w-20 h-20 object-cover rounded-lg border-2 border-blue-200 cursor-pointer hover:opacity-80 transition-opacity ${imageLoading[url] ? 'hidden' : ''}`}
-                             onClick={() => !imageLoading[url] && setPreviewImage(url)}
-                             onLoad={() => setImageLoading(prev => ({ ...prev, [url]: false }))}
-                             onLoadStart={() => setImageLoading(prev => ({ ...prev, [url]: true }))}
-                           />
-                           <button
-                             type="button"
-                             onClick={async () => {
-                               const fileKey = uploadedFileKeys[index];
-                               if (fileKey) {
-                                 try {
-                                   const response = await fetch('/api/uploadthing/delete', {
-                                     method: 'POST',
-                                     headers: { 'Content-Type': 'application/json' },
-                                     body: JSON.stringify({ fileKey })
-                                   });
-                                   if (!response.ok) {
-                                     console.error('Failed to delete file from UploadThing');
-                                   }
-                                 } catch (error) {
-                                   console.error('Error deleting file:', error);
-                                 }
-                               }
-                               setUploadedFotoUrls(prev => prev.filter((_, i) => i !== index));
-                               setUploadedFileKeys(prev => prev.filter((_, i) => i !== index));
-                             }}
-                             className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                           >
-                             ✕
-                           </button>
-                         </div>
-                       ))}
+ 
+                     <div className="grid gap-1">
+                       <Label htmlFor="statusMenu" className="text-xs">Status</Label>
+                       <Select
+                         value={form.statusMenu}
+                         onValueChange={(value) => setForm({ ...form, statusMenu: value as StatusMenu })}
+                       >
+                         <SelectTrigger className="h-6 text-xs">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="tersedia">Tersedia</SelectItem>
+                           <SelectItem value="habis">Habis</SelectItem>
+                           <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                         </SelectContent>
+                       </Select>
                      </div>
-                   )}
+                   </div>
+                 </div>
+   
+                  {/* Photo Upload Section */}
+                  <div className="grid gap-1">
+                    <Label className="text-xs font-medium">Foto Menu</Label>
+                    
+                    {/* Existing Photos */}
+                    {existingFotos.length > 0 && (
+                      <div className="flex gap-1 overflow-x-auto pb-1 max-w-full">
+                        {existingFotos.map((foto) => (
+                          <div key={foto.id} className="relative group flex-shrink-0">
+                            <img 
+                              src={foto.fotoUrl} 
+                              alt="Menu" 
+                              className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => setPreviewImage(foto.fotoUrl)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFoto(foto.id, foto.fotoUrl)}
+                              className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+   
+                    {/* Newly Uploaded Photos Preview */}
+                    {uploadedFotoUrls.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {uploadedFotoUrls.map((url, index) => (
+                          <div key={index} className="relative group">
+                            <img 
+                              src={url} 
+                              alt="Preview" 
+                              className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => setPreviewImage(url)}
+                            />
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const fileKey = uploadedFileKeys[index];
+                                if (fileKey) {
+                                  try {
+                                    const response = await fetch('/api/uploadthing/delete', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ fileKey })
+                                    });
+                                    if (!response.ok) {
+                                      console.error('Failed to delete file from UploadThing');
+                                    }
+                                  } catch (error) {
+                                    console.error('Error deleting file:', error);
+                                  }
+                                }
+                                setUploadedFotoUrls(prev => prev.filter((_, i) => i !== index));
+                                setUploadedFileKeys(prev => prev.filter((_, i) => i !== index));
+                              }}
+                              className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
   
                    {/* UploadThing Upload Button */}
                    <div className="flex items-center gap-2">
@@ -826,28 +823,28 @@ onClientUploadComplete={(res: { url: string; key: string }[]) => {
                          alert('Gagal upload: ' + error.message);
                        }}
                      />
-<p className="text-xs text-gray-500">
-                        {totalPhotos}/5 foto, 4MB per file
-                      </p>
-                   </div>
-                 </div>
-               </div>
-               <DialogFooter>
-                 <Button
-                   type="button"
-                   variant="outline"
-                   onClick={() => setIsOpen(false)}
-                   className="h-7 text-xs"
-                 >
-                   Batal
-                 </Button>
-                 <Button type="submit" disabled={submitting} className="h-7 text-xs">
-                   {submitting ? 'Menyimpan...' : 'Simpan'}
-                 </Button>
-               </DialogFooter>
-             </form>
-        </DialogContent>
-      </Dialog>
+                      <p className="text-[10px] text-gray-500">
+                          {`${totalPhotos}/5 foto`}
+                        </p>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter className="gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsOpen(false)}
+                    className="h-7 text-xs px-3"
+                  >
+                    Batal
+                  </Button>
+                  <Button type="submit" disabled={submitting} className="h-7 text-xs px-3">
+                    {submitting ? '...' : 'Simpan'}
+                  </Button>
+                </DialogFooter>
+              </form>
+         </DialogContent>
+       </Dialog>
 
        {/* Category Dialog */}
        <Dialog open={isKategoriOpen} onOpenChange={(open) => {
@@ -946,8 +943,28 @@ onClientUploadComplete={(res: { url: string; key: string }[]) => {
           </DialogContent>
         </Dialog>
 
-         {/* Delete Kategori Dialog */}
-         <Dialog open={isDeleteKategoriOpen} onOpenChange={setIsDeleteKategoriOpen}>
+          {/* Delete Menu Dialog */}
+          <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Konfirmasi Hapus Menu</DialogTitle>
+                <DialogDescription className="text-sm text-gray-500">
+                  Menu akan dihapus permanen. Tindakan ini tidak dapat dibatalkan. Yakin ingin melanjutkan?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+                  Batal
+                </Button>
+                <Button variant="destructive" onClick={confirmDelete}>
+                  Hapus
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Kategori Dialog */}
+          <Dialog open={isDeleteKategoriOpen} onOpenChange={setIsDeleteKategoriOpen}>
            <DialogContent className="max-w-sm">
              <DialogHeader>
                <DialogTitle>Konfirmasi Hapus Kategori</DialogTitle>

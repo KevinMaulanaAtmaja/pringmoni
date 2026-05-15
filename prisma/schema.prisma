@@ -3,23 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model Users {
-  id            Int       @id @default(autoincrement())
-  email         String?   @unique @map("email")
-  username      String    @unique @map("username")
-  password      String    @map("password")
-  role          RoleUser  @map("role")
-  status        Boolean   @default(true) @map("status")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime? @map("updated_at")
-  logs          Logs[]
-  kasirPesanan  Pesanan[] @relation("KasirPesanan")
-  waiterPesanan Pesanan[] @relation("WaiterPesanan")
+  id               Int       @id @default(autoincrement())
+  email            String?   @unique @map("email")
+  username         String    @unique @map("username")
+  password         String    @map("password")
+  role             RoleUser  @map("role")
+  status           Boolean   @default(true) @map("status")
+  resetToken       String?   @unique @map("reset_token")
+  resetTokenExpiry DateTime? @map("reset_token_expiry")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime? @map("updated_at")
+  logs             Logs[]
+  kasirPesanan     Pesanan[] @relation("KasirPesanan")
+  waiterPesanan    Pesanan[] @relation("WaiterPesanan")
 
   @@map("users")
 }
@@ -85,6 +87,7 @@ model Pesanan {
   kasirId          Int?              @map("kasir_id")
   statusPesanan    StatusPesanan     @default(menunggu) @map("status_pesanan")
   catatan          String?           @map("catatan")
+  namaPelanggan    String?           @map("nama_pelanggan")
   totalHarga       Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
   metodePembayaran MetodePembayaran? @map("metode_pembayaran")
   jumlahBayar      Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
@@ -154,6 +157,7 @@ enum StatusPesanan {
 enum MetodePembayaran {
   qris
   tunai
+  transfer
 }
 
 enum StatusBayar {

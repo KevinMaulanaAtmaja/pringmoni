@@ -59,7 +59,6 @@ export default function MejaPage() {
 
   // Delete confirmation states
   const [deleteId, setDeleteId] = useState<number | null>(null)
-  const [confirmStep, setConfirmStep] = useState(1) // 1 or 2 for double confirmation
 
   // Filter states
   const [search, setSearch] = useState("")
@@ -190,33 +189,23 @@ export default function MejaPage() {
 
   function handleDeleteClick(id: number) {
     setDeleteId(id)
-    setConfirmStep(1)
   }
 
   async function handleDeleteConfirm() {
-    if (confirmStep === 1) {
-      setConfirmStep(2)
-      return
-    }
-    
-    // Second confirmation - proceed with deletion
     if (deleteId) {
       const result = await deleteMeja(deleteId)
       if ('error' in result && result.error) {
         alert(result.error)
         setDeleteId(null)
-        setConfirmStep(1)
         return
       }
       setDeleteId(null)
-      setConfirmStep(1)
       loadData()
     }
   }
 
   function handleDeleteCancel() {
     setDeleteId(null)
-    setConfirmStep(1)
   }
 
   const openQR = (meja: Meja) => {
@@ -509,32 +498,23 @@ export default function MejaPage() {
       <Dialog open={deleteId !== null} onOpenChange={() => handleDeleteCancel()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {confirmStep === 1 ? 'Konfirmasi Hapus Meja' : 'PERHATIAN: Hapus Permanen'}
-            </DialogTitle>
+            <DialogTitle>Konfirmasi Hapus Meja</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            {confirmStep === 1 ? (
-              <p className="text-sm text-gray-600">
-                Apakah Anda yakin ingin menghapus meja ini? Meja yang sudah dipasang permanen akan dihapus beserta semua data pesanan.
-              </p>
-            ) : (
-              <p className="text-sm text-red-600 font-semibold">
-                Meja ini sudah dipasang permanen! Menghapus akan menghapus semua data pesanan terkait. 
-                Klik `Hapus Permanen` untuk konfirmasi kedua.
-              </p>
-            )}
+            <p className="text-sm text-gray-600">
+              Apakah Anda yakin ingin menghapus meja ini? Tindakan ini tidak dapat dibatalkan.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleDeleteCancel} className="h-7 text-xs">
               Batal
             </Button>
             <Button 
-              variant={confirmStep === 1 ? 'destructive' : 'destructive'} 
+              variant="destructive" 
               onClick={handleDeleteConfirm}
               className="h-7 text-xs"
             >
-              {confirmStep === 1 ? 'Lanjut' : 'Hapus Permanen'}
+              Hapus
             </Button>
           </DialogFooter>
         </DialogContent>

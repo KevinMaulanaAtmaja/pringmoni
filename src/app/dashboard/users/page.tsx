@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Pencil, Trash2, User as UserIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, User as UserIcon, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import {
   getUsers,
   createUser,
@@ -65,6 +65,7 @@ export default function UsersPage() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Delete confirmation states
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -98,6 +99,7 @@ export default function UsersPage() {
 
   function openDialog(user?: UserWithRole) {
     setError(null)
+    setShowPassword(false)
     if (user) {
       setEditingId(user.id)
       setForm({
@@ -163,13 +165,14 @@ export default function UsersPage() {
 
   async function handleDeleteConfirm() {
     if (deleteId) {
-      try {
-        await deleteUser(deleteId)
+      const result = await deleteUser(deleteId)
+      if (result?.error) {
+        alert(result.error)
         setDeleteId(null)
-        loadData()
-      } catch {
-        alert('Gagal hapus akun')
+        return
       }
+      setDeleteId(null)
+      loadData()
     }
   }
 
@@ -302,9 +305,11 @@ export default function UsersPage() {
                       <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(user)}>
                         <Pencil className="w-3 h-3" />
                       </Button>
-                      <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(user.id)}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      {user.role !== 'owner' && (
+                        <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(user.id)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -341,7 +346,7 @@ export default function UsersPage() {
         </div>
       )}
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) setShowPassword(false) }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -362,7 +367,7 @@ export default function UsersPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email (opsional)</Label>
                 <Input
                   id="email"
                   type="email"
@@ -376,15 +381,25 @@ export default function UsersPage() {
                 <Label htmlFor="password">
                   Password {editingId ? '(kosongkan jika tidak diubah)' : ''}
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
-                  required={!editingId}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={(e) =>
+                      setForm({ ...form, password: e.target.value })
+                    }
+                    required={!editingId}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-4 flex items-center text-gray-500 hover:text-gray-700 z-10"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 {error && (
                   <p className="text-sm text-red-500">{error}</p>
                 )}

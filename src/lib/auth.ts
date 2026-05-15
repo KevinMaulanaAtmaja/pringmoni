@@ -33,8 +33,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           console.log('Attempting database query...')
           
-          const user = await prisma.users.findUnique({
-            where: { username: credentials.username as string },
+          const user = await prisma.users.findFirst({
+            where: {
+              OR: [
+                { username: credentials.username as string },
+                { email: credentials.username as string },
+              ],
+            },
           })
 
           console.log('User found:', user ? 'YES' : 'NO')
@@ -94,6 +99,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.role = (user as CustomUser).role
         token.id = (user as CustomUser).id
+        token.username = user.name
       }
       return token
     },
@@ -101,6 +107,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token) {
         session.user.role = (token.role as RoleUser) ?? "waiter"
         session.user.id = (token.id as string) ?? ""
+        session.user.username = token.username as string
       }
       return session
     },
@@ -114,6 +121,7 @@ declare module "next-auth" {
       name?: string | null
       email?: string | null
       role: RoleUser
+      username?: string
     }
   }
 }

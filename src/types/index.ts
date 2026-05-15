@@ -53,7 +53,7 @@ export interface CustomerMenu {
 
 export type StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan'
 export type StatusBayar = 'menunggu' | 'berhasil' | 'dibatalkan'
-export type MetodePembayaran = 'qris' | 'tunai'
+export type MetodePembayaran = 'qris' | 'tunai' | 'transfer'
 
 export interface DetailPesananItem {
   id: number
@@ -62,6 +62,7 @@ export interface DetailPesananItem {
   jumlah: number
   hargaSaatPesan: number
   catatanItem: string | null
+  fotoUrls?: string[]
 }
 
 export interface Pesanan {
@@ -72,6 +73,7 @@ export interface Pesanan {
   kasirId?: number
   statusPesanan: StatusPesanan
   catatan: string | null
+  namaPelanggan?: string | null
   totalHarga: number
   metodePembayaran?: MetodePembayaran
   jumlahBayar?: number
