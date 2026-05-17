@@ -467,9 +467,10 @@ export default function MejaPage() {
               </div>
 
               {!editingMeja && (
-                <p className="text-xs text-gray-500">
-                  Token & QR otomatis
-                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs text-blue-700">
+                  <p className="font-medium">Info</p>
+                  <p>Token & QR Code akan dibuat otomatis saat meja disimpan.</p>
+                </div>
               )}
             </div>
             <DialogFooter>

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { getPesananById, updateStatusPesanan, cancelPesanan } from "@/app/actions/pesanan"
-import type { Pesanan, DetailPesananItem } from "@/types"
+import type { DetailPesananItem } from "@/types"
 import { StatusPesanan } from "@prisma/client"
 import { ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
@@ -34,7 +34,30 @@ export default function PesananDetailPage() {
   const router = useRouter()
   const orderId = parseInt(params.id as string)
   
-  const [pesanan, setPesanan] = useState<Pesanan | null>(null)
+  interface PesananDetailView {
+    id: number
+    mejaId: number
+    statusPesanan: "menunggu" | "diproses" | "selesai" | "dibatalkan"
+    statusPembayaran: "menunggu" | "berhasil" | "dibatalkan"
+    totalHarga: number
+    metodePembayaran?: "qris" | "tunai" | "transfer"
+    jumlahBayar?: number
+    kembalian: number
+    createdAt: string
+    meja: {
+      id: number
+      nomorMeja: string
+      tipeMeja: "lesehan" | "kursi"
+      kapasitas: number
+      statusMeja: "kosong"
+    }
+    catatan: string | null
+    detailPesanan: DetailPesananItem[]
+    waiterUsername?: string | null
+    kasirUsername?: string | null
+  }
+
+  const [pesanan, setPesanan] = useState<PesananDetailView | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
@@ -56,7 +79,7 @@ export default function PesananDetailPage() {
           fotoUrls: item.foto_urls || [],
         }))
 
-        const mappedResult = {
+        const mappedResult: PesananDetailView = {
           id: result.id,
           mejaId: result.meja_id,
           statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "selesai" | "dibatalkan",
@@ -73,11 +96,11 @@ export default function PesananDetailPage() {
             kapasitas: 0,
             statusMeja: "kosong" as const,
           },
-          waiterId: undefined,
-          kasirId: undefined,
+          waiterUsername: result.waiter_username || null,
+          kasirUsername: result.kasir_username || null,
           catatan: null,
           detailPesanan: items,
-        } as Pesanan
+        }
         setPesanan(mappedResult)
       }
     } catch {
@@ -194,7 +217,13 @@ export default function PesananDetailPage() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Metode</span>
               <span className="font-medium">
-                {pesanan.kasirId ? 'Kasir #' + pesanan.kasirId : '-'}
+                {pesanan.metodePembayaran
+                  ? pesanan.metodePembayaran === "tunai"
+                    ? "Tunai"
+                    : pesanan.metodePembayaran === "qris"
+                      ? "QRIS"
+                      : "Transfer"
+                  : "-"}
               </span>
             </div>
             <div className="flex justify-between">
@@ -213,11 +242,11 @@ export default function PesananDetailPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Waiter</span>
-              <span className="font-medium">{pesanan.waiterId ? 'Waiter #' + pesanan.waiterId : '-'}</span>
+              <span className="font-medium">{pesanan.waiterUsername || '-'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Kasir</span>
-              <span className="font-medium">{pesanan.kasirId ? 'Kasir #' + pesanan.kasirId : '-'}</span>
+              <span className="font-medium">{pesanan.kasirUsername || '-'}</span>
             </div>
           </CardContent>
         </Card>

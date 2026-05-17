@@ -18,7 +18,7 @@ type Menu = CustomerMenu;
 
 interface CreatePesananResult {
     success?: boolean;
-    orderId?: number;
+    orderId?: string | null;
     error?: string;
 }
 
@@ -32,12 +32,13 @@ const [kategoris, setKategoris] = useState<{ id: number; nama: string }[]>([]);
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState<string | null>(null);
     const [keranjang, setKeranjang] = useState<KeranjangItem[]>([]);
+    const [submitting, setSubmitting] = useState(false);
     const [showToastBerhasil, setShowToastBerhasil] = useState(false);
     const [sudahPesan, setSudahPesan] = useState(false);
     const [totalCheckout, setTotalCheckout] = useState(0);
     const [activeKategori, setActiveKategori] = useState("Semua");
     const [searchQuery, setSearchQuery] = useState("");
-    const [namaPelanggan, setNamaPelanggan] = useState("");
+
     const [voucher, setVoucher] = useState<Voucher | null>(null);
     const [itemsToShow, setItemsToShow] = useState(12);
     const [showScanner, setShowScanner] = useState(false);
@@ -134,11 +135,7 @@ const [error, setError] = useState<string | null>(null);
 
     const handleCheckout = async () => {
         if (keranjang.length === 0) return;
-
-        if (!namaPelanggan.trim()) {
-            alert("Silakan masukkan nama Anda terlebih dahulu");
-            return;
-        }
+        setSubmitting(true);
 
         try {
             const items = keranjang.map((item) => ({
@@ -147,10 +144,11 @@ const [error, setError] = useState<string | null>(null);
                 catatan: item.catatan,
             }));
 
-            const result: CreatePesananResult = await createPesanan({ tokenMeja, items, namaPelanggan });
+            const result: CreatePesananResult = await createPesanan({ tokenMeja, items });
 
             if (result && 'error' in result) {
                 alert(result.error);
+                setSubmitting(false);
                 return;
             }
 
@@ -159,10 +157,12 @@ const [error, setError] = useState<string | null>(null);
             } else {
                 alert("Pesanan berhasil dibuat!");
                 setKeranjang([]);
+                setSubmitting(false);
             }
         } catch (error) {
             console.error("Checkout error:", error);
             alert("Terjadi kesalahan");
+            setSubmitting(false);
         }
     };
 
@@ -242,11 +242,12 @@ return (
 
                     {!loading && !error && (
                      <CartSheet
-                             keranjang={keranjang}
-                             onUpdateJumlah={updateJumlah}
-                             onHapus={hapusDariKeranjang}
-                             onCheckout={handleCheckout}
-                             subtotal={subtotal}
+                              keranjang={keranjang}
+                              onUpdateJumlah={updateJumlah}
+                              onHapus={hapusDariKeranjang}
+                              onCheckout={handleCheckout}
+                              submitting={submitting}
+                              subtotal={subtotal}
                              totalHarga={totalHarga}
                              voucher={effectiveVoucher}
                              onApplyVoucher={setVoucher}
@@ -324,33 +325,6 @@ return (
 
                 {!loading && !error && (
                     <>
-                        {/* Nama Pelanggan */}
-                        <div className="mb-4">
-                            <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-                                <div className="flex-1">
-                                    <label htmlFor="namaPelanggan" className="text-xs text-blue-600 font-medium block mb-1">
-                                        Nama Pemesan
-                                    </label>
-                                    <input
-                                        id="namaPelanggan"
-                                        type="text"
-                                        placeholder="Masukkan nama Anda"
-                                        value={namaPelanggan}
-                                        onChange={(e) => setNamaPelanggan(e.target.value)}
-                                        className="w-full bg-transparent text-sm font-medium text-blue-900 placeholder:text-blue-300 outline-none"
-                                    />
-                                </div>
-                                {namaPelanggan && (
-                                    <button
-                                        onClick={() => setNamaPelanggan("")}
-                                        className="text-blue-400 hover:text-blue-600 shrink-0"
-                                    >
-                                        <X className="size-4" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
                         {/* Search */}
                         <div className="relative mb-4">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />

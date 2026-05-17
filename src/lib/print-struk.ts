@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf"
+import { hitungAdminFee } from "@/lib/fee"
 
 interface StrukItem {
   nama: string
@@ -18,6 +19,9 @@ interface StrukData {
   waiterUsername?: string | null
   kasirUsername?: string | null
   namaPelanggan?: string | null
+  subtotal?: number
+  adminFee?: number
+  ppn?: number
 }
 
 function formatRupiah(amount: number) {
@@ -88,10 +92,6 @@ export function printStruk(data: StrukData) {
   y += 5
   doc.text(new Date(data.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), 10, y)
   y += 5
-  if (data.waiterUsername) {
-    doc.text(`Waiter: ${data.waiterUsername}`, 10, y)
-    y += 4
-  }
   if (data.kasirUsername) {
     doc.text(`Kasir: ${data.kasirUsername}`, 10, y)
     y += 4
@@ -108,7 +108,7 @@ export function printStruk(data: StrukData) {
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
   doc.text("Item", 10, y)
-  rightText(doc, "Subtotal", y)
+  rightText(doc, "Harga", y)
   y += 4
   doc.setFont("helvetica", "normal")
 
@@ -130,15 +130,34 @@ export function printStruk(data: StrukData) {
   doc.line(5, y, pageWidth - 5, y)
   y += 6
 
+  const subtotal = data.subtotal ?? data.totalHarga
+  const adminFee = data.adminFee ?? (
+    data.metodePembayaran === 'transfer' || data.metodePembayaran === 'qris'
+      ? hitungAdminFee(data.metodePembayaran, subtotal)
+      : 0
+  )
+  const ppn = data.ppn ?? 0
+
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
-  doc.text("Pajak (0%)", 10, y)
-  rightText(doc, "Rp 0", y)
-  y += 6
+  doc.text("Subtotal", 10, y)
+  rightText(doc, formatRupiah(subtotal), y)
+  y += 5
+
+  if (adminFee > 0) {
+    doc.text("Biaya Admin", 10, y)
+    rightText(doc, formatRupiah(adminFee), y)
+    y += 5
+  }
+
+  doc.text("PPN (0%)", 10, y)
+  rightText(doc, formatRupiah(ppn), y)
+  y += 5
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(12)
-  const totalStr = `Rp ${data.totalHarga.toLocaleString("id-ID")}`
+  const grandTotal = subtotal + adminFee + ppn
+  const totalStr = `Rp ${grandTotal.toLocaleString("id-ID")}`
   doc.text("TOTAL", 10, y)
   rightText(doc, totalStr, y)
   y += 7
@@ -173,6 +192,9 @@ export function printStruk(data: StrukData) {
   y += 5
   doc.setFontSize(9)
   centerText(doc, "WiFi: Pringmoni | Pass: pringsewu123", y, 9)
+  y += 5
+  doc.setFontSize(7)
+  centerText(doc, `Printed at: ${new Date().toLocaleString("id-ID")}`, y, 7)
 
   doc.autoPrint()
   const blob = doc.output("blob")

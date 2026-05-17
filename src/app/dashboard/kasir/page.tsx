@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight, Bell } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
 import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, prosesPembayaranQRIS, prosesPembayaranTransfer, konfirmasiPembayaran, batalkanPesananKasir } from "@/app/actions/kasir"
 import { useSession } from "next-auth/react"
@@ -53,6 +53,8 @@ interface Pesanan {
   statusPesanan: string
   statusPembayaran: string
   totalHarga: number
+  biayaAdmin: number | null
+  ppn: number | null
   metodePembayaran: string | null
   jumlahBayar: number | null
   kembalian: number
@@ -93,10 +95,55 @@ export default function KasirPage() {
   const [cancelConfirmInput, setCancelConfirmInput] = useState("")
   const [isTunaiConfirmOpen, setIsTunaiConfirmOpen] = useState(false)
   const [tunaiConfirmId, setTunaiConfirmId] = useState<number | null>(null)
+  const [tunaiConfirmSuccess, setTunaiConfirmSuccess] = useState(false)
   const [isBayarTunaiFinal, setIsBayarTunaiFinal] = useState(false)
   const [daftarKasir, setDaftarKasir] = useState<string[]>([])
   const [showMethodWarning, setShowMethodWarning] = useState(false)
   const pendingMethodAction = useRef<"bayar" | "confirm" | "tunai-step" | null>(null)
+  const prevBelumIdsRef = useRef<Set<number>>(new Set())
+  const initializedRef = useRef(false)
+  const tunaiConfirmPesananRef = useRef<Pesanan | null>(null)
+  const [newOrderAlert, setNewOrderAlert] = useState<{ meja: string; nama: string | null } | null>(null)
+
+  function playNotification(nomorMeja: string, namaPelanggan?: string | null) {
+    try {
+      const ctx = new AudioContext()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = "sine"
+      osc.frequency.value = 880
+      gain.gain.value = 0.3
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.25)
+
+      // Double beep
+      setTimeout(() => {
+        const osc2 = ctx.createOscillator()
+        const gain2 = ctx.createGain()
+        osc2.type = "sine"
+        osc2.frequency.value = 660
+        gain2.gain.value = 0.3
+        osc2.connect(gain2)
+        gain2.connect(ctx.destination)
+        osc2.start()
+        osc2.stop(ctx.currentTime + 0.25)
+      }, 300)
+    } catch {}
+
+    try {
+      if ("speechSynthesis" in window) {
+        const text = namaPelanggan
+          ? `Pesanan baru dari meja ${nomorMeja}, atas nama ${namaPelanggan}`
+          : `Pesanan baru dari meja ${nomorMeja}`
+        const utterance = new SpeechSynthesisUtterance(text)
+        utterance.lang = "id-ID"
+        utterance.rate = 1
+        speechSynthesis.speak(utterance)
+      }
+    } catch {}
+  }
 
   const pesananBelumFiltered = pesananBelum.filter(p => {
     if (filterText) {
@@ -133,7 +180,7 @@ export default function KasirPage() {
     return true
   })
 
-  const totalPendapatan = pesananRiwayatFiltered.reduce((sum, p) => sum + p.totalHarga, 0)
+  const totalPendapatan = pesananRiwayatFiltered.reduce((sum, p) => sum + (p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0)), 0)
   const jumlahQRIS = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'qris').length
   const jumlahTunai = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'tunai').length
   const jumlahTransfer = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'transfer').length
@@ -186,7 +233,43 @@ export default function KasirPage() {
 
   useEffect(() => {
     fetchData()
+  }, [fetchData])
+
+  // Polling 5 detik — tanpa setLoading biar gak refresh halaman
+  const pollData = useCallback(async () => {
+    try {
+      const [belumResult] = await Promise.all([
+        getPesananBelumBayar(),
+      ])
+
+      if (!('error' in belumResult)) {
+        setPesananBelum(belumResult as unknown as Pesanan[])
+      }
+    } catch {}
   }, [])
+
+  useEffect(() => {
+    const interval = setInterval(pollData, 5000)
+    return () => clearInterval(interval)
+  }, [pollData])
+
+  // Deteksi pesanan baru
+  useEffect(() => {
+    const currentIds = new Set(pesananBelum.map(p => p.id))
+    const newOrders = pesananBelum.filter(p => !prevBelumIdsRef.current.has(p.id))
+
+    if (initializedRef.current && newOrders.length > 0) {
+      for (const order of newOrders) {
+        playNotification(order.nomorMeja, order.namaPelanggan)
+      }
+      const latest = newOrders[newOrders.length - 1]
+      setNewOrderAlert({ meja: latest.nomorMeja, nama: latest.namaPelanggan ?? null })
+      setTimeout(() => setNewOrderAlert(null), 5000)
+    }
+
+    initializedRef.current = true
+    prevBelumIdsRef.current = currentIds
+  }, [pesananBelum])
 
   const fetchRiwayatOnly = useCallback(async () => {
     setError(null)
@@ -238,7 +321,7 @@ export default function KasirPage() {
     try {
       if (selectedMetode === "tunai") {
         const jumlah = parseFloat(jumlahBayar)
-        if (isNaN(jumlah) || jumlah < selectedPesanan.totalHarga) {
+        if (isNaN(jumlah) || jumlah < getGrandTotal(selectedPesanan)) {
           alert("Jumlah bayar kurang dari total!")
           setSubmitting(false)
           return
@@ -315,11 +398,6 @@ export default function KasirPage() {
       }
       setShowPaymentInfo(false)
       setPaymentSuccess(true)
-      setTimeout(() => {
-        setIsPaymentOpen(false)
-        setPaymentSuccess(false)
-        fetchData()
-      }, 1500)
     } catch (error) {
       console.error("Payment error:", error)
       alert("Terjadi kesalahan")
@@ -335,7 +413,7 @@ export default function KasirPage() {
       return
     }
     const jumlah = parseFloat(jumlahBayar)
-    if (isNaN(jumlah) || jumlah < (selectedPesanan?.totalHarga || 0)) {
+    if (isNaN(jumlah) || jumlah < getGrandTotal(selectedPesanan)) {
       alert("Jumlah bayar kurang dari total!")
       return
     }
@@ -359,14 +437,16 @@ export default function KasirPage() {
   async function handleTunaiConfirm() {
     if (tunaiConfirmId === null) return
     const id = tunaiConfirmId
-    setIsTunaiConfirmOpen(false)
-    setTunaiConfirmId(null)
+
+    const pesanan = pesananBelum.find(p => p.id === id)
+    if (pesanan) tunaiConfirmPesananRef.current = pesanan
 
     const result = await konfirmasiPembayaran(id)
     if ('error' in result) {
       alert(result.error)
+      tunaiConfirmPesananRef.current = null
     } else {
-      alert("Pembayaran berhasil dikonfirmasi!")
+      setTunaiConfirmSuccess(true)
       fetchData()
     }
   }
@@ -383,6 +463,11 @@ export default function KasirPage() {
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(amount)
+  }
+
+  function getGrandTotal(p: Pesanan | null | undefined) {
+    if (!p) return 0
+    return (p.totalHarga || 0) + (p.biayaAdmin || 0) + (p.ppn || 0)
   }
 
   function formatSingkat(amount: number) {
@@ -408,7 +493,7 @@ export default function KasirPage() {
 
   const kembalian =
     selectedMetode === "tunai" && jumlahBayar
-      ? parseFloat(jumlahBayar) - (selectedPesanan?.totalHarga || 0)
+      ? parseFloat(jumlahBayar) - getGrandTotal(selectedPesanan)
       : 0
 
   if (loading) {
@@ -436,6 +521,21 @@ export default function KasirPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4">
+      {newOrderAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="bg-white border-2 border-green-400 rounded-2xl px-8 py-6 shadow-2xl pointer-events-auto animate-in fade-in zoom-in duration-200 max-w-sm text-center">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Bell className="size-7 text-green-600" />
+            </div>
+            <p className="font-bold text-green-800 text-lg">Pesanan Baru!</p>
+            <p className="text-green-700 mt-1">
+              Meja {newOrderAlert.meja}
+              {newOrderAlert.nama && <span> - {newOrderAlert.nama}</span>}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header Tabs */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="flex gap-3">
@@ -560,9 +660,15 @@ export default function KasirPage() {
                     )}
                   </div>
                   {p.metodePembayaran ? (
-                    <Badge className={`${statusBayarColors.menunggu} text-sm px-3 py-1.5`}>
-                      Menunggu Konfirmasi
-                    </Badge>
+                    p.jumlahBayar && Number(p.jumlahBayar) > 0 ? (
+                      <Badge className={`${statusBayarColors.menunggu} text-sm px-3 py-1.5`}>
+                        Menunggu Konfirmasi
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 text-sm px-3 py-1.5">
+                        Menunggu
+                      </Badge>
+                    )
                   ) : (
                     <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 text-sm px-3 py-1.5">
                       Belum Bayar
@@ -591,7 +697,7 @@ export default function KasirPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-sm text-gray-500">Total</p>
-                      <p className="text-3xl font-bold text-green-700">{formatRupiah(p.totalHarga)}</p>
+                      <p className="text-3xl font-bold text-green-700">{formatRupiah(p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0))}</p>
                     </div>
                     {p.metodePembayaran && (
                       <Badge className={`${metodeColors[p.metodePembayaran as MetodePembayaran]} text-sm px-3 py-1`}>
@@ -610,7 +716,7 @@ export default function KasirPage() {
                     </Button>
                     {!isOwner && (
                       <>
-                        {p.metodePembayaran === 'tunai' && p.statusPembayaran === 'menunggu' ? (
+                        {p.metodePembayaran === 'tunai' && p.statusPembayaran === 'menunggu' && p.jumlahBayar && Number(p.jumlahBayar) > 0 ? (
                           <Button
                             className="text-base min-h-[52px] bg-green-600 hover:bg-green-700"
                             onClick={() => openTunaiConfirm(p.id)}
@@ -618,11 +724,20 @@ export default function KasirPage() {
                           >
                             <CheckCircle className="w-6 h-6" />
                           </Button>
-                        ) : (
+                        ) : p.metodePembayaran ? (
                           <Button
                             className="text-base min-h-[52px]"
                             onClick={() => openPayment(p)}
                             aria-label="Proses pembayaran"
+                          >
+                            <CreditCard className="w-6 h-6" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            disabled
+                            className="text-base min-h-[52px] opacity-50 cursor-not-allowed"
+                            aria-label="Menunggu metode pembayaran"
                           >
                             <CreditCard className="w-6 h-6" />
                           </Button>
@@ -744,7 +859,7 @@ export default function KasirPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-base">{p.kasirUsername || "-"}</TableCell>
-                      <TableCell className="font-bold text-lg">{formatRupiah(p.totalHarga)}</TableCell>
+                      <TableCell className="font-bold text-lg">{formatRupiah(p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0))}</TableCell>
                         <TableCell>
                           <Badge className={`${statusBayarColors[p.statusPembayaran as StatusBayar]} text-base px-3 py-1`}>
                             {p.statusPembayaran === 'berhasil' ? 'Berhasil' : 
@@ -814,12 +929,15 @@ export default function KasirPage() {
           }
         }}>
           {paymentSuccess ? (
-            <div className="text-center py-6">
+            <div className="text-center py-4">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
               <h2 className="text-xl font-bold mb-2">Pembayaran Berhasil!</h2>
-              <p className="text-gray-500 text-sm">Pesanan #{selectedPesanan?.id} telah dibayar</p>
+              <p className="text-gray-500 text-sm mb-4">Pesanan #{selectedPesanan?.id} telah dibayar</p>
+              <Button variant="outline" onClick={() => { setIsPaymentOpen(false); setPaymentSuccess(false); fetchData() }}>
+                Tutup
+              </Button>
             </div>
           ) : showPaymentInfo && selectedMetode !== "tunai" ? (
             <>
@@ -838,7 +956,7 @@ export default function KasirPage() {
                     )}
                   </div>
                   <p className="text-xl font-bold text-blue-800">
-                    {selectedPesanan && formatRupiah(selectedPesanan.totalHarga)}
+                    {selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan))}
                   </p>
                   <p className="text-blue-600 text-xs">Total Tagihan</p>
                 </div>
@@ -857,7 +975,7 @@ export default function KasirPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500 text-xs">Gross Amount</span>
-                    <span className="font-bold text-sm">{selectedPesanan && formatRupiah(selectedPesanan.totalHarga)}</span>
+                    <span className="font-bold text-sm">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan))}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500 text-xs">Payment Type</span>
@@ -918,7 +1036,7 @@ export default function KasirPage() {
               {/* Total Display */}
               <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 text-center">
                 <p className="text-xl font-bold text-green-800">
-                  {selectedPesanan && formatRupiah(selectedPesanan.totalHarga)}
+                  {selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan))}
                 </p>
                 <p className="text-green-600 text-xs">Total Tagihan</p>
               </div>
@@ -932,26 +1050,41 @@ export default function KasirPage() {
                   </p>
                 )}
                 <div className="grid grid-cols-3 gap-2">
-                  {(["qris", "tunai", "transfer"] as MetodePembayaran[]).map((metode) => (
-                    <button
-                      key={metode}
-                      type="button"
-                      onClick={() => setSelectedMetode(metode)}
-                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all ${
-                        selectedMetode === metode
-                          ? "border-green-600 bg-green-50 scale-105"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      {metodeIcons[metode]}
-                      <span className="text-xs font-semibold">{metodeLabels[metode]}</span>
-                    </button>
-                  ))}
+                  {(["qris", "tunai", "transfer"] as MetodePembayaran[]).map((metode) => {
+      const current = selectedPesanan?.metodePembayaran
+      const isDisabled = current && current !== metode && (
+        current === "tunai" || metode !== "tunai"
+      )
+                    return (
+                      <button
+                        key={metode}
+                        type="button"
+                        disabled={!!isDisabled}
+                        onClick={() => setSelectedMetode(metode)}
+                        className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all ${
+                          selectedMetode === metode
+                            ? "border-green-600 bg-green-50 scale-105"
+                            : isDisabled
+                              ? "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                              : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        {metodeIcons[metode]}
+                        <span className="text-xs font-semibold">{metodeLabels[metode]}</span>
+                      </button>
+                    )}
+                  )}
                 </div>
                 {selectedPesanan?.metodePembayaran && selectedMetode !== selectedPesanan.metodePembayaran && (
-                  <p className="text-xs text-amber-600">
-                    Metode diubah dari {metodeLabels[selectedPesanan.metodePembayaran as MetodePembayaran]} — pastikan pelanggan setuju.
-                  </p>
+                  selectedPesanan.metodePembayaran !== "tunai" && selectedMetode === "tunai" ? (
+                    <p className="text-xs text-amber-600">
+                      Metode diubah dari {metodeLabels[selectedPesanan.metodePembayaran as MetodePembayaran]} — pastikan pelanggan setuju.
+                    </p>
+                  ) : selectedPesanan.metodePembayaran === "tunai" && selectedMetode !== "tunai" ? (
+                    <p className="text-xs text-red-600">
+                      Hanya bisa ganti dari QRIS/Transfer ke Tunai
+                    </p>
+                  ) : null
                 )}
               </div>
               </>
@@ -965,7 +1098,7 @@ export default function KasirPage() {
                   <div className="bg-white rounded-lg p-3 space-y-1.5 text-left text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Total Tagihan</span>
-                      <span className="font-bold">{selectedPesanan && formatRupiah(selectedPesanan.totalHarga)}</span>
+                      <span className="font-bold">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan))}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Dibayar</span>
@@ -1009,7 +1142,7 @@ export default function KasirPage() {
                   <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm divide-y divide-gray-200">
                     <div className="flex justify-between pb-1.5">
                       <span className="text-gray-500">Total Tagihan</span>
-                      <span className="font-semibold">{selectedPesanan && formatRupiah(selectedPesanan.totalHarga)}</span>
+                      <span className="font-semibold">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan))}</span>
                     </div>
                     <div className="flex justify-between pt-1.5">
                       <span className="text-gray-500">Dibayar</span>
@@ -1059,7 +1192,7 @@ export default function KasirPage() {
                     </Button>
                     <Button
                       onClick={selectedMetode === "tunai" ? () => handleBayarTunaiStep() : () => handleBayar()}
-                      disabled={selectedMetode === "tunai" ? false : submitting}
+                      disabled={selectedMetode === "tunai" ? !selectedPesanan?.metodePembayaran : submitting || !selectedPesanan?.metodePembayaran}
                       className="text-sm flex-1"
                     >
                       {submitting ? (
@@ -1098,7 +1231,7 @@ export default function KasirPage() {
             <div className="border-t pt-4 mt-4">
               <div className="flex justify-between text-2xl font-bold">
                 <span>Total</span>
-                <span className="text-green-700">{selectedPesanan && formatRupiah(selectedPesanan.totalHarga)}</span>
+                <span className="text-green-700">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan))}</span>
               </div>
             </div>
             {selectedPesanan?.metodePembayaran && (
@@ -1120,6 +1253,8 @@ export default function KasirPage() {
                   harga: Number(i.hargaSaatPesan),
                 })),
                 totalHarga: Number(selectedPesanan.totalHarga),
+                adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
+                ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
                 metodePembayaran: selectedPesanan.metodePembayaran,
                 jumlahBayar: selectedPesanan.jumlahBayar ? Number(selectedPesanan.jumlahBayar) : undefined,
                 kembalian: Number(selectedPesanan.kembalian),
@@ -1140,62 +1275,77 @@ export default function KasirPage() {
       </Dialog>
 
       {/* Tunai Confirmation Dialog */}
-      <Dialog open={isTunaiConfirmOpen} onOpenChange={setIsTunaiConfirmOpen}>
-        <DialogContent className="max-w-sm" onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            handleTunaiConfirm()
-          }
-        }}>
-          <DialogHeader>
-            <DialogTitle className="text-lg text-center">Konfirmasi Pembayaran Tunai</DialogTitle>
-          </DialogHeader>
-          {(() => {
-            const pesanan = pesananBelum.find(p => p.id === tunaiConfirmId)
-            return (
-            <div className="space-y-4 py-2">
-              <div className="flex items-center justify-center gap-2 text-green-700">
-                <CheckCircle className="w-8 h-8" />
-                <p className="font-semibold">Pesanan #{tunaiConfirmId}</p>
+      <Dialog open={isTunaiConfirmOpen} onOpenChange={(open) => { if (!open) { setTunaiConfirmSuccess(false); setTunaiConfirmId(null) }; setIsTunaiConfirmOpen(open) }}>
+        {tunaiConfirmSuccess ? (
+          <DialogContent className="max-w-sm">
+            <div className="text-center py-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Total Tagihan</span>
-                  <span className="font-semibold">{pesanan ? formatRupiah(pesanan.totalHarga) : '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Dibayar</span>
-                  <span className="font-semibold text-green-700">{pesanan ? formatRupiah(Number(pesanan.jumlahBayar) || 0) : '-'}</span>
-                </div>
-                <div className="flex justify-between font-bold border-t pt-2 text-base">
-                  <span>Kembalian</span>
-                  <span className={pesanan && Number(pesanan.kembalian) >= 0 ? "text-green-600" : "text-gray-400"}>
-                    {pesanan ? formatRupiah(Number(pesanan.kembalian) || 0) : '-'}
-                  </span>
-                </div>
-              </div>
-              <p className="text-xs text-gray-400 text-center">Pastikan jumlah uang yang diterima sudah sesuai.</p>
+              <h2 className="text-xl font-bold mb-2">Pembayaran Berhasil!</h2>
+              <p className="text-gray-500 text-sm mb-4">Pesanan #{tunaiConfirmId} telah dibayar</p>
+              <Button variant="outline" onClick={() => { setIsTunaiConfirmOpen(false); setTunaiConfirmSuccess(false); setTunaiConfirmId(null) }}>
+                Tutup
+              </Button>
             </div>
-            )
-          })()}
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => { setIsTunaiConfirmOpen(false); setTunaiConfirmId(null) }}
-              className="text-sm flex-1"
-            >
-              Batal
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleTunaiConfirm}
-              className="text-sm flex-1 bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Ya, Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+          </DialogContent>
+        ) : (
+          <DialogContent className="max-w-sm" onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleTunaiConfirm()
+            }
+          }}>
+            <DialogHeader>
+              <DialogTitle className="text-lg text-center">Konfirmasi Pembayaran Tunai</DialogTitle>
+            </DialogHeader>
+            {(() => {
+              const pesanan = pesananBelum.find(p => p.id === tunaiConfirmId)
+              return (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center justify-center gap-2 text-green-700">
+                  <CheckCircle className="w-8 h-8" />
+                  <p className="font-semibold">Pesanan #{tunaiConfirmId}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total Tagihan</span>
+                    <span className="font-semibold">{pesanan ? formatRupiah(pesanan.totalHarga) : '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Dibayar</span>
+                    <span className="font-semibold text-green-700">{pesanan ? formatRupiah(Number(pesanan.jumlahBayar) || 0) : '-'}</span>
+                  </div>
+                  <div className="flex justify-between font-bold border-t pt-2 text-base">
+                    <span>Kembalian</span>
+                    <span className={pesanan && Number(pesanan.kembalian) >= 0 ? "text-green-600" : "text-gray-400"}>
+                      {pesanan ? formatRupiah(Number(pesanan.kembalian) || 0) : '-'}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 text-center">Pastikan jumlah uang yang diterima sudah sesuai.</p>
+              </div>
+              )
+            })()}
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => { setIsTunaiConfirmOpen(false); setTunaiConfirmId(null) }}
+                className="text-sm flex-1"
+              >
+                Batal
+              </Button>
+              <Button
+                variant="default"
+                onClick={handleTunaiConfirm}
+                className="text-sm flex-1 bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="w-4 h-4 mr-1" />
+                Ya, Konfirmasi
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
       </Dialog>
 
       {/* Cancel Confirmation - Step 1 */}

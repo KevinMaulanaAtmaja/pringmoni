@@ -89,8 +89,12 @@ model Pesanan {
   catatan          String?           @map("catatan")
   namaPelanggan    String?           @map("nama_pelanggan")
   totalHarga       Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
+  biayaAdmin       Decimal?          @map("biaya_admin") @db.Decimal(10, 2)
+  ppn              Decimal?          @map("ppn") @db.Decimal(10, 2)
   metodePembayaran MetodePembayaran? @map("metode_pembayaran")
-  jumlahBayar      Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
+  midtransOrderId      String?           @unique @map("midtrans_order_id")
+  midtransTransactionId String?          @map("midtrans_transaction_id")
+  jumlahBayar          Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
   kembalian        Decimal           @default(0) @map("kembalian") @db.Decimal(10, 2)
   statusPembayaran StatusBayar       @default(menunggu) @map("status_pembayaran")
   createdAt        DateTime          @default(now()) @map("created_at")
@@ -105,15 +109,16 @@ model Pesanan {
 }
 
 model DetailPesanan {
-  id             Int      @id @default(autoincrement())
-  menuId         Int      @map("menu_id")
-  pesananId      Int      @map("pesanan_id")
-  jumlah         Int      @map("jumlah")
-  hargaSaatPesan Decimal  @map("harga_saat_pesan") @db.Decimal(10, 2)
-  catatanItem    String?  @map("catatan_item")
-  createdAt      DateTime @default(now()) @map("created_at")
-  menu           Menu     @relation(fields: [menuId], references: [id])
-  pesanan        Pesanan  @relation(fields: [pesananId], references: [id])
+  id             Int          @id @default(autoincrement())
+  menuId         Int          @map("menu_id")
+  pesananId      Int          @map("pesanan_id")
+  jumlah         Int          @map("jumlah")
+  hargaSaatPesan Decimal      @map("harga_saat_pesan") @db.Decimal(10, 2)
+  catatanItem    String?      @map("catatan_item")
+  statusAntar    StatusAntar  @default(belum) @map("status_antar")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  menu           Menu         @relation(fields: [menuId], references: [id])
+  pesanan        Pesanan      @relation(fields: [pesananId], references: [id])
 
   @@map("detail_pesanan")
 }
@@ -164,6 +169,11 @@ enum StatusBayar {
   menunggu
   berhasil
   dibatalkan
+}
+
+enum StatusAntar {
+  belum
+  diantar
 }
 
 enum JenisAksiLog {

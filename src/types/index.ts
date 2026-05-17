@@ -75,6 +75,8 @@ export interface Pesanan {
   catatan: string | null
   namaPelanggan?: string | null
   totalHarga: number
+  biayaAdmin?: number
+  ppn?: number
   metodePembayaran?: MetodePembayaran
   jumlahBayar?: number
   kembalian: number

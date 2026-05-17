@@ -114,7 +114,7 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
         </div>
       </DialogTrigger>
 
-      <DialogContent className="max-w-sm rounded-3xl p-0 gap-0" showCloseButton={true} onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-sm rounded-3xl overflow-hidden p-0 gap-0" showCloseButton={true} onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogTitle className="sr-only">{menu.namaMenu}</DialogTitle>
         {/* Image Slider */}
         <div className="aspect-video w-full bg-muted flex items-center justify-center rounded-t-3xl relative">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -12,9 +13,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { getPesananForDashboard, updateStatusPesanan, markPesananSelesai, getPesananById } from "@/app/actions/pesanan"
+import { getPesananForDashboard, updateStatusPesanan, markPesananSelesai, getPesananById, markItemDiantar } from "@/app/actions/pesanan"
 import { StatusPesanan } from "@prisma/client"
-import { Eye, RotateCcw, Printer, CheckCircle, SearchX, Inbox, XCircle, ChevronLeft, ChevronRight, Clock, ArrowRightLeft } from "lucide-react"
+import { Eye, Printer, CheckCircle, SearchX, Inbox, XCircle, ChevronLeft, ChevronRight, Clock, ArrowRightLeft } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -60,6 +61,8 @@ interface PesananDetail {
   status_pesanan: string
   status_pembayaran: string
   total_harga: number
+  biaya_admin: number | null
+  ppn: number | null
   metode_pembayaran?: string | null
   jumlah_bayar?: number | null
   kembalian?: number
@@ -75,12 +78,13 @@ interface PesananDetail {
     harga_saat_pesan: number
     catatan_item: string | null
     foto_urls: string[]
-    checked?: boolean
+    status_antar: string
   }>
 }
 
 export default function PesananPage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<"aktif" | "riwayat">("aktif")
 
@@ -107,12 +111,14 @@ export default function PesananPage() {
     return {}
   })
 
-  const toggleItemCheck = useCallback((pesananId: number, itemId: number) => {
-    setCheckedMap(prev => {
-      const next = { ...prev, [`${pesananId}-${itemId}`]: !prev[`${pesananId}-${itemId}`] }
-      sessionStorage.setItem("checkedMap", JSON.stringify(next))
-      return next
-    })
+  const toggleItemCheck = useCallback(async (pesananId: number, itemId: number) => {
+    const result = await markItemDiantar(itemId)
+    if (!result.error) {
+      setCheckedMap(prev => {
+        const next = { ...prev, [`${pesananId}-${itemId}`]: result.statusAntar === 'diantar' }
+        return next
+      })
+    }
   }, [])
   
   const pesananAktif = pesanan.filter(p => p.status === 'menunggu' || p.status === 'diproses')
@@ -273,13 +279,12 @@ export default function PesananPage() {
         setShowCompleteModal(false)
       } else {
         const detail = result as unknown as PesananDetail
-        setSelectedPesananForComplete({
-          ...detail,
-          items: detail.items.map(item => ({
-            ...item,
-            checked: checkedMap[`${pesananId}-${item.id}`] || false
-          }))
+        const map: Record<string, boolean> = {}
+        detail.items.forEach(item => {
+          map[`${pesananId}-${item.id}`] = item.status_antar === 'diantar'
         })
+        setCheckedMap(map)
+        setSelectedPesananForComplete(detail)
       }
     } catch {
       setShowCompleteModal(false)
@@ -303,16 +308,9 @@ export default function PesananPage() {
       alert(result.error)
       return
     }
-    setCheckedMap(prev => {
-      const next = { ...prev }
-      Object.keys(next).forEach(k => {
-        if (k.startsWith(`${id}-`)) delete next[k]
-      })
-      sessionStorage.setItem("checkedMap", JSON.stringify(next))
-      return next
-    })
-    setShowDetailModal(false)
-    setSelectedPesanan(null)
+    setCheckedMap({})
+    setShowCompleteModal(false)
+    setSelectedPesananForComplete(null)
     fetchData()
   }
 
@@ -336,10 +334,6 @@ export default function PesananPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Kelola Pesanan</h1>
-        <Button onClick={fetchData} variant="outline" size="sm">
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
       </div>
 
       {/* Tabs & Filter */}
@@ -465,38 +459,13 @@ export default function PesananPage() {
                   </div>
                 </div>
                 <div className="border-t pt-4">
-                  <div className={`grid gap-2 ${session?.user?.role === 'waiter' && p.statusBayar === 'berhasil' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  <div className="flex gap-2">
                     <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
                       <Eye className="w-5 h-5 mr-2" /> Detail
                     </Button>
-                    {p.statusBayar === 'berhasil' && (
-                      <Button variant="outline" size="lg" onClick={async () => {
-                        const detail = await getPesananById(p.id)
-                        if ('error' in detail) return
-                        printStruk({
-                          id: detail.id,
-                          nomorMeja: detail.nomor_meja,
-                          items: detail.items.map(i => ({
-                            nama: i.nama_menu,
-                            jumlah: i.jumlah,
-                            harga: Number(i.harga_saat_pesan),
-                          })),
-                          totalHarga: Number(detail.total_harga),
-                          metodePembayaran: detail.metode_pembayaran,
-                          jumlahBayar: detail.jumlah_bayar ? Number(detail.jumlah_bayar) : undefined,
-                          kembalian: Number(detail.kembalian),
-                          createdAt: detail.created_at,
-                          waiterUsername: detail.waiter_username,
-                          kasirUsername: detail.kasir_username,
-                          namaPelanggan: detail.nama_pelanggan,
-                        })
-                      }} className="text-base">
-                        <Printer className="w-5 h-5 mr-2" /> Struk
-                      </Button>
-                    )}
-                    {session?.user?.role === 'waiter' && p.statusBayar === 'berhasil' && (
+                    {status === "authenticated" && session?.user?.role === 'waiter' && (
                       <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
-                        <CheckCircle className="w-5 h-5 mr-2" /> Selesai
+                        <CheckCircle className="w-5 h-5 mr-2" /> Tandai Item
                       </Button>
                     )}
                   </div>
@@ -616,7 +585,7 @@ export default function PesananPage() {
                         })}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => openDetailModal(p.id)}>
+                        <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/pesanan/" + p.id)}>
                           <Eye className="w-4 h-4" />
                         </Button>
                       </TableCell>
@@ -680,10 +649,11 @@ export default function PesananPage() {
                    </div>
                    <div>
                      <span className="text-gray-500">Status:</span>
-                     <Badge className={`${statusColors[selectedPesanan.status_pesanan]} text-xs px-2 py-0.5`}>
-                       {selectedPesanan.status_pesanan === 'menunggu' ? 'Menunggu' : 
-                        selectedPesanan.status_pesanan === 'selesai' ? 'Selesai' : 'Dibatalkan'}
-                     </Badge>
+                      <Badge className={`${statusColors[selectedPesanan.status_pesanan]} text-xs px-2 py-0.5`}>
+                        {selectedPesanan.status_pesanan === 'menunggu' ? 'Menunggu' : 
+                         selectedPesanan.status_pesanan === 'diproses' ? 'Diproses' :
+                         selectedPesanan.status_pesanan === 'selesai' ? 'Selesai' : 'Dibatalkan'}
+                      </Badge>
                    </div>
                    <div>
                      <span className="text-gray-500">Status Bayar:</span>
@@ -708,7 +678,7 @@ export default function PesananPage() {
                    </div>
                    <div>
                      <span className="text-gray-500">Total:</span>
-                     <p className="font-medium">Rp {Number(selectedPesanan.total_harga).toLocaleString("id-ID")}</p>
+                      <p className="font-medium">Rp {(Number(selectedPesanan.total_harga) + (Number(selectedPesanan.biaya_admin) || 0) + (Number(selectedPesanan.ppn) || 0)).toLocaleString("id-ID")}</p>
                    </div>
                  </div>
                  
@@ -737,8 +707,8 @@ export default function PesananPage() {
                  </div>
                </div>
              ) : null}
-            <DialogFooter className="gap-2">
-              {activeTab === "riwayat" && selectedPesanan && selectedPesanan.status_pesanan !== 'menunggu' && (
+             <DialogFooter className="gap-2">
+              {selectedPesanan && selectedPesanan.status_pembayaran === 'berhasil' && (
                 <Button variant="outline" size="lg" onClick={() => printStruk({
                   id: selectedPesanan.id,
                   nomorMeja: selectedPesanan.nomor_meja,
@@ -748,6 +718,8 @@ export default function PesananPage() {
                     harga: Number(i.harga_saat_pesan),
                   })),
                   totalHarga: Number(selectedPesanan.total_harga),
+                  adminFee: selectedPesanan.biaya_admin ? Number(selectedPesanan.biaya_admin) : undefined,
+                  ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
                   metodePembayaran: selectedPesanan.metode_pembayaran,
                   jumlahBayar: selectedPesanan.jumlah_bayar ? Number(selectedPesanan.jumlah_bayar) : undefined,
                   kembalian: selectedPesanan.kembalian ? Number(selectedPesanan.kembalian) : undefined,
@@ -771,7 +743,7 @@ export default function PesananPage() {
         <Dialog open={showCompleteModal} onOpenChange={setShowCompleteModal}>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden grid-rows-[auto_1fr_auto]">
             <DialogHeader>
-              <DialogTitle>Selesaikan Pesanan #{selectedPesananForComplete?.id}</DialogTitle>
+              <DialogTitle>Coret Item - Pesanan #{selectedPesananForComplete?.id}</DialogTitle>
             </DialogHeader>
              {detailLoadingComplete ? (
               <div className="py-8 text-center">Memuat detail pesanan...</div>
@@ -789,7 +761,7 @@ export default function PesananPage() {
                 </div>
                 
                 <div className="mb-3 mt-4">
-                  <h4 className="font-medium">Centang Item yang Sudah Diterima</h4>
+                  <h4 className="font-medium">Centang Item yang Sudah Diantar</h4>
                 </div>
                 <div className="overflow-y-auto min-h-0" style={{ maxHeight: 210 }}>
                   <div className="border rounded-lg divide-y">
@@ -836,27 +808,27 @@ export default function PesananPage() {
               </div>
             ) : null}
            <DialogFooter>
-             <Button variant="outline" onClick={() => setShowCompleteModal(false)}>
-               Batal
-             </Button>
-             {selectedPesananForComplete && (
-               <Button 
-                 onClick={() => {
-                   const allChecked = selectedPesananForComplete.items.every(i => checkedMap[`${selectedPesananForComplete.id}-${i.id}`])
-                   if (!allChecked) {
-                     alert('Tandai semua item sudah diterima terlebih dahulu!')
-                     return
-                   }
-                   handleMarkArrived(selectedPesananForComplete.id)
-                   setShowCompleteModal(false)
-                 }}
-                  className="bg-chart-5 hover:bg-chart-5/80"
-               >
-                 <CheckCircle className="w-4 h-4 mr-2" />
-                 Selesai ({selectedPesananForComplete.items.filter(i => checkedMap[`${selectedPesananForComplete.id}-${i.id}`]).length}/{selectedPesananForComplete.items.length})
-               </Button>
-             )}
-           </DialogFooter>
+              <Button variant="outline" onClick={() => setShowCompleteModal(false)}>
+                Tutup
+              </Button>
+              {selectedPesananForComplete && selectedPesananForComplete.status_pembayaran === 'berhasil' && (
+                <Button 
+                  onClick={() => {
+                    const allChecked = selectedPesananForComplete.items.every(i => checkedMap[`${selectedPesananForComplete.id}-${i.id}`])
+                    if (!allChecked) {
+                      alert('Tandai semua item sudah diterima terlebih dahulu!')
+                      return
+                    }
+                    handleMarkArrived(selectedPesananForComplete.id)
+                    setShowCompleteModal(false)
+                  }}
+                   className="bg-chart-5 hover:bg-chart-5/80"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Selesai ({selectedPesananForComplete.items.filter(i => checkedMap[`${selectedPesananForComplete.id}-${i.id}`]).length}/{selectedPesananForComplete.items.length})
+                </Button>
+              )}
+            </DialogFooter>
          </DialogContent>
        </Dialog>
     </div>

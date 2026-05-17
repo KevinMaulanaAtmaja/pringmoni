@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
+import { hitungAdminFee } from "@/lib/fee"
 import { MetodePembayaran } from "@/types/index"
 
 export interface KasirPesananItem {
@@ -12,6 +13,8 @@ export interface KasirPesananItem {
   statusPesanan: string
   statusPembayaran: string
   totalHarga: number
+  biayaAdmin: number | null
+  ppn: number | null
   metodePembayaran: string | null
   jumlahBayar: number | null
   kembalian: number
@@ -63,6 +66,8 @@ export async function getPesananBelumBayar() {
     statusPesanan: p.statusPesanan,
     statusPembayaran: p.statusPembayaran,
     totalHarga: Number(p.totalHarga),
+    biayaAdmin: p.biayaAdmin ? Number(p.biayaAdmin) : null,
+    ppn: p.ppn ? Number(p.ppn) : null,
     metodePembayaran: p.metodePembayaran,
     jumlahBayar: p.jumlahBayar ? Number(p.jumlahBayar) : null,
     kembalian: Number(p.kembalian),
@@ -144,6 +149,8 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
       statusPesanan: p.statusPesanan,
       statusPembayaran: p.statusPembayaran,
       totalHarga: Number(p.totalHarga),
+      biayaAdmin: p.biayaAdmin ? Number(p.biayaAdmin) : null,
+      ppn: p.ppn ? Number(p.ppn) : null,
       metodePembayaran: p.metodePembayaran as MetodePembayaran,
       jumlahBayar: Number(p.jumlahBayar),
       kembalian: Number(p.kembalian),
@@ -169,46 +176,52 @@ export async function prosesPembayaranTunai(
   pesananId: number,
   jumlahBayar: number
 ) {
-  const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
-    return { error: "Unauthorized" }
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+      return { error: "Unauthorized" }
+    }
+
+    const pesanan = await prisma.pesanan.findFirst({
+      where: { id: pesananId, deletedAt: null },
+    })
+
+    if (!pesanan) {
+      return { error: "Pesanan tidak ditemukan" }
+    }
+
+    if (pesanan.statusPembayaran !== 'menunggu') {
+      return { error: "Pesanan sudah dibayar" }
+    }
+
+    const totalHarga = Number(pesanan.totalHarga)
+    const kembalian = jumlahBayar - totalHarga
+
+    if (kembalian < 0) {
+      return { error: "Jumlah bayar kurang dari total harga" }
+    }
+
+    await prisma.pesanan.update({
+      where: { id: pesananId },
+      data: {
+        metodePembayaran: 'tunai',
+        jumlahBayar: jumlahBayar,
+        kembalian: kembalian,
+        biayaAdmin: 0,
+        ppn: 0,
+        statusPembayaran: 'menunggu',
+        statusPesanan: 'menunggu',
+      },
+    })
+
+    revalidatePath("/dashboard/kasir")
+    revalidatePath("/dashboard/pesanan")
+
+    return { success: true, kembalian, pending: true }
+  } catch (error) {
+    console.error("prosesPembayaranTunai error:", error)
+    return { error: "Terjadi kesalahan saat memproses pembayaran" }
   }
-
-  const pesanan = await prisma.pesanan.findFirst({
-    where: { id: pesananId, deletedAt: null },
-  })
-
-  if (!pesanan) {
-    return { error: "Pesanan tidak ditemukan" }
-  }
-
-  if (pesanan.statusPembayaran !== 'menunggu') {
-    return { error: "Pesanan sudah dibayar" }
-  }
-
-  const totalHarga = Number(pesanan.totalHarga)
-  const kembalian = jumlahBayar - totalHarga
-
-  if (kembalian < 0) {
-    return { error: "Jumlah bayar kurang dari total harga" }
-  }
-
-  // Tunai perlu konfirmasi manual kasir
-  await prisma.pesanan.update({
-    where: { id: pesananId },
-    data: {
-      metodePembayaran: 'tunai',
-      jumlahBayar: jumlahBayar,
-      kembalian: kembalian,
-      statusPembayaran: 'menunggu',
-      statusPesanan: 'menunggu',
-    },
-  })
-
-  revalidatePath("/dashboard/kasir")
-  revalidatePath("/dashboard/pesanan")
-
-  return { success: true, kembalian, pending: true }
 }
 
 export async function prosesPembayaranQRIS(pesananId: number) {
@@ -229,13 +242,19 @@ export async function prosesPembayaranQRIS(pesananId: number) {
     return { error: "Pesanan sudah dibayar" }
   }
 
+  const totalHarga = Number(pesanan.totalHarga)
+  const adminFee = hitungAdminFee('qris', totalHarga)
+  const grandTotal = totalHarga + adminFee
+
   // QRIS otomatis langsung berhasil
   await prisma.pesanan.update({
     where: { id: pesananId },
     data: {
       metodePembayaran: 'qris',
-      jumlahBayar: pesanan.totalHarga,
+      jumlahBayar: grandTotal,
       kembalian: 0,
+      biayaAdmin: adminFee,
+      ppn: 0,
       statusPembayaran: 'berhasil',
       statusPesanan: 'diproses' as any,
       kasirId: parseInt(session.user.id),
@@ -267,12 +286,18 @@ export async function prosesPembayaranTransfer(pesananId: number) {
   }
 
   // Transfer otomatis langsung berhasil
+  const totalHarga = Number(pesanan.totalHarga)
+  const adminFee = hitungAdminFee('transfer', totalHarga)
+  const grandTotal = totalHarga + adminFee
+
   await prisma.pesanan.update({
     where: { id: pesananId },
     data: {
       metodePembayaran: 'transfer',
-      jumlahBayar: pesanan.totalHarga,
+      jumlahBayar: grandTotal,
       kembalian: 0,
+      biayaAdmin: adminFee,
+      ppn: 0,
       statusPembayaran: 'berhasil',
       statusPesanan: 'diproses' as any,
       kasirId: parseInt(session.user.id),
@@ -337,36 +362,41 @@ export async function updatePesananMeja(tokenMeja: string, updates: {
 }
 
 export async function konfirmasiPembayaran(pesananId: number) {
-  const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
-    return { error: "Unauthorized" }
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+      return { error: "Unauthorized" }
+    }
+
+    const pesanan = await prisma.pesanan.findFirst({
+      where: { id: pesananId, deletedAt: null },
+    })
+
+    if (!pesanan) {
+      return { error: "Pesanan tidak ditemukan" }
+    }
+
+    if (pesanan.statusPembayaran !== 'menunggu') {
+      return { error: "Pesanan sudah dikonfirmasi atau dibatalkan" }
+    }
+
+    await prisma.pesanan.update({
+      where: { id: pesananId },
+      data: {
+        statusPembayaran: 'berhasil',
+        statusPesanan: 'diproses' as any,
+        kasirId: parseInt(session.user.id),
+      },
+    })
+
+    revalidatePath("/dashboard/kasir")
+    revalidatePath("/dashboard/pesanan")
+
+    return { success: true }
+  } catch (error) {
+    console.error("konfirmasiPembayaran error:", error)
+    return { error: "Terjadi kesalahan saat konfirmasi pembayaran" }
   }
-
-  const pesanan = await prisma.pesanan.findFirst({
-    where: { id: pesananId, deletedAt: null },
-  })
-
-  if (!pesanan) {
-    return { error: "Pesanan tidak ditemukan" }
-  }
-
-  if (pesanan.statusPembayaran !== 'menunggu') {
-    return { error: "Pesanan sudah dikonfirmasi atau dibatalkan" }
-  }
-
-  await prisma.pesanan.update({
-    where: { id: pesananId },
-    data: {
-      statusPembayaran: 'berhasil',
-      statusPesanan: 'diproses' as any,
-      kasirId: parseInt(session.user.id),
-    },
-  })
-
-  revalidatePath("/dashboard/kasir")
-  revalidatePath("/dashboard/pesanan")
-
-  return { success: true }
 }
 
 export async function batalkanPesananKasir(pesananId: number) {
@@ -381,6 +411,10 @@ export async function batalkanPesananKasir(pesananId: number) {
 
   if (!pesanan) {
     return { error: "Pesanan tidak ditemukan" }
+  }
+
+  if (pesanan.statusPembayaran === 'berhasil') {
+    return { error: "Tidak bisa membatalkan pesanan yang sudah dibayar" }
   }
 
   await prisma.pesanan.update({

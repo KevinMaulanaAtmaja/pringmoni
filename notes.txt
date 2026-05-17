@@ -16,6 +16,10 @@ npx tsx prisma/testPrisma.ts
 
 
 list
+-responsive di tamilan lain (sidebar cuma ada iconnya)
+-loading yg keliatan (misal logo) pada login,chekout dll
+-
+-batas konfirmasi pesanan yg blum dibayar dan pesanan yg diproses
 -midleware bedsarkan role, session login expired
 -meja dipake ga bisa buat pesen orang lain, tpi bsa jika pake hp yg sama pesen lagi
 -nama pelanggan di saat pembayaran, orderid randomin berdasarkan waktu pesan aja,
