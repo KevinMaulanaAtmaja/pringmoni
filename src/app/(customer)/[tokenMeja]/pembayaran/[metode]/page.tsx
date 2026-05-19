@@ -26,7 +26,7 @@ export default function PembayaranMetodePage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center py-12">
             <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
@@ -152,7 +152,7 @@ export default function PembayaranMetodePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
           <button

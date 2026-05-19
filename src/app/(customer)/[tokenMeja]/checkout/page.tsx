@@ -28,7 +28,7 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
           <button onClick={() => router.back()} className="text-muted-foreground hover:text-foreground">
