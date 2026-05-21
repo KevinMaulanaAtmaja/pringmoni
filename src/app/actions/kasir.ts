@@ -18,6 +18,7 @@ export interface KasirPesananItem {
   metodePembayaran: string | null
   jumlahBayar: number | null
   kembalian: number
+  midtransOrderId: string | null
   createdAt: Date
   updatedAt: Date
   waiterUsername: string | null
@@ -71,6 +72,7 @@ export async function getPesananBelumBayar() {
     metodePembayaran: p.metodePembayaran,
     jumlahBayar: p.jumlahBayar ? Number(p.jumlahBayar) : null,
     kembalian: Number(p.kembalian),
+    midtransOrderId: p.midtransOrderId,
     createdAt: p.createdAt,
     waiterUsername: p.waiter?.username || null,
     namaPelanggan: p.namaPelanggan || null,
@@ -201,6 +203,13 @@ export async function prosesPembayaranTunai(
       return { error: "Jumlah bayar kurang dari total harga" }
     }
 
+    // Void any pending Midtrans transaction (QRIS/Transfer) if exists
+    if (pesanan.midtransTransactionId) {
+      const { voidMidtransTransaction } = await import("@/lib/midtrans")
+      const midtransOrderId = `PRING-${pesanan.midtransOrderId}`
+      await voidMidtransTransaction(midtransOrderId)
+    }
+
     await prisma.pesanan.update({
       where: { id: pesananId },
       data: {
@@ -209,8 +218,9 @@ export async function prosesPembayaranTunai(
         kembalian: kembalian,
         biayaAdmin: 0,
         ppn: 0,
-        statusPembayaran: 'menunggu',
-        statusPesanan: 'menunggu',
+        statusPembayaran: 'berhasil',
+        statusPesanan: 'diproses',
+        kasirId: parseInt(session.user.id),
       },
     })
 

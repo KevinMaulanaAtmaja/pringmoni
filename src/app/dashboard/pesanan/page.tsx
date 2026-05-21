@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { useSession } from "next-auth/react"
+import { useUserRole } from "@/lib/user-context"
 import { printStruk } from "@/lib/print-struk"
 
 const statusColors: Record<string, string> = {
@@ -83,7 +83,7 @@ interface PesananDetail {
 }
 
 export default function PesananPage() {
-  const { data: session, status } = useSession()
+  const userRole = useUserRole()
   const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<"aktif" | "riwayat">("aktif")
@@ -242,6 +242,20 @@ export default function PesananPage() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  const pollDataAktif = useCallback(async () => {
+    try {
+      const pesananResult = await getPesananForDashboard()
+      if (!('error' in pesananResult) && Array.isArray(pesananResult)) {
+        setPesanan(pesananResult as PesananItem[])
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    const interval = setInterval(pollDataAktif, 5000)
+    return () => clearInterval(interval)
+  }, [pollDataAktif])
   
   const resetFilter = () => {
     setFilterSearchAktif("")
@@ -463,7 +477,7 @@ export default function PesananPage() {
                     <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
                       <Eye className="w-5 h-5 mr-2" /> Detail
                     </Button>
-                    {status === "authenticated" && session?.user?.role === 'waiter' && (
+                    {userRole === 'waiter' && p.statusBayar === 'berhasil' && (
                       <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
                         <CheckCircle className="w-5 h-5 mr-2" /> Tandai Item
                       </Button>

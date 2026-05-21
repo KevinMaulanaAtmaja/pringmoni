@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import {
   getPesananForCheckout, konfirmasiPembayaranCustomer,
-  createMidtransPayment, checkMidtransPaymentStatus
+  createMidtransPayment, checkMidtransPaymentStatus,
+  getCustomerPaymentStatus
 } from "@/app/actions/pesanan";
 import { hitungAdminFee } from "@/lib/fee";
 
@@ -24,9 +25,13 @@ export default function PembayaranMetodePage() {
   const orderId = searchParams.get("orderId") as string;
   const nama = searchParams.get("nama") as string;
   const confirmed = searchParams.get("confirmed") === "1";
+  const expiryMenitParam = searchParams.get("expiry");
 
   const BATAS_KONFIRMASI_MENIT = 60;
   const isNonTunai = metode === "transfer" || metode === "qris";
+  const expiryMenit = expiryMenitParam
+    ? parseInt(expiryMenitParam)
+    : metode === "qris" ? 15 : metode === "transfer" ? 60 : BATAS_KONFIRMASI_MENIT;
 
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
@@ -43,6 +48,8 @@ export default function PembayaranMetodePage() {
   const [generating, setGenerating] = useState(false);
   const [paid, setPaid] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [waktuKadaluarsa, setWaktuKadaluarsa] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
     if (!metode || !nama || !orderId) {
@@ -64,6 +71,12 @@ export default function PembayaranMetodePage() {
         setOrderNumber(result.id);
         setTotal(result.total);
         setWaktuDibuat(result.waktu);
+        if (result.waktu) {
+          const kadaluarsa = new Date(new Date(result.waktu).getTime() + expiryMenit * 60000)
+          setWaktuKadaluarsa(
+            kadaluarsa.toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit" })
+          )
+        }
 
         if (!isNonTunai) {
           setTotalBayar(result.total);
@@ -122,6 +135,39 @@ export default function PembayaranMetodePage() {
     return () => clearInterval(id);
   }, [waktuDibuat]);
 
+  // Countdown for non-tunai payment expiry (QRIS 15min, Transfer 60min)
+  useEffect(() => {
+    if (!waktuDibuat || !isNonTunai) return;
+    const t0 = new Date(waktuDibuat).getTime();
+    const tick = () => {
+      if (Date.now() - t0 >= expiryMenit * 60000) {
+        setExpired(true);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 5000);
+    return () => clearInterval(id);
+  }, [waktuDibuat, isNonTunai, expiryMenit]);
+
+  // Poll DB + Midtrans status to detect changes (payment success or expiry)
+  useEffect(() => {
+    if (paid || expired || !orderId || metode === "tunai") return
+    const interval = setInterval(async () => {
+      const status = await getCustomerPaymentStatus(orderId)
+      if (status && status.statusPembayaran === "berhasil") {
+        setPaid(true)
+        return
+      }
+      const midtransStatus = await checkMidtransPaymentStatus(orderId)
+      if (!("error" in midtransStatus) && midtransStatus.transaction_status) {
+        if (midtransStatus.transaction_status === "expire" || midtransStatus.transaction_status === "deny" || midtransStatus.transaction_status === "cancel" || midtransStatus.transaction_status === "failure") {
+          setExpired(true)
+        }
+      }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [paid, expired, orderId, metode])
+
   const handleKonfirmasiTunai = async () => {
     if (!orderId) return;
     setGenerating(true);
@@ -159,12 +205,21 @@ export default function PembayaranMetodePage() {
   const handleCekStatus = async () => {
     if (!orderId) return;
     setGenerateError(null);
+
     const result = await checkMidtransPaymentStatus(orderId);
     if (result.isSuccess) {
       setPaid(true);
-    } else {
-      setGenerateError("Pembayaran belum terdeteksi. Silakan coba lagi.");
+      return;
     }
+
+    // Fallback: check DB directly (e.g. cashier processed Tunai)
+    const dbStatus = await getCustomerPaymentStatus(orderId)
+    if (dbStatus && dbStatus.statusPembayaran === "berhasil") {
+      setPaid(true)
+      return
+    }
+
+    setGenerateError("Pembayaran belum terdeteksi. Silakan coba lagi.");
   };
 
   if (loading || generating) {
@@ -227,6 +282,28 @@ export default function PembayaranMetodePage() {
     );
   }
 
+  // When non-tunai payment expired, show full expired view
+  if (expired && isNonTunai) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center py-12">
+            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <AlertCircle className="size-8 text-destructive" />
+            </div>
+            <h2 className="font-bold text-lg mb-2 text-center">Pembayaran telah kadaluarsa</h2>
+            <p className="text-muted-foreground text-sm text-center mb-6">
+              Waktu pembayaran telah habis. Silakan lakukan pemesanan ulang.
+            </p>
+            <Button onClick={() => router.push(`/${tokenMeja}`)} className="rounded-full">
+              Kembali ke Menu
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
@@ -256,7 +333,7 @@ export default function PembayaranMetodePage() {
           </CardContent>
         </Card>
 
-        {sisaMenit <= 0 && (
+        {sisaMenit <= 0 && metode === "tunai" && (
           <Card className="border-destructive bg-destructive/5">
             <CardContent className="p-3 flex items-center gap-2">
               <Clock className="size-5 shrink-0 text-destructive" />
@@ -356,6 +433,15 @@ export default function PembayaranMetodePage() {
                 </div>
               </div>
 
+              {waktuKadaluarsa && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm flex items-center gap-2">
+                  <Clock className="size-4 shrink-0 text-blue-600" />
+                  <p className="text-blue-700">
+                    Berlaku hingga <strong>{waktuKadaluarsa}</strong> ({expiryMenit} menit)
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2 text-sm">
                 <p className="font-medium">Cara Pembayaran:</p>
                 <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
@@ -429,6 +515,15 @@ export default function PembayaranMetodePage() {
                   <span className="text-primary">Rp {(totalBayar || 0).toLocaleString("id-ID")}</span>
                 </div>
               </div>
+
+              {waktuKadaluarsa && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm flex items-center gap-2">
+                  <Clock className="size-4 shrink-0 text-green-600" />
+                  <p className="text-green-700">
+                    Berlaku hingga <strong>{waktuKadaluarsa}</strong> ({expiryMenit} menit)
+                  </p>
+                </div>
+              )}
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
                 <p className="text-yellow-700">

@@ -115,6 +115,10 @@ export default function CheckoutPage() {
         params.set("qrUrl", result.qr_url);
       }
 
+      if (result.expiryMenit) {
+        params.set("expiry", String(result.expiryMenit));
+      }
+
       router.push(`/${tokenMeja}/pembayaran/${metode}?${params.toString()}`);
     } catch {
       setSubmitError("Terjadi kesalahan. Silakan coba lagi.");

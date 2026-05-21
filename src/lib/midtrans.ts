@@ -81,6 +81,7 @@ export async function createCorePayment(data: {
   bank?: string
   customer_details?: { first_name?: string }
   item_details?: Array<{ id: string; price: number; quantity: number; name: string }>
+  expiry?: { duration: number; unit: string }
 }) {
   try {
     const parameter: Record<string, unknown> = {
@@ -91,6 +92,10 @@ export async function createCorePayment(data: {
       },
       customer_details: data.customer_details,
       item_details: data.item_details,
+    }
+
+    if (data.expiry) {
+      parameter.expiry = data.expiry
     }
 
     if (data.payment_type === "bank_transfer") {
@@ -106,6 +111,17 @@ export async function createCorePayment(data: {
       success: false,
       error: error instanceof Error ? error.message : "Failed to create payment",
     }
+  }
+}
+
+export async function voidMidtransTransaction(transactionId: string) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (midtransCore as any).transaction.void(transactionId)
+    return { success: true }
+  } catch (error) {
+    console.error("Midtrans Void Error:", error)
+    return { success: false, error: error instanceof Error ? error.message : "Failed to void transaction" }
   }
 }
 

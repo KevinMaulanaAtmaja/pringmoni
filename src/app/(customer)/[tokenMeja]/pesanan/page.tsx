@@ -271,49 +271,25 @@ export default function DetailPesananPage() {
               {pesanan.items.map((item, index) => {
                 const isDiantar = item.statusAntar === "diantar"
                 return (
-                  <div key={index} className="flex justify-between items-start">
-                    <div className="flex-1 flex items-start gap-2">
-                      {isDiantar && (
-                        <CheckCircle2 className="size-4 text-green-500 mt-0.5 shrink-0" />
-                      )}
-                      <div>
-                        <p className={`font-medium ${isDiantar ? "line-through text-muted-foreground" : ""}`}>
-                          {item.jumlah}x {item.namaMenu}
+                  <div key={index} className="flex items-start gap-2">
+                    {isDiantar && (
+                      <CheckCircle2 className="size-4 text-green-500 mt-0.5 shrink-0" />
+                    )}
+                    <div>
+                      <p className={`font-medium ${isDiantar ? "line-through text-muted-foreground" : ""}`}>
+                        {item.jumlah}x {item.namaMenu}
+                      </p>
+                      {item.catatan && (
+                        <p className={`text-xs mt-1 ${isDiantar ? "text-muted-foreground/60" : "text-muted-foreground"}`}>
+                          {item.catatan}
                         </p>
-                        {item.catatan && (
-                          <p className={`text-xs mt-1 ${isDiantar ? "text-muted-foreground/60" : "text-muted-foreground"}`}>
-                            {item.catatan}
-                          </p>
-                        )}
-                      </div>
+                      )}
                     </div>
-                    <p className={`font-semibold ${isDiantar ? "line-through text-muted-foreground" : ""}`}>
-                      Rp {(item.harga * item.jumlah).toLocaleString("id-ID")}
-                    </p>
                   </div>
                 )
               })}
             </div>
-            <div className="border-t mt-4 pt-4 space-y-1.5">
-              <div className="flex justify-between text-sm">
-                <p className="text-muted-foreground">Subtotal</p>
-                <p>Rp {pesanan.subtotal.toLocaleString("id-ID")}</p>
-              </div>
-              {(pesanan.metodePembayaran && pesanan.metodePembayaran !== "tunai") && (
-                <div className="flex justify-between text-sm">
-                  <p className="text-muted-foreground">Biaya Admin</p>
-                  <p>Rp {pesanan.adminFee.toLocaleString("id-ID")}</p>
-                </div>
-              )}
-              <div className="flex justify-between text-sm">
-                <p className="text-muted-foreground">PPN (0%)</p>
-                <p>Rp {pesanan.ppn.toLocaleString("id-ID")}</p>
-              </div>
-              <div className="flex justify-between font-bold text-lg pt-1.5 border-t">
-                <p>Total</p>
-                <p className="text-primary">Rp {pesanan.total.toLocaleString("id-ID")}</p>
-              </div>
-            </div>
+
           </CardContent>
         </Card>
 
