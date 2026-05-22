@@ -16,6 +16,7 @@ npx tsx prisma/testPrisma.ts
 
 
 list
+-line chart
 -Synk, sonarqube untuk scan kerentnan
 -responsive di tamilan lain (sidebar cuma ada iconnya)
 -loading yg keliatan (misal logo) pada login,chekout dll
