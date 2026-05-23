@@ -1,5 +1,5 @@
 import { StatCard } from "./StatCard"
-import { ClipboardList, DollarSign, Sofa, Clock, Loader2 } from "lucide-react"
+import { ClipboardList, DollarSign, Sofa, Clock, Loader2, ShoppingCart } from "lucide-react"
 import type { RoleUser } from "@/types"
 
 interface StatGridProps {
@@ -10,6 +10,7 @@ interface StatGridProps {
     mejaTerpakai?: number
     pesananMenunggu: number
     pesananDiproses?: number
+    itemTerjual?: number
     showMeja?: boolean
     showPendapatan?: boolean
     showPesananDiproses?: boolean
@@ -44,9 +45,9 @@ export function StatGrid({ stats, role }: StatGridProps) {
     cards.push(
       <StatCard
         key="meja"
-        title="Meja Kosong"
-        value={stats.mejaKosong || 0}
-        icon={Sofa}
+        title="Menu Terjual"
+        value={stats.itemTerjual || 0}
+        icon={ShoppingCart}
       />
     )
   }
