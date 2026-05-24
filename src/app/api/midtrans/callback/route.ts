@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
         where: { id: pesanan.id },
         data: {
           statusPembayaran: "berhasil",
-          statusPesanan: "diproses",
           jumlahBayar: parseFloat(grossAmount),
           kembalian: 0,
         },

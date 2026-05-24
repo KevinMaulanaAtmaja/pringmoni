@@ -49,7 +49,10 @@ interface PesananItem {
   statusBayar: string
   total: number
   items: number
+  itemNames: string[]
+  sisaItems: number
   waktu: string
+  updatedAt: string
   waiterUsername?: string | null
   namaPelanggan?: string | null
 }
@@ -67,9 +70,11 @@ interface PesananDetail {
   jumlah_bayar?: number | null
   kembalian?: number
   created_at: Date
+  updated_at: Date
   waiter_username: string | null
   kasir_username: string | null
   nama_pelanggan?: string | null
+  catatan?: string | null
   items: Array<{
     id: number
     menu_id: number
@@ -454,38 +459,56 @@ export default function PesananPage() {
           <>
 <div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-             {paginatedAktif.map((p) => (
-              <div key={p.id} className="bg-white rounded-xl border-2 border-l-chart-5 p-5 hover:shadow-lg transition-shadow flex flex-col">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold">Meja {p.meja}</h3>
-                    <p className="text-sm text-gray-500">#{p.id} · {new Date(p.waktu).toLocaleString("id-ID", { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</p>
-                    {p.waiterUsername && <p className="text-xs text-gray-400 mt-0.5">Waiter: {p.waiterUsername}</p>}
+              {paginatedAktif.map((p) => (
+               <div key={p.id} className="bg-white rounded-xl border-2 border-l-chart-5 p-5 hover:shadow-lg transition-shadow flex flex-col">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="text-2xl font-bold">Meja {p.meja}</h3>
+                      <p className="text-sm text-gray-500">#{p.id} · {new Date(p.waktu).toLocaleString("id-ID", { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</p>
+                    </div>
+                    <div className="flex gap-1 items-start">
+                    {Date.now() - new Date(p.updatedAt).getTime() < 60000 && p.statusBayar === 'berhasil' && (
+                      <Badge className="bg-green-500 text-white text-xs px-2 py-0.5">Baru Dibayar</Badge>
+                    )}
+                    <Badge className={`${p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'bg-orange-100 text-orange-800 border-orange-300' : statusBayarColors[p.statusBayar]} text-sm px-3 py-1.5`}>
+                      {p.statusBayar === 'menunggu' ? 'Belum Bayar' : p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'Menunggu Konfirmasi' : p.statusBayar === 'berhasil' ? 'Lunas' : 'Dibatalkan'}
+                    </Badge>
+                    </div>
                   </div>
-                  <Badge className={`${statusBayarColors[p.statusBayar]} text-sm px-3 py-1.5`}>
-                    {p.statusBayar === 'menunggu' ? 'Belum Bayar' : p.statusBayar === 'berhasil' ? 'Lunas' : 'Dibatalkan'}
-                  </Badge>
-                </div>
-                <div className="space-y-2 mb-4 bg-gray-50 rounded-lg p-3 flex-1">
-                  <div className="flex justify-between text-gray-700">
-                    <span className="text-base">{p.items} item</span>
-                    <span className="font-bold text-lg text-chart-5">Rp {p.total.toLocaleString("id-ID")}</span>
-                  </div>
-                </div>
-                <div className="border-t pt-4">
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
-                      <Eye className="w-5 h-5 mr-2" /> Detail
-                    </Button>
-                    {userRole === 'waiter' && p.statusBayar === 'berhasil' && (
-                      <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
-                        <CheckCircle className="w-5 h-5 mr-2" /> Tandai Item
-                      </Button>
+                  <div className="space-y-2 mb-3 bg-gray-50 rounded-lg p-3 flex-1 flex flex-col">
+                    <div className="flex-1">
+                      {p.namaPelanggan && (
+                        <p className="text-sm text-gray-600">
+                          <span className="text-gray-400">Atas nama:</span> {p.namaPelanggan}
+                        </p>
+                      )}
+                      <div className="text-sm text-gray-600">
+                        {p.itemNames.map((nama, i) => (
+                          <span key={i} className="block">• {nama}</span>
+                        ))}
+                        {p.sisaItems > 0 && (
+                          <p className="text-gray-400 mt-1">...dan {p.sisaItems} lainnya</p>
+                        )}
+                      </div>
+                    </div>
+                    {p.waiterUsername && (
+                      <p className="text-xs text-gray-400 mt-auto">Waiter: {p.waiterUsername}</p>
                     )}
                   </div>
-                </div>
-              </div>
-            ))}
+                 <div className="border-t pt-3">
+                   <div className="flex gap-2">
+                     <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
+                       <Eye className="w-5 h-5 mr-2" /> Detail
+                     </Button>
+                     {userRole === 'waiter' && p.statusBayar === 'berhasil' && (
+                       <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
+                         <CheckCircle className="w-5 h-5 mr-2" /> Tandai Item
+                       </Button>
+                     )}
+                   </div>
+                 </div>
+               </div>
+             ))}
           </div>
             </div>
           <div className="flex items-center justify-center gap-4 pt-2">
@@ -561,7 +584,7 @@ export default function PesananPage() {
                   <TableHead>ID</TableHead>
                   <TableHead>Meja</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Waiter</TableHead>
+                  <TableHead>Pelanggan</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Items</TableHead>
                   <TableHead>Waktu</TableHead>
@@ -587,11 +610,18 @@ export default function PesananPage() {
                            p.status === 'selesai' ? 'Selesai' : 'Dibatalkan'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm">{p.waiterUsername || '-'}</TableCell>
+                      <TableCell className="text-sm">{p.namaPelanggan || '-'}</TableCell>
                       <TableCell>Rp {p.total.toLocaleString("id-ID")}</TableCell>
                       <TableCell>{p.items} item</TableCell>
-                      <TableCell>
-                        {new Date(p.waktu).toLocaleString("id-ID", {
+                      <TableCell className="text-xs">
+                        Dibuat {new Date(p.waktu).toLocaleString("id-ID", {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                        <br />
+                        Layani {new Date(p.updatedAt).toLocaleString("id-ID", {
                           day: '2-digit',
                           month: 'short',
                           hour: '2-digit',
@@ -648,81 +678,114 @@ export default function PesananPage() {
                <div className="py-8 text-center">Memuat detail pesanan...</div>
              ) : selectedPesanan ? (
                <div className="flex flex-col min-h-0 overflow-hidden">
-                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                   <div>
-                     <span className="text-gray-500">Meja:</span>
-                     <p className="font-medium">{selectedPesanan.nomor_meja}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Pelanggan:</span>
-                     <p className="font-medium">{selectedPesanan.nama_pelanggan || '-'}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Tipe:</span>
-                     <p className="font-medium">{selectedPesanan.tipe_meja === 'lesehan' ? 'Lesehan' : 'Kursi'}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Status:</span>
-                      <Badge className={`${statusColors[selectedPesanan.status_pesanan]} text-xs px-2 py-0.5`}>
-                        {selectedPesanan.status_pesanan === 'menunggu' ? 'Menunggu' : 
-                         selectedPesanan.status_pesanan === 'diproses' ? 'Diproses' :
-                         selectedPesanan.status_pesanan === 'selesai' ? 'Selesai' : 'Dibatalkan'}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div>
+                      <span className="text-gray-500">Meja:</span>
+                      <p className="font-medium">{selectedPesanan.nomor_meja}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Pelanggan:</span>
+                      <p className="font-medium">{selectedPesanan.nama_pelanggan || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Tipe:</span>
+                      <p className="font-medium">{selectedPesanan.tipe_meja === 'lesehan' ? 'Lesehan' : 'Kursi'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Status:</span>
+                       <Badge className={`${statusColors[selectedPesanan.status_pesanan]} text-xs px-2 py-0.5`}>
+                         {selectedPesanan.status_pesanan === 'menunggu' ? 'Menunggu' : 
+                          selectedPesanan.status_pesanan === 'diproses' ? 'Diproses' :
+                          selectedPesanan.status_pesanan === 'selesai' ? 'Selesai' : 'Dibatalkan'}
+                       </Badge>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Status Bayar:</span>
+                      <Badge className={`${selectedPesanan.status_pembayaran === 'berhasil' && selectedPesanan.status_pesanan === 'menunggu' ? 'bg-orange-100 text-orange-800 border-orange-300' : statusBayarColors[selectedPesanan.status_pembayaran]} text-xs px-2 py-0.5`}>
+                        {selectedPesanan.status_pembayaran === 'menunggu' ? 'Menunggu' : 
+                         selectedPesanan.status_pembayaran === 'berhasil' && selectedPesanan.status_pesanan === 'menunggu' ? 'Menunggu Konfirmasi' :
+                         selectedPesanan.status_pembayaran === 'berhasil' ? 'Berhasil' : 'Dibatalkan'}
                       </Badge>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Status Bayar:</span>
-                     <Badge className={`${statusBayarColors[selectedPesanan.status_pembayaran]} text-xs px-2 py-0.5`}>
-                       {selectedPesanan.status_pembayaran === 'menunggu' ? 'Menunggu' : 
-                        selectedPesanan.status_pembayaran === 'berhasil' ? 'Berhasil' : 'Dibatalkan'}
-                     </Badge>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Waiter:</span>
-                     <p className="font-medium">{selectedPesanan.waiter_username || '-'}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Kasir:</span>
-                     <p className="font-medium">{selectedPesanan.kasir_username || '-'}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Waktu:</span>
-                     <p className="font-medium">
-                       {new Date(selectedPesanan.created_at).toLocaleString("id-ID")}
-                     </p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Total:</span>
-                      <p className="font-medium">Rp {(Number(selectedPesanan.total_harga) + (Number(selectedPesanan.biaya_admin) || 0) + (Number(selectedPesanan.ppn) || 0)).toLocaleString("id-ID")}</p>
-                   </div>
-                 </div>
-                 
-                 <h4 className="font-medium text-xs mb-1.5 mt-3">Item Pesanan</h4>
-                 <div className="overflow-y-auto min-h-0" style={{ maxHeight: 150 }}>
-                   <div className="border rounded-lg divide-y">
-                     {selectedPesanan.items.map((item) => (
-                       <div key={item.id} className="p-2 flex items-center justify-between text-xs">
-                         <div className="flex items-center gap-3">
-                           <div>
-                             <p className="font-medium">{item.nama_menu}</p>
-                             <p className="text-gray-500">
-                               {item.jumlah}x Rp {Number(item.harga_saat_pesan).toLocaleString("id-ID")}
-                             </p>
-                             {item.catatan_item && (
-                               <p className="text-amber-600">Catatan: {item.catatan_item}</p>
-                             )}
-                           </div>
-                         </div>
-                         <p className="font-medium">
-                           Rp {(item.jumlah * Number(item.harga_saat_pesan)).toLocaleString("id-ID")}
-                         </p>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Waiter:</span>
+                      <p className="font-medium">{selectedPesanan.waiter_username || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Kasir:</span>
+                      <p className="font-medium">{selectedPesanan.kasir_username || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Pesanan Dibuat:</span>
+                      <p className="font-medium">
+                        {new Date(selectedPesanan.created_at).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    {activeTab === "riwayat" && (
+                      <div>
+                        <span className="text-gray-500">Terakhir Dilayani:</span>
+                        <p className="font-medium">
+                          {new Date(selectedPesanan.updated_at).toLocaleString("id-ID")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedPesanan.catatan && (
+                    <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                      {selectedPesanan.catatan}
+                    </div>
+                  )}
+                  
+                  <h4 className="font-medium text-xs mb-1.5 mt-3">Item Pesanan</h4>
+                  <div className="overflow-y-auto min-h-0" style={{ maxHeight: 150 }}>
+                    <div className="border rounded-lg divide-y">
+                      {selectedPesanan.items.map((item) => (
+                        <div key={item.id} className="p-2 flex items-center justify-between text-xs">
+                          <div>
+                            <p className="font-medium">{item.nama_menu}</p>
+                            <p className="text-gray-500">
+                              {item.jumlah}x Rp {Number(item.harga_saat_pesan).toLocaleString("id-ID")}
+                            </p>
+                            {item.catatan_item && (
+                              <p className="text-amber-600">Catatan: {item.catatan_item}</p>
+                            )}
+                          </div>
+                          <p className="font-medium">
+                            Rp {(item.jumlah * Number(item.harga_saat_pesan)).toLocaleString("id-ID")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <h4 className="font-medium text-xs mb-1.5 mt-3">Rincian Harga</h4>
+                  <div className="text-xs space-y-0.5 border rounded-lg p-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span>Rp {Number(selectedPesanan.total_harga).toLocaleString("id-ID")}</span>
+                    </div>
+                    {(Number(selectedPesanan.biaya_admin) || 0) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Biaya Admin</span>
+                        <span>Rp {Number(selectedPesanan.biaya_admin).toLocaleString("id-ID")}</span>
+                      </div>
+                    )}
+                    {(Number(selectedPesanan.ppn) || 0) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">PPN</span>
+                        <span>Rp {Number(selectedPesanan.ppn).toLocaleString("id-ID")}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-semibold border-t pt-1">
+                      <span>Total</span>
+                      <span>Rp {(Number(selectedPesanan.total_harga) + (Number(selectedPesanan.biaya_admin) || 0) + (Number(selectedPesanan.ppn) || 0)).toLocaleString("id-ID")}</span>
+                    </div>
+                  </div>
                </div>
              ) : null}
              <DialogFooter className="gap-2">
-              {selectedPesanan && selectedPesanan.status_pembayaran === 'berhasil' && (
+              {selectedPesanan && selectedPesanan.status_pembayaran === 'berhasil' && activeTab === "riwayat" && (
                 <Button variant="outline" size="lg" onClick={() => printStruk({
                   id: selectedPesanan.id,
                   nomorMeja: selectedPesanan.nomor_meja,
@@ -769,8 +832,8 @@ export default function PesananPage() {
                     <p className="font-medium">{selectedPesananForComplete.nomor_meja}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Total:</span>
-                    <p className="font-medium">Rp {Number(selectedPesananForComplete.total_harga).toLocaleString("id-ID")}</p>
+                    <span className="text-gray-500">Pelanggan:</span>
+                    <p className="font-medium">{selectedPesananForComplete.nama_pelanggan || '-'}</p>
                   </div>
                 </div>
                 
@@ -798,19 +861,13 @@ export default function PesananPage() {
                             />
                             <div>
                               <p className={`font-medium ${isChecked ? 'line-through text-gray-400' : ''}`}>
-                                {item.nama_menu}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {item.jumlah}x Rp {Number(item.harga_saat_pesan).toLocaleString("id-ID")}
+                                {item.jumlah}x {item.nama_menu}
                               </p>
                               {item.catatan_item && (
                                 <p className="text-sm text-amber-600">Catatan: {item.catatan_item}</p>
                               )}
                             </div>
                           </div>
-                          <p className={`font-medium ${isChecked ? 'line-through text-gray-400' : ''}`}>
-                            Rp {(item.jumlah * Number(item.harga_saat_pesan)).toLocaleString("id-ID")}
-                          </p>
                         </div>
                       )
                     })}

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Wallet, ArrowLeft, Banknote, CreditCard, Smartphone, Loader2, AlertCircle, Clock } from "lucide-react";
 import { getPesananForCheckout, updateNamaPelanggan, createMidtransPayment, konfirmasiPembayaranCustomer } from "@/app/actions/pesanan";
 import { hitungAdminFee } from "@/lib/fee";
+import { BankIcon, POPULAR_BANKS } from "@/components/BankIcon";
 
 const BATAS_KONFIRMASI_MENIT = 60
 
@@ -36,8 +37,9 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nama, setNama] = useState("");
-  const [metode, setMetode] = useState<string | null>(null);
-  const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
+const [metode, setMetode] = useState<string | null>(null);
+const [bank, setBank] = useState<string>("bca");
+const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
 
   useEffect(() => {
     if (!orderId) {
@@ -90,12 +92,12 @@ export default function CheckoutPage() {
         setSubmitting(false);
         return;
       }
-      router.push(`/${tokenMeja}/pembayaran/${metode}?orderId=${orderId}&nama=${encodeURIComponent(nama)}&confirmed=1`);
+      router.push(`/${tokenMeja}/pembayaran/${metode}?orderId=${orderId}&confirmed=1`);
       return;
     }
 
     try {
-      const result = await createMidtransPayment(orderId, tokenMeja, metode as "qris" | "transfer");
+      const result = await createMidtransPayment(orderId, tokenMeja, metode as "qris" | "transfer", bank);
 
       if (result.error) {
         setSubmitError(result.error);
@@ -103,23 +105,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      const params = new URLSearchParams({
-        orderId,
-        nama,
-        transactionId: result.transaction_id || "",
-      });
-
-      if (result.payment_type === "bank_transfer" && result.va_number) {
-        params.set("va", result.va_number);
-      } else if (result.payment_type === "qris" && result.qr_url) {
-        params.set("qrUrl", result.qr_url);
-      }
-
-      if (result.expiryMenit) {
-        params.set("expiry", String(result.expiryMenit));
-      }
-
-      router.push(`/${tokenMeja}/pembayaran/${metode}?${params.toString()}`);
+      router.push(`/${tokenMeja}/pembayaran/${metode}?orderId=${orderId}`);
     } catch {
       setSubmitError("Terjadi kesalahan. Silakan coba lagi.");
       setSubmitting(false);
@@ -244,6 +230,27 @@ export default function CheckoutPage() {
                 </button>
               ))}
             </div>
+            {metode === "transfer" && (
+              <div className="mt-4 border-t pt-4 space-y-2">
+                <p className="text-sm font-semibold">Pilih Bank</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {POPULAR_BANKS.map((b) => (
+                    <button
+                      key={b}
+                      onClick={() => setBank(b)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors ${
+                        bank === b
+                          ? "border-primary bg-primary/5"
+                          : "border-muted hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <BankIcon bank={b} size={8} />
+                      <span className="text-sm font-medium">{b.toUpperCase()}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {metode && (
               <div className="mt-4 border-t pt-4 space-y-1">
                 {metode !== "tunai" && (

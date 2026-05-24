@@ -12,27 +12,25 @@ import {
 import {
   getPesananForCheckout, konfirmasiPembayaranCustomer,
   createMidtransPayment, checkMidtransPaymentStatus,
-  getCustomerPaymentStatus
+  getCustomerPaymentStatus, cancelExpiredOrders
 } from "@/app/actions/pesanan";
+import { BankIcon, getBankLabel } from "@/components/BankIcon";
 import { hitungAdminFee } from "@/lib/fee";
 
 export default function PembayaranMetodePage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  const tokenMeja = params.tokenMeja as string;
-  const metode = params.metode as string;
   const orderId = searchParams.get("orderId") as string;
-  const nama = searchParams.get("nama") as string;
+  const metode = params.metode as string;
+  const tokenMeja = params.tokenMeja as string;
   const confirmed = searchParams.get("confirmed") === "1";
-  const expiryMenitParam = searchParams.get("expiry");
 
   const BATAS_KONFIRMASI_MENIT = 60;
   const isNonTunai = metode === "transfer" || metode === "qris";
-  const expiryMenit = expiryMenitParam
-    ? parseInt(expiryMenitParam)
-    : metode === "qris" ? 15 : metode === "transfer" ? 60 : BATAS_KONFIRMASI_MENIT;
+  const expiryMenit = metode === "qris" ? 15 : metode === "transfer" ? 60 : BATAS_KONFIRMASI_MENIT;
 
+  const [nama, setNama] = useState("");
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [waktuDibuat, setWaktuDibuat] = useState<string | null>(null);
@@ -44,6 +42,7 @@ export default function PembayaranMetodePage() {
   const [totalBayar, setTotalBayar] = useState<number | null>(null);
   const [vaNumber, setVaNumber] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [paymentBank, setPaymentBank] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [paid, setPaid] = useState(false);
@@ -52,11 +51,11 @@ export default function PembayaranMetodePage() {
   const [expired, setExpired] = useState(false);
 
   useEffect(() => {
-    if (!metode || !nama || !orderId) {
+    if (!metode || !orderId) {
       router.push(`/${tokenMeja}/checkout`);
       return;
     }
-  }, [metode, nama, orderId, router, tokenMeja]);
+  }, [metode, orderId, router, tokenMeja]);
 
   useEffect(() => {
     const load = async () => {
@@ -69,6 +68,7 @@ export default function PembayaranMetodePage() {
         }
 
         setOrderNumber(result.id);
+        if (result.namaPelanggan) setNama(result.namaPelanggan);
         setTotal(result.total);
         setWaktuDibuat(result.waktu);
         if (result.waktu) {
@@ -89,18 +89,8 @@ export default function PembayaranMetodePage() {
         setAdminFee(fee);
         setTotalBayar(result.total + fee);
 
-        const va = searchParams.get("va");
-        const qr = searchParams.get("qrUrl");
-
-        if (va || qr) {
-          if (va) setVaNumber(va);
-          if (qr) setQrUrl(qr);
-          setLoading(false);
-          return;
-        }
-
         setGenerating(true);
-        const payResult = await createMidtransPayment(orderId, tokenMeja, metode as "qris" | "transfer");
+        const payResult = await createMidtransPayment(orderId, tokenMeja, metode as "qris" | "transfer", "");
 
         if (payResult.error) {
           setGenerateError(payResult.error);
@@ -109,9 +99,10 @@ export default function PembayaranMetodePage() {
           return;
         }
 
-        if (payResult.payment_type === "bank_transfer" && payResult.va_number) {
-          setVaNumber(payResult.va_number);
-        } else if (payResult.payment_type === "qris") {
+        if (payResult.payment_type === "bank_transfer") {
+          setVaNumber(payResult.va_number || null);
+          setPaymentBank(payResult.bank || null);
+        } else if (payResult.payment_type === "other_qris") {
           setQrUrl(payResult.qr_url || null);
         }
         setGenerating(false);
@@ -153,6 +144,7 @@ export default function PembayaranMetodePage() {
   useEffect(() => {
     if (paid || expired || !orderId || metode === "tunai") return
     const interval = setInterval(async () => {
+      await cancelExpiredOrders()
       const status = await getCustomerPaymentStatus(orderId)
       if (status && status.statusPembayaran === "berhasil") {
         setPaid(true)
@@ -403,20 +395,25 @@ export default function PembayaranMetodePage() {
                 <p className="text-sm text-muted-foreground">Lakukan pembayaran melalui ATM, mobile banking, atau internet banking</p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                <p className="text-xs text-blue-600 mb-1">Nomor Virtual Account</p>
-                <p className="text-2xl font-mono font-bold tracking-wider text-blue-900">
-                  {vaNumber || "-"}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 rounded-full"
-                  onClick={handleCopyVa}
-                >
-                  {copied ? "✓ Tersalin" : <><Copy className="size-3 mr-1" /> Salin</>}
-                </Button>
-              </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    {paymentBank && <BankIcon bank={paymentBank} size={8} />}
+                    <p className="text-xs text-blue-600 mb-1 font-medium">
+                      {paymentBank ? `${getBankLabel(paymentBank)} Virtual Account` : "Virtual Account"}
+                    </p>
+                  </div>
+                  <p className="text-2xl font-mono font-bold tracking-wider text-blue-900">
+                    {vaNumber || "-"}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 rounded-full"
+                    onClick={handleCopyVa}
+                  >
+                    {copied ? "✓ Tersalin" : <><Copy className="size-3 mr-1" /> Salin</>}
+                  </Button>
+                </div>
 
               <div className="bg-white rounded-lg space-y-1">
                 <div className="flex justify-between text-sm">
@@ -455,7 +452,7 @@ export default function PembayaranMetodePage() {
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
                 <p className="text-yellow-700">
-                  Setelah melakukan pembayaran, klik tombol "Cek Status Pembayaran" di bawah.
+                  Setelah melakukan pembayaran, klik tombol &quot;Cek Status Pembayaran&quot; di bawah.
                 </p>
               </div>
             </CardContent>
@@ -527,7 +524,7 @@ export default function PembayaranMetodePage() {
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
                 <p className="text-yellow-700">
-                  Setelah melakukan pembayaran, klik tombol "Cek Status Pembayaran" di bawah.
+                  Setelah melakukan pembayaran, klik tombol &quot;Cek Status Pembayaran&quot; di bawah.
                 </p>
               </div>
             </CardContent>

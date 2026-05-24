@@ -5,11 +5,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight, Bell } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
-import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, prosesPembayaranQRIS, prosesPembayaranTransfer, batalkanPesananKasir } from "@/app/actions/kasir"
+import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, prosesPembayaranTransfer, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment } from "@/app/actions/kasir"
 import { checkMidtransStatusReadOnly } from "@/app/actions/pesanan"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
@@ -90,15 +90,17 @@ export default function KasirPage() {
   const [showPaymentInfo, setShowPaymentInfo] = useState(false)
   const [filterText, setFilterText] = useState("")
   const [filterId, setFilterId] = useState("")
-  const [filterKasirSelect, setFilterKasirSelect] = useState("")
+  const [belumFilter, setBelumFilter] = useState<'all' | 'konfirmasi' | 'menunggu'>('all')
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
   const [cancelPesananId, setCancelPesananId] = useState<number | null>(null)
   const [isConfirmCancelDialogOpen, setIsConfirmCancelDialogOpen] = useState(false)
   const [cancelConfirmInput, setCancelConfirmInput] = useState("")
   const [isBayarTunaiFinal, setIsBayarTunaiFinal] = useState(false)
-  const [daftarKasir, setDaftarKasir] = useState<string[]>([])
+const [showConfirmProcess, setShowConfirmProcess] = useState(false)
   const [showMethodWarning, setShowMethodWarning] = useState(false)
   const [midtransStatus, setMidtransStatus] = useState<string | null>(null)
+  const [qrisQrUrl, setQrisQrUrl] = useState<string | null>(null)
+  const [qrisTotalBayar, setQrisTotalBayar] = useState(0)
   const [midtransAutoPaid, setMidtransAutoPaid] = useState(false)
   const midtransAutoPaidRef = useRef(false)
   const pendingMethodAction = useRef<"tunai-step" | null>(null)
@@ -154,6 +156,11 @@ export default function KasirPage() {
           !invoice.includes(q) &&
           !`#${p.id}`.includes(q)) return false
     }
+    if (belumFilter === 'konfirmasi') {
+      if (!(p.statusPembayaran === 'berhasil' && p.statusPesanan === 'menunggu')) return false
+    } else if (belumFilter === 'menunggu') {
+      if (p.statusPembayaran === 'berhasil' && p.statusPesanan === 'menunggu') return false
+    }
     return true
   })
 
@@ -177,7 +184,6 @@ export default function KasirPage() {
           !invoice.includes(q) &&
           !`#${p.id}`.includes(q)) return false
     }
-    if (filterKasirSelect && p.kasirUsername !== filterKasirSelect) return false
     return true
   })
 
@@ -222,7 +228,6 @@ export default function KasirPage() {
         setPesananRiwayat([])
       } else {
         setPesananRiwayat(riwayatResult.pesanan as unknown as Pesanan[])
-        setDaftarKasir(riwayatResult.daftarKasir)
       }
     } catch (error: any) {
       console.error("Error fetching data:", error)
@@ -311,7 +316,6 @@ export default function KasirPage() {
         setPesananRiwayat([])
       } else {
         setPesananRiwayat(riwayatResult.pesanan as unknown as Pesanan[])
-        setDaftarKasir(riwayatResult.daftarKasir)
       }
     } catch (error: any) {
       console.error("Error fetching riwayat:", error)
@@ -326,14 +330,17 @@ export default function KasirPage() {
 
   function openPayment(pesanan: Pesanan) {
     setSelectedPesanan(pesanan)
+    setShowConfirmProcess(false)
     setSelectedMetode((pesanan.metodePembayaran as MetodePembayaran) || "qris")
     setJumlahBayar("")
     setInputRibuan("")
-    setShowPaymentInfo(false)
+    setShowPaymentInfo(pesanan.statusPembayaran === 'berhasil')
     setPaymentSuccess(false)
     setIsBayarTunaiFinal(false)
     setMidtransStatus(null)
     setMidtransAutoPaid(false)
+    setQrisQrUrl(null)
+    setQrisTotalBayar(0)
     midtransAutoPaidRef.current = false
     setSubmitting(false)
     setIsPaymentOpen(true)
@@ -363,11 +370,22 @@ export default function KasirPage() {
           setSubmitting(false)
           return
         }
-        alert("Pembayaran Tunai berhasil!")
-        setIsPaymentOpen(false)
-        fetchData()
+        setPaymentSuccess(true)
+        setSubmitting(false)
+      } else if (selectedMetode === "qris") {
+        const result = await generateQRISCode(selectedPesanan.id)
+        if ('error' in result) {
+          alert(result.error)
+          setSubmitting(false)
+          return
+        }
+        setQrisQrUrl(result.qrUrl)
+        setQrisTotalBayar(result.totalBayar)
+        setShowPaymentInfo(true)
+        setSubmitting(false)
+        return
       } else {
-        // QRIS & Transfer: show payment info first
+        // Transfer: show payment info first
         setShowPaymentInfo(true)
         setSubmitting(false)
         return
@@ -419,9 +437,14 @@ export default function KasirPage() {
 
     setSubmitting(true)
     try {
-      const result = selectedMetode === "qris"
-        ? await prosesPembayaranQRIS(selectedPesanan.id)
-        : await prosesPembayaranTransfer(selectedPesanan.id)
+      let result
+      if (selectedPesanan.statusPembayaran === 'berhasil') {
+        result = await accPesanan(selectedPesanan.id)
+      } else if (selectedMetode === "qris") {
+        result = await confirmQrisPayment(selectedPesanan.id)
+      } else {
+        result = await prosesPembayaranTransfer(selectedPesanan.id)
+      }
       if ('error' in result) {
         alert(result.error)
         setSubmitting(false)
@@ -462,6 +485,10 @@ export default function KasirPage() {
   }
 
 
+
+  function isWithinMinutes(date: Date | string, menit: number) {
+    return Date.now() - new Date(date).getTime() < menit * 60000
+  }
 
   function nomorPesanan(id: number, date: Date | string) {
     const d = new Date(date)
@@ -533,7 +560,7 @@ export default function KasirPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 p-4">
+    <div className="max-w-6xl mx-auto space-y-6">
       {newOrderAlert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="bg-white border-2 border-green-400 rounded-2xl px-8 py-6 shadow-2xl pointer-events-auto animate-in fade-in zoom-in duration-200 max-w-sm text-center">
@@ -549,9 +576,10 @@ export default function KasirPage() {
         </div>
       )}
 
+      <h1 className="text-2xl font-bold text-gray-800">Kelola Kasir</h1>
       {/* Header Tabs */}
-      <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-3">
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex gap-2">
           {!isOwner && (
             <Button
               size="lg"
@@ -578,66 +606,85 @@ export default function KasirPage() {
         <div className="flex items-center gap-2">
           {activeTab === "belum" ? (
             <>
-              <div className="relative">
-                <Input
-                  type="text"
-                  placeholder="Cari #invoice / meja..."
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
-                  className="max-w-[180px] text-sm h-9 pr-8"
-                />
-                {filterText && (
-                  <button
-                    type="button"
-                    onClick={() => setFilterText("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+              <div className="flex gap-2 items-center flex-wrap">
+                <div className="flex gap-1">
+                  <Button
+                    size="default"
+                    variant={belumFilter === 'all' ? "default" : "outline"}
+                    onClick={() => { setBelumFilter('all'); setBelumPage(1) }}
+                    className="text-sm"
                   >
-                    <XCircle className="w-4 h-4" />
-                  </button>
-                )}
+                    Semua
+                  </Button>
+                  <Button
+                    size="default"
+                    variant={belumFilter === 'konfirmasi' ? "default" : "outline"}
+                    onClick={() => { setBelumFilter('konfirmasi'); setBelumPage(1) }}
+                    className="text-sm"
+                  >
+                    Menunggu Konfirmasi
+                  </Button>
+                  <Button
+                    size="default"
+                    variant={belumFilter === 'menunggu' ? "default" : "outline"}
+                    onClick={() => { setBelumFilter('menunggu'); setBelumPage(1) }}
+                    className="text-sm"
+                  >
+                    Menunggu
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="Cari #id / meja..."
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                    className="max-w-[180px] text-sm h-9 pr-8"
+                  />
+                  {filterText && (
+                    <button
+                      type="button"
+                      onClick={() => setFilterText("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </>
           ) : (
             <>
-              {(['all', 'today', 'week', 'month'] as const).map((period) => (
+              <div className="flex gap-2 items-center flex-wrap">
+                {(['all', 'today', 'week', 'month'] as const).map((period) => (
+                  <Button
+                    key={period}
+                    size="default"
+                    variant={filterPeriod === period ? "default" : "outline"}
+                    onClick={() => setFilterPeriod(period)}
+                    className="text-sm"
+                  >
+                    {period === 'all' ? 'Semua' : 
+                     period === 'today' ? 'Hari Ini' :
+                     period === 'week' ? 'Minggu Ini' : 'Bulan Ini'}
+                  </Button>
+                ))}
+                <Input
+                  type="text"
+                  placeholder="Cari #id / meja..."
+                  value={filterId}
+                  onChange={(e) => setFilterId(e.target.value)}
+                  className="max-w-[160px] text-sm h-9"
+                />
                 <Button
-                  key={period}
-                  size="default"
-                  variant={filterPeriod === period ? "default" : "outline"}
-                  onClick={() => setFilterPeriod(period)}
-                  className="text-sm"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setFilterId(""); setFilterPeriod("all") }}
+                  className={`h-9 px-2 text-sm ${filterId || filterPeriod !== 'all' ? '' : 'invisible'}`}
                 >
-                  {period === 'all' ? 'Semua' : 
-                   period === 'today' ? 'Hari Ini' :
-                   period === 'week' ? 'Minggu Ini' : 'Bulan Ini'}
+                  Reset
                 </Button>
-              ))}
-              <Input
-                type="text"
-                placeholder="Cari #invoice / meja..."
-                value={filterId}
-                onChange={(e) => setFilterId(e.target.value)}
-                className="max-w-[180px] text-sm h-9"
-              />
-              <Select value={filterKasirSelect || "all"} onValueChange={(v) => setFilterKasirSelect(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-[130px] h-9 text-sm">
-                  <SelectValue placeholder="Kasir" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua</SelectItem>
-                  {daftarKasir.map(k => (
-                    <SelectItem key={k} value={k!}>{k}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setFilterId(""); setFilterKasirSelect(""); setFilterPeriod("all") }}
-                className={`h-9 px-2 ${filterId || filterKasirSelect || filterPeriod !== 'all' ? '' : 'invisible'}`}
-              >
-                Reset
-              </Button>
+              </div>
             </>
           )}
         </div>
@@ -663,16 +710,24 @@ export default function KasirPage() {
              {paginatedBelum.map((p) => (
               <div key={p.id} className="bg-white rounded-xl border-2 p-5 hover:shadow-lg transition-shadow flex flex-col">
                 {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold">Meja {p.nomorMeja}</h3>
-                    <p className="text-xs text-gray-500 font-mono">{nomorPesanan(p.id, p.createdAt)}</p>
-                    <p className="text-sm text-gray-500">{formatWaktu(p.createdAt)}</p>
-                    {p.waiterUsername && (
-                      <span className="text-xs text-gray-400">Waiter: {p.waiterUsername}</span>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold">Meja {p.nomorMeja}</h3>
+                      <p className="text-xs text-gray-500 font-mono">{nomorPesanan(p.id, p.createdAt)}</p>
+                      <p className="text-sm text-gray-500">{formatWaktu(p.createdAt)}</p>
+                      {p.waiterUsername && (
+                        <span className="text-xs text-gray-400">Waiter: {p.waiterUsername}</span>
+                      )}
+                    </div>
+                    <div className="flex gap-1 items-start">
+                    {isWithinMinutes(p.createdAt, 1) && (
+                      <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5">New</Badge>
                     )}
-                  </div>
-                  {p.metodePembayaran ? (
+                    {p.statusPembayaran === 'berhasil' && p.statusPesanan === 'menunggu' ? (
+                    <Badge className="bg-green-100 text-green-800 border-green-300 text-sm px-3 py-1.5">
+                      Sudah Dibayar
+                    </Badge>
+                  ) : p.metodePembayaran ? (
                     p.jumlahBayar && Number(p.jumlahBayar) > 0 ? (
                       <Badge className={`${statusBayarColors.menunggu} text-sm px-3 py-1.5`}>
                         Menunggu Konfirmasi
@@ -687,6 +742,7 @@ export default function KasirPage() {
                       Belum Bayar
                     </Badge>
                   )}
+                  </div>
                 </div>
 
                 {/* Items */}
@@ -695,29 +751,22 @@ export default function KasirPage() {
                     <p className="text-xs text-gray-500 font-medium mb-2">Atas Nama: {p.namaPelanggan}</p>
                   )}
                   {p.items.slice(0, 3).map((item) => (
-                    <div key={item.id} className="flex justify-between text-gray-700">
-                      <span className="text-base">{item.jumlah}x {item.namaMenu}</span>
-                      <span className="font-medium">{formatRupiah(item.hargaSaatPesan * item.jumlah)}</span>
-                    </div>
+                    <p key={item.id} className="text-sm text-gray-700">• {item.jumlah}x {item.namaMenu}</p>
                   ))}
                   {p.items.length > 3 && (
-                    <p className="text-sm text-gray-400 text-center">+{p.items.length - 3} item lainnya</p>
+                    <p className="text-sm text-gray-400">...dan {p.items.length - 3} lainnya</p>
                   )}
                 </div>
 
-                {/* Total & Actions */}
+                {/* Actions */}
                 <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Total</p>
-                      <p className="text-3xl font-bold text-green-700">{formatRupiah(p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0))}</p>
-                    </div>
-                    {p.metodePembayaran && (
+                  {p.metodePembayaran && (
+                    <div className="mb-3">
                       <Badge className={`${metodeColors[p.metodePembayaran as MetodePembayaran]} text-sm px-3 py-1`}>
                         {metodeLabels[p.metodePembayaran as MetodePembayaran]}
                       </Badge>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 gap-3">
                     <Button
                       variant="outline"
@@ -844,7 +893,7 @@ export default function KasirPage() {
                 {paginatedRiwayat.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-12 text-gray-400 text-base">
-                      {filterId || filterKasirSelect ? "Tidak ada riwayat dengan filter tersebut" : "Belum ada riwayat pembayaran"}
+                      {filterId ? "Tidak ada riwayat dengan filter tersebut" : "Belum ada riwayat pembayaran"}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -940,9 +989,38 @@ export default function KasirPage() {
               </div>
               <h2 className="text-xl font-bold mb-2">Pembayaran Berhasil!</h2>
               <p className="text-gray-500 text-sm mb-4">Pesanan #{selectedPesanan?.id} telah dibayar</p>
-              <Button variant="outline" onClick={() => { setIsPaymentOpen(false); setPaymentSuccess(false); pollData() }}>
-                Tutup
-              </Button>
+              <div className="flex gap-2 justify-center">
+                <Button variant="outline" onClick={() => { setIsPaymentOpen(false); setPaymentSuccess(false); pollData() }}>
+                  Tutup
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!selectedPesanan) return
+                    printStruk({
+                      id: selectedPesanan.id,
+                      nomorMeja: selectedPesanan.nomorMeja,
+                      items: selectedPesanan.items.map(i => ({
+                        nama: i.namaMenu,
+                        jumlah: i.jumlah,
+                        harga: Number(i.hargaSaatPesan),
+                      })),
+                      totalHarga: Number(selectedPesanan.totalHarga),
+                      adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
+                      ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
+                      metodePembayaran: selectedPesanan.metodePembayaran,
+                      jumlahBayar: selectedPesanan.jumlahBayar ? Number(selectedPesanan.jumlahBayar) : undefined,
+                      kembalian: Number(selectedPesanan.kembalian),
+                      createdAt: selectedPesanan.createdAt,
+                      kasirUsername: session?.user?.name || selectedPesanan.kasirUsername,
+                      namaPelanggan: selectedPesanan.namaPelanggan,
+                    })
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Printer className="w-4 h-4 mr-1" />
+                  Cetak
+                </Button>
+              </div>
             </div>
           ) : showPaymentInfo && selectedMetode !== "tunai" ? (
             <>
@@ -965,6 +1043,16 @@ export default function KasirPage() {
                   </p>
                   <p className="text-blue-600 text-xs">Total Tagihan</p>
                 </div>
+                {selectedMetode === "qris" && qrisQrUrl && (
+                  <div className="bg-white rounded-xl p-4 flex flex-col items-center border">
+                    <img
+                      src={qrisQrUrl}
+                      alt="QR Code Pembayaran"
+                      className="w-56 h-56 object-contain"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-2">Scan QR dengan aplikasi pembayaran</p>
+                  </div>
+                )}
                 <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500 text-xs">Transaction ID</span>

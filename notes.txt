@@ -16,7 +16,7 @@ npx tsx prisma/testPrisma.ts
 
 
 list
--benerin scanqr, benerin va bank, benerin struk
+-sblum pilih metode dan sudah pilih metode tpi expired, dicatat di log?
 -cek per page apaud cek role, keamanan scan npm audit, 
 -Synk, sonarqube untuk scan kerentnan
 -responsive di tamilan lain (sidebar cuma ada iconnya)

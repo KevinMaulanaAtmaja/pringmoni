@@ -296,20 +296,48 @@ export async function autoCancelStaleUnpaid() {
   const session = await auth()
   if (!session) return { cancelled: 0 }
 
-  const twentyThreeHoursAgo = new Date(Date.now() - 23 * 60 * 60 * 1000)
+  const duaJam = new Date(Date.now() - 2 * 60 * 60 * 1000)
+  const empatJam = new Date(Date.now() - 4 * 60 * 60 * 1000)
+  const duaPuluhTigaJam = new Date(Date.now() - 23 * 60 * 60 * 1000)
 
   try {
-    const stale = await prisma.pesanan.findMany({
-      where: {
-        statusPembayaran: 'menunggu',
-        metodePembayaran: { not: null },
-        statusPesanan: { notIn: ['dibatalkan', 'selesai'] },
-        createdAt: { lte: twentyThreeHoursAgo },
-        deletedAt: null,
-      },
-      select: { id: true, mejaId: true },
-    })
+    const [tanpaMetode, pilihTunai, pilihLain] = await Promise.all([
+      // Pesan tanpa metode → 2 jam
+      prisma.pesanan.findMany({
+        where: {
+          statusPembayaran: 'menunggu',
+          metodePembayaran: null,
+          statusPesanan: { notIn: ['dibatalkan', 'selesai'] },
+          createdAt: { lte: duaJam },
+          deletedAt: null,
+        },
+        select: { id: true, mejaId: true },
+      }),
+      // Pilih tunai → 4 jam
+      prisma.pesanan.findMany({
+        where: {
+          statusPembayaran: 'menunggu',
+          metodePembayaran: 'tunai',
+          statusPesanan: { notIn: ['dibatalkan', 'selesai'] },
+          createdAt: { lte: empatJam },
+          deletedAt: null,
+        },
+        select: { id: true, mejaId: true },
+      }),
+      // Pilih qris/transfer → 23 jam
+      prisma.pesanan.findMany({
+        where: {
+          statusPembayaran: 'menunggu',
+          metodePembayaran: { in: ['qris', 'transfer'] },
+          statusPesanan: { notIn: ['dibatalkan', 'selesai'] },
+          createdAt: { lte: duaPuluhTigaJam },
+          deletedAt: null,
+        },
+        select: { id: true, mejaId: true },
+      }),
+    ])
 
+    const stale = [...tanpaMetode, ...pilihTunai, ...pilihLain]
     if (stale.length === 0) return { cancelled: 0 }
 
     const mejaIds = [...new Set(stale.map(p => p.mejaId))]
@@ -325,7 +353,14 @@ export async function autoCancelStaleUnpaid() {
       }),
     ])
 
-    return { cancelled: stale.length }
+    return {
+      cancelled: stale.length,
+      rincian: {
+        tanpaMetode: tanpaMetode.length,
+        pilihTunai: pilihTunai.length,
+        pilihLain: pilihLain.length,
+      },
+    }
   } catch (error) {
     console.error('Auto-cancel error:', error)
     return { cancelled: 0 }

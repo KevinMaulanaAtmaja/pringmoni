@@ -77,7 +77,7 @@ export async function checkMidtransTransaction(transactionId: string): Promise<
 export async function createCorePayment(data: {
   order_id: string
   gross_amount: number
-  payment_type: "bank_transfer" | "qris"
+  payment_type: "bank_transfer" | "qris" | "other_qris"
   bank?: string
   customer_details?: { first_name?: string }
   item_details?: Array<{ id: string; price: number; quantity: number; name: string }>

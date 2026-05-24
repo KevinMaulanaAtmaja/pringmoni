@@ -201,10 +201,11 @@ export default function DetailPesananPage() {
               )}
               <p className="text-sm">
                 <span className="text-muted-foreground">Pembayaran: </span>
-                <Badge variant={
-                  pesanan.statusPembayaran === "berhasil" ? "default" :
-                  pesanan.statusPembayaran === "dibatalkan" ? "destructive" : "outline"
-                } className="text-xs ml-1">
+                <Badge className={`text-xs ml-1 ${
+                  pesanan.statusPembayaran === "berhasil" ? "bg-green-100 text-green-700 border-green-300 hover:bg-green-100" :
+                  pesanan.statusPembayaran === "dibatalkan" ? "bg-red-100 text-red-700 border-red-300 hover:bg-red-100" :
+                  "bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-50"
+                }`}>
                   {pesanan.statusPembayaran === "berhasil" && "✓ Lunas"}
                   {pesanan.statusPembayaran === "menunggu" && "Menunggu"}
                   {pesanan.statusPembayaran === "dibatalkan" && "Dibatalkan"}
