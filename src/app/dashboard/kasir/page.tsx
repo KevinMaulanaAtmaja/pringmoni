@@ -628,7 +628,6 @@ export default function KasirPage() {
             </>
           )}
         </div>
-      </div>
 
       {activeTab === "belum" ? (
         /* Tab Belum Bayar */
