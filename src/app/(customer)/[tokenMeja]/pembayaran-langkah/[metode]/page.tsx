@@ -10,15 +10,14 @@ export default function PembayaranLangkahRedirect() {
   const tokenMeja = params.tokenMeja as string;
   const metode = params.metode as string;
   const orderId = searchParams.get("orderId");
-  const nama = searchParams.get("nama");
 
   useEffect(() => {
-    const query = new URLSearchParams();
-    if (orderId) query.set("orderId", orderId);
-    if (nama) query.set("nama", nama);
-    const qs = query.toString();
-    router.replace(`/${tokenMeja}/pembayaran/${metode}${qs ? `?${qs}` : ""}`);
-  }, [router, tokenMeja, metode, orderId, nama]);
+    if (orderId) {
+      router.replace(`/${tokenMeja}/pembayaran/${metode}?orderId=${orderId}`);
+    } else {
+      router.replace(`/${tokenMeja}/pembayaran/${metode}`);
+    }
+  }, [router, tokenMeja, metode, orderId]);
 
   return null;
 }

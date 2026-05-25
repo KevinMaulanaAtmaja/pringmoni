@@ -47,12 +47,16 @@ export async function POST(request: NextRequest) {
       transactionStatus === "cancel" ||
       transactionStatus === "deny"
 
+    // Skip if already paid (e.g. cashier processed Tunai after customer chose QRIS/TF)
+    if (pesanan.statusPembayaran !== "menunggu") {
+      return NextResponse.json({ ok: true, note: "already processed" })
+    }
+
     if (isSuccess && fraudStatus === "accept") {
       await prisma.pesanan.update({
         where: { id: pesanan.id },
         data: {
           statusPembayaran: "berhasil",
-          statusPesanan: "diproses",
           jumlahBayar: parseFloat(grossAmount),
           kembalian: 0,
         },

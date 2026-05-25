@@ -11,23 +11,26 @@ import {
 } from "lucide-react";
 import {
   getPesananForCheckout, konfirmasiPembayaranCustomer,
-  createMidtransPayment, checkMidtransPaymentStatus
+  createMidtransPayment, checkMidtransPaymentStatus,
+  getCustomerPaymentStatus, cancelExpiredOrders
 } from "@/app/actions/pesanan";
+import { BankIcon, getBankLabel } from "@/components/BankIcon";
 import { hitungAdminFee } from "@/lib/fee";
 
 export default function PembayaranMetodePage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  const tokenMeja = params.tokenMeja as string;
-  const metode = params.metode as string;
   const orderId = searchParams.get("orderId") as string;
-  const nama = searchParams.get("nama") as string;
+  const metode = params.metode as string;
+  const tokenMeja = params.tokenMeja as string;
   const confirmed = searchParams.get("confirmed") === "1";
 
   const BATAS_KONFIRMASI_MENIT = 60;
   const isNonTunai = metode === "transfer" || metode === "qris";
+  const expiryMenit = metode === "qris" ? 15 : metode === "transfer" ? 60 : BATAS_KONFIRMASI_MENIT;
 
+  const [nama, setNama] = useState("");
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [waktuDibuat, setWaktuDibuat] = useState<string | null>(null);
@@ -39,17 +42,20 @@ export default function PembayaranMetodePage() {
   const [totalBayar, setTotalBayar] = useState<number | null>(null);
   const [vaNumber, setVaNumber] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [paymentBank, setPaymentBank] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [paid, setPaid] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [waktuKadaluarsa, setWaktuKadaluarsa] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
-    if (!metode || !nama || !orderId) {
+    if (!metode || !orderId) {
       router.push(`/${tokenMeja}/checkout`);
       return;
     }
-  }, [metode, nama, orderId, router, tokenMeja]);
+  }, [metode, orderId, router, tokenMeja]);
 
   useEffect(() => {
     const load = async () => {
@@ -62,8 +68,15 @@ export default function PembayaranMetodePage() {
         }
 
         setOrderNumber(result.id);
+        if (result.namaPelanggan) setNama(result.namaPelanggan);
         setTotal(result.total);
         setWaktuDibuat(result.waktu);
+        if (result.waktu) {
+          const kadaluarsa = new Date(new Date(result.waktu).getTime() + expiryMenit * 60000)
+          setWaktuKadaluarsa(
+            kadaluarsa.toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit" })
+          )
+        }
 
         if (!isNonTunai) {
           setTotalBayar(result.total);
@@ -76,18 +89,8 @@ export default function PembayaranMetodePage() {
         setAdminFee(fee);
         setTotalBayar(result.total + fee);
 
-        const va = searchParams.get("va");
-        const qr = searchParams.get("qrUrl");
-
-        if (va || qr) {
-          if (va) setVaNumber(va);
-          if (qr) setQrUrl(qr);
-          setLoading(false);
-          return;
-        }
-
         setGenerating(true);
-        const payResult = await createMidtransPayment(orderId, tokenMeja, metode as "qris" | "transfer");
+        const payResult = await createMidtransPayment(orderId, tokenMeja, metode as "qris" | "transfer", "");
 
         if (payResult.error) {
           setGenerateError(payResult.error);
@@ -96,9 +99,10 @@ export default function PembayaranMetodePage() {
           return;
         }
 
-        if (payResult.payment_type === "bank_transfer" && payResult.va_number) {
-          setVaNumber(payResult.va_number);
-        } else if (payResult.payment_type === "qris") {
+        if (payResult.payment_type === "bank_transfer") {
+          setVaNumber(payResult.va_number || null);
+          setPaymentBank(payResult.bank || null);
+        } else if (payResult.payment_type === "other_qris") {
           setQrUrl(payResult.qr_url || null);
         }
         setGenerating(false);
@@ -121,6 +125,40 @@ export default function PembayaranMetodePage() {
     const id = setInterval(tick, 10000);
     return () => clearInterval(id);
   }, [waktuDibuat]);
+
+  // Countdown for non-tunai payment expiry (QRIS 15min, Transfer 60min)
+  useEffect(() => {
+    if (!waktuDibuat || !isNonTunai) return;
+    const t0 = new Date(waktuDibuat).getTime();
+    const tick = () => {
+      if (Date.now() - t0 >= expiryMenit * 60000) {
+        setExpired(true);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 5000);
+    return () => clearInterval(id);
+  }, [waktuDibuat, isNonTunai, expiryMenit]);
+
+  // Poll DB + Midtrans status to detect changes (payment success or expiry)
+  useEffect(() => {
+    if (paid || expired || !orderId || metode === "tunai") return
+    const interval = setInterval(async () => {
+      await cancelExpiredOrders()
+      const status = await getCustomerPaymentStatus(orderId)
+      if (status && status.statusPembayaran === "berhasil") {
+        setPaid(true)
+        return
+      }
+      const midtransStatus = await checkMidtransPaymentStatus(orderId)
+      if (!("error" in midtransStatus) && midtransStatus.transaction_status) {
+        if (midtransStatus.transaction_status === "expire" || midtransStatus.transaction_status === "deny" || midtransStatus.transaction_status === "cancel" || midtransStatus.transaction_status === "failure") {
+          setExpired(true)
+        }
+      }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [paid, expired, orderId, metode])
 
   const handleKonfirmasiTunai = async () => {
     if (!orderId) return;
@@ -159,12 +197,21 @@ export default function PembayaranMetodePage() {
   const handleCekStatus = async () => {
     if (!orderId) return;
     setGenerateError(null);
+
     const result = await checkMidtransPaymentStatus(orderId);
     if (result.isSuccess) {
       setPaid(true);
-    } else {
-      setGenerateError("Pembayaran belum terdeteksi. Silakan coba lagi.");
+      return;
     }
+
+    // Fallback: check DB directly (e.g. cashier processed Tunai)
+    const dbStatus = await getCustomerPaymentStatus(orderId)
+    if (dbStatus && dbStatus.statusPembayaran === "berhasil") {
+      setPaid(true)
+      return
+    }
+
+    setGenerateError("Pembayaran belum terdeteksi. Silakan coba lagi.");
   };
 
   if (loading || generating) {
@@ -227,6 +274,28 @@ export default function PembayaranMetodePage() {
     );
   }
 
+  // When non-tunai payment expired, show full expired view
+  if (expired && isNonTunai) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center py-12">
+            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <AlertCircle className="size-8 text-destructive" />
+            </div>
+            <h2 className="font-bold text-lg mb-2 text-center">Pembayaran telah kadaluarsa</h2>
+            <p className="text-muted-foreground text-sm text-center mb-6">
+              Waktu pembayaran telah habis. Silakan lakukan pemesanan ulang.
+            </p>
+            <Button onClick={() => router.push(`/${tokenMeja}`)} className="rounded-full">
+              Kembali ke Menu
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
@@ -256,7 +325,7 @@ export default function PembayaranMetodePage() {
           </CardContent>
         </Card>
 
-        {sisaMenit <= 0 && (
+        {sisaMenit <= 0 && metode === "tunai" && (
           <Card className="border-destructive bg-destructive/5">
             <CardContent className="p-3 flex items-center gap-2">
               <Clock className="size-5 shrink-0 text-destructive" />
@@ -326,20 +395,25 @@ export default function PembayaranMetodePage() {
                 <p className="text-sm text-muted-foreground">Lakukan pembayaran melalui ATM, mobile banking, atau internet banking</p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                <p className="text-xs text-blue-600 mb-1">Nomor Virtual Account</p>
-                <p className="text-2xl font-mono font-bold tracking-wider text-blue-900">
-                  {vaNumber || "-"}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 rounded-full"
-                  onClick={handleCopyVa}
-                >
-                  {copied ? "✓ Tersalin" : <><Copy className="size-3 mr-1" /> Salin</>}
-                </Button>
-              </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    {paymentBank && <BankIcon bank={paymentBank} size={8} />}
+                    <p className="text-xs text-blue-600 mb-1 font-medium">
+                      {paymentBank ? `${getBankLabel(paymentBank)} Virtual Account` : "Virtual Account"}
+                    </p>
+                  </div>
+                  <p className="text-2xl font-mono font-bold tracking-wider text-blue-900">
+                    {vaNumber || "-"}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 rounded-full"
+                    onClick={handleCopyVa}
+                  >
+                    {copied ? "✓ Tersalin" : <><Copy className="size-3 mr-1" /> Salin</>}
+                  </Button>
+                </div>
 
               <div className="bg-white rounded-lg space-y-1">
                 <div className="flex justify-between text-sm">
@@ -356,6 +430,15 @@ export default function PembayaranMetodePage() {
                 </div>
               </div>
 
+              {waktuKadaluarsa && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm flex items-center gap-2">
+                  <Clock className="size-4 shrink-0 text-blue-600" />
+                  <p className="text-blue-700">
+                    Berlaku hingga <strong>{waktuKadaluarsa}</strong> ({expiryMenit} menit)
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2 text-sm">
                 <p className="font-medium">Cara Pembayaran:</p>
                 <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
@@ -369,7 +452,7 @@ export default function PembayaranMetodePage() {
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
                 <p className="text-yellow-700">
-                  Setelah melakukan pembayaran, klik tombol "Cek Status Pembayaran" di bawah.
+                  Setelah melakukan pembayaran, klik tombol &quot;Cek Status Pembayaran&quot; di bawah.
                 </p>
               </div>
             </CardContent>
@@ -430,9 +513,18 @@ export default function PembayaranMetodePage() {
                 </div>
               </div>
 
+              {waktuKadaluarsa && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm flex items-center gap-2">
+                  <Clock className="size-4 shrink-0 text-green-600" />
+                  <p className="text-green-700">
+                    Berlaku hingga <strong>{waktuKadaluarsa}</strong> ({expiryMenit} menit)
+                  </p>
+                </div>
+              )}
+
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
                 <p className="text-yellow-700">
-                  Setelah melakukan pembayaran, klik tombol "Cek Status Pembayaran" di bawah.
+                  Setelah melakukan pembayaran, klik tombol &quot;Cek Status Pembayaran&quot; di bawah.
                 </p>
               </div>
             </CardContent>

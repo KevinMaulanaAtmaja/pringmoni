@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { Header } from "@/components/layout/Header"
 import { DashboardClient } from "@/components/layout/DashboardClient"
+import { UserProvider } from "@/lib/user-context"
 
 export default async function DashboardLayout({
   children,
@@ -15,8 +16,10 @@ export default async function DashboardLayout({
   }
 
   return (
-    <DashboardClient role={session.user.role} header={<Header />}>
-      {children}
-    </DashboardClient>
+    <UserProvider role={session.user.role}>
+      <DashboardClient role={session.user.role} header={<Header />}>
+        {children}
+      </DashboardClient>
+    </UserProvider>
   )
 }

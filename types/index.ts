@@ -179,31 +179,3 @@ export interface PerbandinganData {
   growthPendapatan: number
   growthPesanan: number
 }
-
-export interface KategoriAnalisis {
-  namaKategori: string
-  totalTerjual: number
-  totalPendapatan: number
-  persentase: number
-}
-
-export interface AnalisisTambahan {
-  cancelRate: number
-  totalBatal: number
-  totalPesanan: number
-  rataItemPerPesanan: number
-}
-
-export interface BandingData {
-  label: string
-  pendapatan: number
-  pesanan: number
-  itemTerjual: number
-  rataRata: number
-  tunai: number
-  qris: number
-  transfer: number
-  cancelRate: number
-  topMenu: MenuTerlaris[]
-  grafik: GrafikPoint[]
-}

@@ -16,17 +16,16 @@ npx tsx prisma/testPrisma.ts
 
 
 list
+-sblum pilih metode dan sudah pilih metode tpi expired, dicatat di log?
+-cek per page apaud cek role, keamanan scan npm audit, 
+-Synk, sonarqube untuk scan kerentnan
 -responsive di tamilan lain (sidebar cuma ada iconnya)
 -loading yg keliatan (misal logo) pada login,chekout dll
--
+-meja terpakai saat ada yg pesan dan kosong klo udah selesai pesanannya
 -batas konfirmasi pesanan yg blum dibayar dan pesanan yg diproses
 -midleware bedsarkan role, session login expired
 -meja dipake ga bisa buat pesen orang lain, tpi bsa jika pake hp yg sama pesen lagi
--nama pelanggan di saat pembayaran, orderid randomin berdasarkan waktu pesan aja,
 -tampil nama pelanggan di kartu pesanan aktif+struk 
 -customer bisa akses /dashboard, role lain sesuai fungsi
--Create Pesanan Detail Page (/dashboard/pesanan/[id]) → Lihat detail pesanan
--laporan page, create pesanan page(kasir)
 -konsisten ada error dibwh input, minimal huruf ditiap2 input
 -sanitasi input, hak akses tiap halaman role
-- halaman cara bayar, connect ke midtrans
