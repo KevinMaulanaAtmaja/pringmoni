@@ -688,6 +688,7 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
             </>
           )}
         </div>
+        </div>
 
       {activeTab === "belum" ? (
         /* Tab Belum Bayar */

@@ -141,7 +141,7 @@ export async function createPesanan(data: CreatePesananData) {
   revalidatePath("/dashboard/pesanan")
   revalidatePath(`/${tokenMeja}`)
 
-  return { success: true, orderId: pesanan.midtransOrderId }
+  return { success: true, orderId: pesanan.midtransOrderId, id: pesanan.id }
 }
 
 export async function getPesananForDashboard(filters?: {

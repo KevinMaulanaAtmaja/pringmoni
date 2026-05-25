@@ -22,9 +22,15 @@ export function DashboardClient({ role, header, children }: DashboardClientProps
           onToggle={() => setCollapsed((prev) => !prev)}
         />
       </div>
-      <main className={`flex-1 ${marginLeft} p-6 flex flex-col min-h-0 transition-all duration-300`}>
-        {header}
-        <div className="flex-1">{children}</div>
+      <main className={`flex-1 ${marginLeft} min-h-screen flex flex-col transition-all duration-300`}>
+        <div className="sticky top-0 z-10 w-full border-b bg-gray-50/95 backdrop-blur supports-[backdrop-filter]:bg-gray-50/60">
+          <div className="px-6 pt-6">
+            {header}
+          </div>
+        </div>
+        <div className="flex-1 px-6 pb-6">
+          {children}
+        </div>
       </main>
     </div>
   )

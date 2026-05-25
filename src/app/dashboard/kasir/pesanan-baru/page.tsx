@@ -164,6 +164,7 @@ export default function PesananBaruPage() {
         return
       }
 
+      const id = result.id as number
       const orderId = result.orderId
       let paymentResult: any = { success: true }
 
@@ -175,11 +176,11 @@ export default function PesananBaruPage() {
           return
         }
         const { prosesPembayaranTunai } = await import("@/app/actions/kasir")
-        paymentResult = await prosesPembayaranTunai(orderId, bayar)
+        paymentResult = await prosesPembayaranTunai(id, bayar)
       } else if (metodePembayaran === "qris") {
-        paymentResult = await prosesPembayaranQRIS(orderId)
+        paymentResult = await prosesPembayaranQRIS(id)
       } else if (metodePembayaran === "transfer") {
-        paymentResult = await prosesPembayaranTransfer(orderId)
+        paymentResult = await prosesPembayaranTransfer(id)
       }
 
       if ("error" in paymentResult) {

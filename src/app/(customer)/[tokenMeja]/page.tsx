@@ -19,6 +19,7 @@ type Menu = CustomerMenu;
 interface CreatePesananResult {
     success?: boolean;
     orderId?: string | null;
+    id?: number;
     error?: string;
 }
 

@@ -247,27 +247,29 @@ export default function LoggingPage() {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-4">
+        <div className="flex items-center justify-center gap-4 pt-2">
           <Button
             variant="outline"
             size="sm"
-            className="h-7 w-7 p-0"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
+            className="h-9"
           >
-            <ChevronLeft className="w-3 h-3" />
+            <ChevronLeft className="w-4 h-4" />
+            Prev
           </Button>
-          <span className="text-xs">
-            {currentPage}/{totalPages}
+          <span className="text-sm text-gray-500">
+            {currentPage} / {totalPages}
           </span>
           <Button
             variant="outline"
             size="sm"
-            className="h-7 w-7 p-0"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
+            className="h-9"
           >
-            <ChevronRight className="w-3 h-3" />
+            Next
+            <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       )}

@@ -560,7 +560,7 @@ export async function getAnalisisTambahan(
     itemMap.set(d.pesananId, (itemMap.get(d.pesananId) || 0) + d.jumlah)
   }
   const totalItems = Array.from(itemMap.values()).reduce((a, b) => a + b, 0)
-  const rataItemPerPesanan = itemMap.size > 0 ? Math.round((totalItems / itemMap.size) * 10) / 10 : 0
+  const rataItemPerPesanan = itemMap.size > 0 ? Math.round(totalItems / itemMap.size) : 0
 
   return {
     analisis: { cancelRate, totalBatal, totalPesanan, rataItemPerPesanan },
