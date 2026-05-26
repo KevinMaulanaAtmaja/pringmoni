@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { getPesananById, updateStatusPesanan, cancelPesanan } from "@/app/actions/pesanan"
-import type { Pesanan, DetailPesananItem } from "@/types"
+import type { DetailPesananItem } from "@/types"
 import { StatusPesanan } from "@prisma/client"
 import { ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
@@ -34,7 +34,33 @@ export default function PesananDetailPage() {
   const router = useRouter()
   const orderId = parseInt(params.id as string)
   
-  const [pesanan, setPesanan] = useState<Pesanan | null>(null)
+  interface PesananDetailView {
+    id: number
+    mejaId: number
+    statusPesanan: "menunggu" | "diproses" | "selesai" | "dibatalkan"
+    statusPembayaran: "menunggu" | "berhasil" | "dibatalkan"
+    totalHarga: number
+    biayaAdmin: number | null
+    ppn: number | null
+    metodePembayaran?: "qris" | "tunai" | "transfer"
+    jumlahBayar?: number
+    kembalian: number
+    createdAt: string
+    updatedAt: string
+    meja: {
+      id: number
+      nomorMeja: string
+      tipeMeja: "lesehan" | "kursi"
+      kapasitas: number
+      statusMeja: "kosong"
+    }
+    catatan: string | null
+    detailPesanan: DetailPesananItem[]
+    waiterUsername?: string | null
+    kasirUsername?: string | null
+  }
+
+  const [pesanan, setPesanan] = useState<PesananDetailView | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
@@ -42,8 +68,8 @@ export default function PesananDetailPage() {
   const loadPesanan = async () => {
     setLoading(true)
     try {
-      const result = await getPesananById(orderId)
-      if (!result || 'error' in result) {
+      const result: any = await getPesananById(orderId)
+      if (!result || result.error) {
         setError("Pesanan tidak ditemukan")
       } else {
         const items = (result.items || []).map((item: { id: number; menu_id: number; nama_menu: string; jumlah: number; harga_saat_pesan: number; catatan_item: string | null; foto_urls?: string[] }) => ({
@@ -56,16 +82,19 @@ export default function PesananDetailPage() {
           fotoUrls: item.foto_urls || [],
         }))
 
-        const mappedResult = {
+        const mappedResult: PesananDetailView = {
           id: result.id,
           mejaId: result.meja_id,
           statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "selesai" | "dibatalkan",
           statusPembayaran: result.status_pembayaran as "menunggu" | "berhasil" | "dibatalkan",
           totalHarga: Number(result.total_harga),
+          biayaAdmin: result.biaya_admin ? Number(result.biaya_admin) : null,
+          ppn: result.ppn ? Number(result.ppn) : null,
           metodePembayaran: (result.metode_pembayaran || undefined) as "qris" | "tunai" | "transfer" | undefined,
           jumlahBayar: result.jumlah_bayar ? Number(result.jumlah_bayar) : undefined,
           kembalian: Number(result.kembalian),
-          createdAt: result.created_at.toISOString(),
+          createdAt: result.created_at!.toISOString(),
+          updatedAt: (result.updated_at || result.created_at!).toISOString(),
           meja: {
             id: result.meja_id,
             nomorMeja: result.nomor_meja,
@@ -73,11 +102,11 @@ export default function PesananDetailPage() {
             kapasitas: 0,
             statusMeja: "kosong" as const,
           },
-          waiterId: undefined,
-          kasirId: undefined,
-          catatan: null,
+          waiterUsername: result.waiter_username || null,
+          kasirUsername: result.kasir_username || null,
+          catatan: result.catatan || null,
           detailPesanan: items,
-        } as Pesanan
+        }
         setPesanan(mappedResult)
       }
     } catch {
@@ -162,9 +191,21 @@ export default function PesananDetailPage() {
               </Badge>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Waktu</span>
+              <span className="text-muted-foreground">Pesanan Dibuat</span>
               <span className="font-medium">
                 {new Date(pesanan.createdAt).toLocaleString("id-ID", {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Terakhir Dilayani</span>
+              <span className="font-medium">
+                {new Date(pesanan.updatedAt).toLocaleString("id-ID", {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',
@@ -191,10 +232,32 @@ export default function PesananDetailPage() {
               <span className="text-muted-foreground">Subtotal</span>
               <span className="font-medium">Rp {pesanan.totalHarga.toLocaleString("id-ID")}</span>
             </div>
+            {(pesanan.biayaAdmin ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Biaya Admin</span>
+                <span className="font-medium">Rp {pesanan.biayaAdmin!.toLocaleString("id-ID")}</span>
+              </div>
+            )}
+            {(pesanan.ppn ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">PPN</span>
+                <span className="font-medium">Rp {pesanan.ppn!.toLocaleString("id-ID")}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t pt-4">
+              <span className="font-bold">Total</span>
+              <span className="font-bold text-lg">Rp {(pesanan.totalHarga + (pesanan.biayaAdmin ?? 0) + (pesanan.ppn ?? 0)).toLocaleString("id-ID")}</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Metode</span>
               <span className="font-medium">
-                {pesanan.kasirId ? 'Kasir #' + pesanan.kasirId : '-'}
+                {pesanan.metodePembayaran
+                  ? pesanan.metodePembayaran === "tunai"
+                    ? "Tunai"
+                    : pesanan.metodePembayaran === "qris"
+                      ? "QRIS"
+                      : "Transfer"
+                  : "-"}
               </span>
             </div>
             <div className="flex justify-between">
@@ -207,17 +270,13 @@ export default function PesananDetailPage() {
               <span className="text-muted-foreground">Kembalian</span>
               <span className="font-medium">Rp {pesanan.kembalian.toLocaleString("id-ID")}</span>
             </div>
-            <div className="flex justify-between border-t pt-4">
-              <span className="font-bold">Total</span>
-              <span className="font-bold text-lg">Rp {pesanan.totalHarga.toLocaleString("id-ID")}</span>
-            </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Waiter</span>
-              <span className="font-medium">{pesanan.waiterId ? 'Waiter #' + pesanan.waiterId : '-'}</span>
+              <span className="font-medium">{pesanan.waiterUsername || '-'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Kasir</span>
-              <span className="font-medium">{pesanan.kasirId ? 'Kasir #' + pesanan.kasirId : '-'}</span>
+              <span className="font-medium">{pesanan.kasirUsername || '-'}</span>
             </div>
           </CardContent>
         </Card>

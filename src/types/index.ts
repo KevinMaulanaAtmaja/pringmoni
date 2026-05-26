@@ -75,6 +75,8 @@ export interface Pesanan {
   catatan: string | null
   namaPelanggan?: string | null
   totalHarga: number
+  biayaAdmin?: number
+  ppn?: number
   metodePembayaran?: MetodePembayaran
   jumlahBayar?: number
   kembalian: number
@@ -89,4 +91,119 @@ export interface DashboardStats {
   mejaTerpakai: number
   mejaKosong: number
   pesananMenunggu: number
+}
+
+// Laporan types
+export type PeriodeLaporan = 'harian' | 'mingguan' | 'bulanan' | 'tahunan'
+
+export interface ItemLaporanPesanan {
+  id: number
+  nomorMeja: string
+  namaPelanggan: string | null
+  totalHarga: number
+  statusPesanan: string
+  metodePembayaran: string | null
+  statusPembayaran: string
+  createdAt: Date | string
+  kasirUsername: string | null
+  waiterUsername: string | null
+  items: Array<{
+    namaMenu: string
+    jumlah: number
+    hargaSaatPesan: number
+  }>
+}
+
+export interface LaporanPendapatan {
+  periode: string
+  label: string
+  totalPendapatan: number
+  totalPesanan: number
+  totalItemTerjual: number
+  tunai: number
+  qris: number
+  transfer: number
+  rataRataPesanan: number
+  detailPesanan: ItemLaporanPesanan[]
+}
+
+export interface MenuTerlaris {
+  namaMenu: string
+  kategori: string
+  totalTerjual: number
+  totalPendapatan: number
+}
+
+export interface LaporanMenuTerlaris {
+  periode: string
+  label: string
+  menus: MenuTerlaris[]
+}
+
+export interface LaporanKasir {
+  periode: string
+  label: string
+  daftarKasir: Array<{
+    username: string
+    totalTransaksi: number
+    totalPendapatan: number
+    tunai: number
+    qris: number
+    transfer: number
+    rataRata: number
+  }>
+}
+
+export interface LaporanSummary {
+  harian: LaporanPendapatan
+  mingguan: LaporanPendapatan
+  bulanan: LaporanPendapatan
+  tahunan: LaporanPendapatan
+  menuTerlaris: MenuTerlaris[]
+  laporanKasir: LaporanKasir
+}
+
+// Grafik & Perbandingan types
+export interface GrafikPoint {
+  label: string
+  pendapatan: number
+  pesanan: number
+}
+
+export interface PerbandinganData {
+  periodeSebelumnya: string
+  nominalSebelumnya: number
+  nominalSekarang: number
+  pesananSebelumnya: number
+  pesananSekarang: number
+  growthPendapatan: number
+  growthPesanan: number
+}
+
+export interface KategoriAnalisis {
+  namaKategori: string
+  totalTerjual: number
+  totalPendapatan: number
+  persentase: number
+}
+
+export interface AnalisisTambahan {
+  cancelRate: number
+  totalBatal: number
+  totalPesanan: number
+  rataItemPerPesanan: number
+}
+
+export interface BandingData {
+  label: string
+  pendapatan: number
+  pesanan: number
+  itemTerjual: number
+  rataRata: number
+  tunai: number
+  qris: number
+  transfer: number
+  cancelRate: number
+  topMenu: MenuTerlaris[]
+  grafik: GrafikPoint[]
 }

@@ -1,9 +1,11 @@
 "use server"
 
+import crypto from "crypto"
 import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
-import { StatusPesanan, StatusBayar } from "@prisma/client"
+import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
+import { hitungAdminFee, hitungExpiryMenit } from "@/lib/fee"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()
@@ -18,6 +20,18 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const validStatuses = [StatusPesanan.menunggu, StatusPesanan.diproses, StatusPesanan.selesai, StatusPesanan.dibatalkan]
   if (!validStatuses.includes(status)) {
     return { error: "Status tidak valid" }
+  }
+
+  const pesanan = await prisma.pesanan.findFirst({
+    where: { id, deletedAt: null },
+  })
+
+  if (!pesanan) {
+    return { error: "Pesanan tidak ditemukan" }
+  }
+
+  if (status === StatusPesanan.dibatalkan && pesanan.statusPembayaran === 'berhasil') {
+    return { error: "Tidak bisa membatalkan pesanan yang sudah dibayar" }
   }
 
   await prisma.pesanan.update({
@@ -99,12 +113,15 @@ export async function createPesanan(data: CreatePesananData) {
     totalHarga += harga * item.jumlah
   }
 
+  const publicId = crypto.randomUUID()
+
   const pesanan = await prisma.pesanan.create({
     data: {
       mejaId: meja.id,
       statusPesanan: StatusPesanan.menunggu,
       totalHarga: totalHarga,
       namaPelanggan: namaPelanggan || null,
+      midtransOrderId: publicId,
       detailPesanan: {
         create: items.map(item => ({
           menuId: item.menuId,
@@ -124,7 +141,7 @@ export async function createPesanan(data: CreatePesananData) {
   revalidatePath("/dashboard/pesanan")
   revalidatePath(`/${tokenMeja}`)
 
-  return { success: true, orderId: pesanan.id }
+  return { success: true, orderId: pesanan.midtransOrderId, id: pesanan.id }
 }
 
 export async function getPesananForDashboard(filters?: {
@@ -137,26 +154,16 @@ export async function getPesananForDashboard(filters?: {
     return { error: "Unauthorized" }
   }
 
-  const whereClause: any = {
+  const whereClause: Prisma.PesananWhereInput = {
     deletedAt: null,
-  }
-
-  if (filters?.status && filters.status !== 'all') {
-    whereClause.statusPesanan = filters.status as StatusPesanan
-  }
-
-  if (filters?.tanggal) {
-    const date = new Date(filters.tanggal)
-    const nextDay = new Date(date)
-    nextDay.setDate(nextDay.getDate() + 1)
-    whereClause.createdAt = {
-      gte: date,
-      lt: nextDay,
-    }
-  }
-
-  if (filters?.mejaId) {
-    whereClause.mejaId = filters.mejaId
+    ...(filters?.status && filters.status !== 'all' ? { statusPesanan: filters.status as StatusPesanan } : {}),
+    ...(filters?.tanggal ? {
+      createdAt: {
+        gte: new Date(filters.tanggal),
+        lt: (() => { const d = new Date(filters.tanggal); d.setDate(d.getDate() + 1); return d })(),
+      },
+    } : {}),
+    ...(filters?.mejaId ? { mejaId: filters.mejaId } : {}),
   }
 
   const pesanan = await prisma.pesanan.findMany({
@@ -165,9 +172,12 @@ export async function getPesananForDashboard(filters?: {
       meja: true,
       waiter: true,
       kasir: true,
-      detailPesanan: true,
+      detailPesanan: {
+        include: { menu: true },
+      },
     },
     orderBy: { createdAt: 'desc' },
+    take: 100,
   })
 
   return pesanan.map(p => ({
@@ -179,7 +189,10 @@ export async function getPesananForDashboard(filters?: {
     statusBayar: p.statusPembayaran,
     total: Number(p.totalHarga),
     waktu: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt?.toISOString() || p.createdAt.toISOString(),
     items: p.detailPesanan.length,
+    itemNames: p.detailPesanan.slice(0, 3).map(d => d.menu.namaMenu),
+    sisaItems: Math.max(0, p.detailPesanan.length - 3),
     waiterUsername: p.waiter?.username || null,
     kasirUsername: p.kasir?.username || null,
     namaPelanggan: p.namaPelanggan || null,
@@ -206,11 +219,10 @@ export async function updatePembayaran(
   await prisma.pesanan.update({
     where: { id: pesananId },
     data: {
-      metodePembayaran: data.metodePembayaran as any,
+      metodePembayaran: data.metodePembayaran as MetodePembayaran,
       jumlahBayar: data.jumlahBayar,
       kembalian: data.kembalian,
       statusPembayaran: StatusBayar.berhasil,
-      statusPesanan: StatusPesanan.selesai,
       kasirId: parseInt(session.user.id),
     },
   })
@@ -256,13 +268,17 @@ export async function getPesananById(id: number) {
     status_pesanan: pesanan.statusPesanan,
     status_pembayaran: pesanan.statusPembayaran,
     total_harga: Number(pesanan.totalHarga),
+    biaya_admin: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : null,
+    ppn: pesanan.ppn ? Number(pesanan.ppn) : null,
     metode_pembayaran: pesanan.metodePembayaran,
     jumlah_bayar: pesanan.jumlahBayar ? Number(pesanan.jumlahBayar) : null,
     kembalian: Number(pesanan.kembalian),
     created_at: pesanan.createdAt,
+    updated_at: pesanan.updatedAt || pesanan.createdAt,
     waiter_username: pesanan.waiter?.username || null,
     kasir_username: pesanan.kasir?.username || null,
     nama_pelanggan: pesanan.namaPelanggan || null,
+    catatan: pesanan.catatan || null,
     items: pesanan.detailPesanan.map(item => ({
       id: item.id,
       menu_id: item.menuId,
@@ -271,13 +287,14 @@ export async function getPesananById(id: number) {
       harga_saat_pesan: Number(item.hargaSaatPesan),
       catatan_item: item.catatanItem,
       foto_urls: item.menu.menuFoto.map(f => f.fotoUrl),
+      status_antar: item.statusAntar,
     })),
   }
 }
 
-export async function getPesananForCheckout(id: number) {
+export async function getPesananForCheckout(publicId: string) {
   const pesanan = await prisma.pesanan.findFirst({
-    where: { id, deletedAt: null },
+    where: { midtransOrderId: publicId, deletedAt: null },
     include: {
       detailPesanan: {
         include: { menu: true },
@@ -290,6 +307,7 @@ export async function getPesananForCheckout(id: number) {
   }
 
   return {
+    id: pesanan.id,
     items: pesanan.detailPesanan.map(item => ({
       id: item.menuId,
       namaMenu: item.menu.namaMenu,
@@ -299,40 +317,348 @@ export async function getPesananForCheckout(id: number) {
     })),
     subtotal: Number(pesanan.totalHarga),
     total: Number(pesanan.totalHarga),
+    biayaAdmin: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : null,
+    ppn: pesanan.ppn ? Number(pesanan.ppn) : null,
+    waktu: pesanan.createdAt.toISOString(),
+    namaPelanggan: pesanan.namaPelanggan,
   }
 }
 
-export async function createMidtransPayment(pesananId: number, metode: 'qris' | 'transfer') {
-  const session = await auth()
-  if (!session?.user) {
-    return { error: "Unauthorized" }
-  }
+export async function createMidtransPayment(publicId: string, tokenMeja: string, metode: 'qris' | 'transfer', bank: string = 'bca') {
+  const meja = await getMejaByToken(tokenMeja)
+  if (!meja) return { error: "Token meja tidak valid" }
 
   const pesanan = await prisma.pesanan.findFirst({
-    where: { id: pesananId, deletedAt: null },
+    where: { midtransOrderId: publicId, mejaId: meja.id, deletedAt: null },
     include: {
-      meja: true,
       detailPesanan: { include: { menu: true } },
     },
+  })
+
+  if (!pesanan) return { error: "Pesanan tidak ditemukan" }
+  if (pesanan.statusPembayaran !== StatusBayar.menunggu) return { error: "Pesanan sudah dibayar" }
+
+  const totalHarga = Number(pesanan.totalHarga)
+  const adminFee = hitungAdminFee(metode, totalHarga)
+  const grossAmount = totalHarga + adminFee
+  const expiryMenit = hitungExpiryMenit(metode)
+  const midtransOrderId = `PRING-${publicId}`
+
+  // Kalo udah pernah generate, skip Midtrans API
+  if (pesanan.midtransTransactionId) {
+    const { checkMidtransTransaction } = await import("@/lib/midtrans")
+    const result = await checkMidtransTransaction(midtransOrderId)
+
+    if (!result.success) {
+      return { error: "Transaksi tidak ditemukan" }
+    }
+
+    const data = result.data as Record<string, unknown>
+
+    if (metode === "transfer") {
+      const vaNumbers = data.va_numbers as Array<{ bank: string; va_number: string }> | undefined
+      const vaNumber = vaNumbers?.[0]?.va_number || null
+      const actualBank = vaNumbers?.[0]?.bank || "bca"
+      return {
+        success: true,
+        payment_type: "bank_transfer" as const,
+        bank: actualBank,
+        va_number: vaNumber,
+        transaction_id: data.transaction_id as string || pesanan.midtransTransactionId,
+        adminFee,
+        totalBayar: grossAmount,
+        expiryMenit,
+      }
+    }
+
+    if (metode === "qris") {
+      const actions = data.actions as Array<{ name: string; method: string; url: string }> | undefined
+      const qrAction = actions?.find(a => a.name === "generate-qr-code")
+      const qrUrl = qrAction?.url || null
+      return {
+        success: true,
+        payment_type: "other_qris" as const,
+        qr_url: qrUrl,
+        transaction_id: data.transaction_id as string || pesanan.midtransTransactionId,
+        adminFee,
+        totalBayar: grossAmount,
+        expiryMenit,
+      }
+    }
+
+    return { error: "Metode pembayaran tidak didukung" }
+  }
+
+  // First time: call Midtrans API
+  const { createCorePayment } = await import("@/lib/midtrans")
+  const result = await createCorePayment({
+    order_id: midtransOrderId,
+    gross_amount: grossAmount,
+    payment_type: metode === "transfer" ? "bank_transfer" : "other_qris",
+    bank: metode === "transfer" ? bank : undefined,
+    customer_details: {
+      first_name: pesanan.namaPelanggan || "Customer",
+    },
+    item_details: [
+      ...pesanan.detailPesanan.map(item => ({
+        id: String(item.menuId),
+        price: Number(item.hargaSaatPesan),
+        quantity: item.jumlah,
+        name: item.menu.namaMenu,
+      })),
+      {
+        id: "admin-fee",
+        price: adminFee,
+        quantity: 1,
+        name: metode === "transfer" ? "Biaya Admin Transfer" : "Biaya Admin QRIS",
+      },
+    ],
+    expiry: { duration: expiryMenit, unit: "minute" },
+  })
+
+  if (!result.success) {
+    // Coba ambil transaksi yg udah ada di Midtrans (406 conflict)
+    const { checkMidtransTransaction } = await import("@/lib/midtrans")
+    const existing = await checkMidtransTransaction(midtransOrderId)
+
+    if (existing.success) {
+      const data = existing.data as Record<string, unknown>
+      await prisma.pesanan.update({
+        where: { id: pesanan.id },
+        data: {
+          metodePembayaran: metode as MetodePembayaran,
+          midtransTransactionId: data.transaction_id as string,
+          biayaAdmin: adminFee,
+          ppn: 0,
+        },
+      })
+      return buildPaymentResult(metode, data, adminFee, grossAmount, data.transaction_id as string, expiryMenit)
+    }
+
+    // Fallback: QRIS simulation for sandbox/development
+    if (metode === "qris" && process.env.NODE_ENV !== "production") {
+      const simTransactionId = `SIM-${crypto.randomUUID()}`
+      const simQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SIMULASI-QRIS-${publicId}`
+
+      await prisma.pesanan.update({
+        where: { id: pesanan.id },
+        data: {
+          metodePembayaran: metode as MetodePembayaran,
+          midtransTransactionId: simTransactionId,
+          biayaAdmin: adminFee,
+          ppn: 0,
+        },
+      })
+
+      return {
+        success: true,
+        payment_type: "other_qris" as const,
+        qr_url: simQrUrl,
+        transaction_id: simTransactionId,
+        adminFee,
+        totalBayar: grossAmount,
+        expiryMenit,
+      }
+    }
+
+    return { error: result.error || "Gagal membuat transaksi pembayaran" }
+  }
+
+  const data = result.data as Record<string, unknown>
+
+  // Simpan transactionId + metode setelah Midtrans berhasil
+  await prisma.pesanan.update({
+    where: { id: pesanan.id },
+    data: {
+      metodePembayaran: metode as MetodePembayaran,
+      midtransTransactionId: data.transaction_id as string,
+      biayaAdmin: adminFee,
+      ppn: 0,
+    },
+  })
+
+  return buildPaymentResult(metode, data, adminFee, grossAmount, data.transaction_id as string, expiryMenit)
+}
+
+function buildPaymentResult(
+  metode: 'qris' | 'transfer',
+  data: Record<string, unknown>,
+  adminFee: number,
+  totalBayar: number,
+  transactionId: string | null,
+  expiryMenit: number,
+) {
+  if (metode === "transfer") {
+    const vaNumbers = data.va_numbers as Array<{ bank: string; va_number: string }> | undefined
+    const vaNumber = vaNumbers?.[0]?.va_number || null
+    const actualBank = vaNumbers?.[0]?.bank || "bca"
+    return {
+      success: true,
+      payment_type: "bank_transfer" as const,
+      bank: actualBank,
+      va_number: vaNumber,
+      transaction_id: transactionId,
+      adminFee,
+      totalBayar,
+      expiryMenit,
+    }
+  }
+
+  if (metode === "qris") {
+    const actions = data.actions as Array<{ name: string; method: string; url: string }> | undefined
+    const qrAction = actions?.find(a => a.name === "generate-qr-code")
+    let qrUrl: string | null = qrAction?.url || null
+
+    if (!qrUrl && transactionId) {
+      const baseUrl = process.env.NODE_ENV === "production"
+        ? "https://api.midtrans.com"
+        : "https://api.sandbox.midtrans.com"
+      qrUrl = `${baseUrl}/v2/qris/${transactionId}/qr-code`
+    }
+
+    return {
+      success: true,
+      payment_type: "other_qris" as const,
+      qr_url: qrUrl,
+      transaction_id: transactionId,
+      adminFee,
+      totalBayar,
+      expiryMenit,
+    }
+  }
+
+  return { error: "Metode pembayaran tidak didukung" }
+}
+
+export async function checkMidtransPaymentStatus(publicId: string) {
+  const pesanan = await prisma.pesanan.findFirst({
+    where: { midtransOrderId: publicId, deletedAt: null },
+    select: { id: true, midtransOrderId: true, midtransTransactionId: true, statusPembayaran: true },
   })
 
   if (!pesanan) {
     return { error: "Pesanan tidak ditemukan" }
   }
 
-  if (pesanan.statusPembayaran !== StatusBayar.menunggu) {
-    return { error: "Pesanan sudah dibayar" }
+  // If already paid offline (e.g. cashier processed Tunai), return success immediately
+  if (pesanan.statusPembayaran === StatusBayar.berhasil) {
+    return { success: true, transaction_status: "settlement", isSuccess: true }
   }
 
-  return { error: "Midtrans belum dikonfigurasi" }
+  // Simulated QRIS transaction (sandbox/development)
+  if (pesanan.midtransTransactionId?.startsWith("SIM-")) {
+    await prisma.pesanan.update({
+      where: { id: pesanan.id },
+      data: {
+        statusPembayaran: StatusBayar.berhasil,
+      },
+    })
+    revalidatePath("/dashboard/kasir")
+    revalidatePath("/dashboard/pesanan")
+    return { success: true, transaction_status: "settlement", isSuccess: true }
+  }
+
+  if (!pesanan.midtransOrderId) {
+    return { error: "Belum ada transaksi Midtrans" }
+  }
+
+  const midtransOrderId = `PRING-${pesanan.midtransOrderId}`
+
+  try {
+    const { checkMidtransTransaction } = await import("@/lib/midtrans")
+    const result = await checkMidtransTransaction(midtransOrderId)
+
+    if (!result.success) {
+      return { error: result.error || "Gagal mengecek status pembayaran" }
+    }
+
+    const status = result.data.transaction_status as string
+    const isSuccess = status === "capture" || status === "settlement"
+
+    if (isSuccess) {
+      await prisma.pesanan.update({
+        where: { id: pesanan.id },
+        data: {
+          statusPembayaran: StatusBayar.berhasil,
+          jumlahBayar: Number(result.data.gross_amount),
+          kembalian: 0,
+        },
+      })
+      revalidatePath("/dashboard/kasir")
+      revalidatePath("/dashboard/pesanan")
+    }
+
+    return {
+      success: true,
+      transaction_status: status,
+      isSuccess,
+    }
+  } catch {
+    return { error: "Gagal mengecek status pembayaran" }
+  }
 }
 
-export async function checkMidtransPaymentStatus(pesananId: number) {
-  const session = await auth()
-  if (!session?.user) {
-    return { error: "Unauthorized" }
+export async function getCustomerPaymentStatus(publicId: string) {
+  const pesanan = await prisma.pesanan.findFirst({
+    where: { midtransOrderId: publicId, deletedAt: null },
+    select: { statusPembayaran: true, metodePembayaran: true },
+  })
+
+  if (!pesanan) {
+    return null
   }
-  return { error: "Midtrans belum dikonfigurasi" }
+
+  return {
+    statusPembayaran: pesanan.statusPembayaran,
+    metodePembayaran: pesanan.metodePembayaran,
+  }
+}
+
+export async function checkMidtransStatusReadOnly(publicId: string) {
+  const pesanan = await prisma.pesanan.findFirst({
+    where: { midtransOrderId: publicId, deletedAt: null },
+    select: { id: true, midtransOrderId: true, midtransTransactionId: true },
+  })
+
+  if (!pesanan?.midtransOrderId) {
+    return { error: "Belum ada transaksi Midtrans" }
+  }
+
+  // Simulated QRIS transaction (sandbox/development)
+  if (pesanan.midtransTransactionId?.startsWith("SIM-")) {
+    return {
+      success: true,
+      transaction_status: "settlement",
+      isSuccess: true,
+      isExpired: false,
+      gross_amount: 0,
+    }
+  }
+
+  const midtransOrderId = `PRING-${pesanan.midtransOrderId}`
+
+  try {
+    const { checkMidtransTransaction } = await import("@/lib/midtrans")
+    const result = await checkMidtransTransaction(midtransOrderId)
+
+    if (!result.success) {
+      return { error: result.error || "Gagal mengecek status pembayaran" }
+    }
+
+    const status = result.data.transaction_status as string
+    const isSuccess = status === "capture" || status === "settlement"
+    const isExpired = status === "expire" || status === "cancel" || status === "deny" || status === "failure"
+
+    return {
+      success: true,
+      transaction_status: status,
+      isSuccess,
+      isExpired,
+      gross_amount: Number(result.data.gross_amount),
+    }
+  } catch {
+    return { error: "Gagal mengecek status pembayaran" }
+  }
 }
 
 export async function markPesananSelesai(id: number) {
@@ -354,7 +680,7 @@ export async function markPesananSelesai(id: number) {
     return { error: "Pesanan tidak ditemukan" }
   }
 
-  if (pesanan.statusPesanan !== StatusPesanan.menunggu) {
+  if (pesanan.statusPesanan !== StatusPesanan.menunggu && pesanan.statusPesanan !== StatusPesanan.diproses) {
     return { error: "Pesanan belum diproses" }
   }
 
@@ -363,6 +689,7 @@ export async function markPesananSelesai(id: number) {
     data: {
       statusPesanan: StatusPesanan.selesai,
       waiterId: parseInt(session.user.id),
+      updatedAt: new Date(),
     },
   })
 
@@ -388,10 +715,15 @@ export async function cancelPesanan(id: number) {
     return { error: "Pesanan tidak ditemukan" }
   }
 
+  if (pesanan.statusPembayaran === 'berhasil') {
+    return { error: "Tidak bisa membatalkan pesanan yang sudah dibayar" }
+  }
+
   await prisma.pesanan.update({
     where: { id },
     data: {
       statusPesanan: StatusPesanan.dibatalkan,
+      statusPembayaran: StatusBayar.dibatalkan,
       deletedAt: new Date(),
     },
   })
@@ -441,4 +773,206 @@ export async function getActivePesananByToken(tokenMeja: string) {
     waktu: pesanan.createdAt.toISOString(),
     namaPelanggan: pesanan.namaPelanggan || null,
   }
+}
+
+export async function getPesananByTokenAndId(tokenMeja: string, publicId: string) {
+  const meja = await getMejaByToken(tokenMeja)
+  if (!meja) return null
+
+  const pesanan = await prisma.pesanan.findFirst({
+    where: {
+      midtransOrderId: publicId,
+      mejaId: meja.id,
+      deletedAt: null,
+    },
+    include: {
+      detailPesanan: { include: { menu: { include: { menuFoto: true } } } },
+      meja: true,
+    },
+  })
+
+  if (!pesanan) return null
+
+  const subtotal = Number(pesanan.totalHarga)
+  const adminFee = pesanan.metodePembayaran === 'tunai' || !pesanan.metodePembayaran
+    ? 0
+    : hitungAdminFee(pesanan.metodePembayaran as 'transfer' | 'qris', subtotal)
+  const ppn = 0
+
+  return {
+    id: pesanan.id,
+    midtransOrderId: pesanan.midtransOrderId,
+    items: pesanan.detailPesanan.map(item => ({
+      id: item.menuId,
+      detailId: item.id,
+      namaMenu: item.menu.namaMenu,
+      harga: Number(item.hargaSaatPesan),
+      jumlah: item.jumlah,
+      catatan: item.catatanItem,
+      statusAntar: item.statusAntar,
+      fotoUrl: item.menu.menuFoto[0]?.fotoUrl || null,
+    })),
+    subtotal,
+    adminFee,
+    ppn,
+    total: subtotal + adminFee + ppn,
+    status: pesanan.statusPesanan,
+    statusPembayaran: pesanan.statusPembayaran,
+    waktu: pesanan.createdAt.toISOString(),
+    namaPelanggan: pesanan.namaPelanggan || null,
+    metodePembayaran: pesanan.metodePembayaran,
+    nomorMeja: pesanan.meja.nomorMeja,
+  }
+}
+
+export async function konfirmasiPembayaranCustomer(
+  publicId: string,
+  tokenMeja: string,
+  metode: string
+) {
+  const meja = await getMejaByToken(tokenMeja)
+  if (!meja) return { error: "Token meja tidak valid" }
+
+  const pesanan = await prisma.pesanan.findFirst({
+    where: { midtransOrderId: publicId, mejaId: meja.id, deletedAt: null },
+  })
+
+  if (!pesanan) return { error: "Pesanan tidak ditemukan" }
+  if (pesanan.statusPembayaran !== StatusBayar.menunggu) {
+    return { error: "Pesanan sudah dikonfirmasi" }
+  }
+  if (!['tunai', 'transfer', 'qris'].includes(metode)) {
+    return { error: "Metode pembayaran tidak valid" }
+  }
+
+  const BATAS_MENIT = 60
+  const waktuDibuat = new Date(pesanan.createdAt).getTime()
+  const waktuSekarang = Date.now()
+  const selisihMenit = (waktuSekarang - waktuDibuat) / 1000 / 60
+  if (selisihMenit > BATAS_MENIT) {
+    return { error: `Waktu konfirmasi pembayaran telah habis (lebih dari ${BATAS_MENIT} menit). Silakan hubungi kasir.` }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.pesanan.update({
+      where: { id: pesanan.id },
+      data: { metodePembayaran: metode as MetodePembayaran },
+    })
+
+    if (!updated) {
+      throw new Error("Gagal mengupdate pesanan")
+    }
+  })
+
+  revalidatePath("/dashboard/kasir")
+  revalidatePath("/dashboard/pesanan")
+
+  return { success: true }
+}
+
+export async function markItemDiantar(detailId: number) {
+  const session = await auth()
+  if (!session?.user) {
+    return { error: "Unauthorized" }
+  }
+
+  const detail = await prisma.detailPesanan.findUnique({
+    where: { id: detailId },
+    select: { id: true, statusAntar: true, pesananId: true },
+  })
+
+  if (!detail) {
+    return { error: "Item tidak ditemukan" }
+  }
+
+  const newStatus = detail.statusAntar === 'diantar' ? 'belum' : 'diantar'
+
+  await prisma.detailPesanan.update({
+    where: { id: detailId },
+    data: { statusAntar: newStatus as any },
+  })
+
+  revalidatePath("/dashboard/pesanan")
+
+  return { success: true, statusAntar: newStatus }
+}
+
+export async function cancelExpiredOrders() {
+  const now = new Date()
+
+  // 1. Orders that chose method but didn't pay → expired after expiry time
+  const expiredWithMethod = await prisma.pesanan.findMany({
+    where: {
+      statusPembayaran: 'menunggu',
+      metodePembayaran: { not: null },
+      deletedAt: null,
+    },
+    select: { id: true, createdAt: true, metodePembayaran: true, midtransTransactionId: true },
+  })
+
+  for (const p of expiredWithMethod) {
+    const expiryMenit = p.metodePembayaran === 'qris' ? 15 : 60
+    const expiredAt = new Date(p.createdAt.getTime() + expiryMenit * 60000)
+    if (now >= expiredAt) {
+      await prisma.pesanan.update({
+        where: { id: p.id },
+        data: {
+          statusPembayaran: 'dibatalkan',
+          statusPesanan: 'dibatalkan',
+          catatan: 'Expired',
+        },
+      })
+      // Void Midtrans transaction if not SIM
+      if (p.midtransTransactionId && !p.midtransTransactionId.startsWith('SIM-')) {
+        try {
+          const { voidMidtransTransaction } = await import("@/lib/midtrans")
+          await voidMidtransTransaction(p.midtransTransactionId)
+        } catch {}
+      }
+    }
+  }
+
+  // 2. Orders with no method chosen → expired after 1 hour
+  const expiredNoMethod = await prisma.pesanan.findMany({
+    where: {
+      statusPembayaran: 'menunggu',
+      metodePembayaran: null,
+      deletedAt: null,
+    },
+    select: { id: true, createdAt: true },
+  })
+
+  for (const p of expiredNoMethod) {
+    const expiredAt = new Date(p.createdAt.getTime() + 60 * 60000)
+    if (now >= expiredAt) {
+      await prisma.pesanan.update({
+        where: { id: p.id },
+        data: {
+          statusPembayaran: 'dibatalkan',
+          statusPesanan: 'dibatalkan',
+          catatan: 'Tidak memilih pembayaran',
+        },
+      })
+    }
+  }
+
+  return { success: true }
+}
+
+export async function updateNamaPelanggan(publicId: string, tokenMeja: string, nama: string) {
+  const meja = await getMejaByToken(tokenMeja)
+  if (!meja) return { error: "Token meja tidak valid" }
+
+  const pesanan = await prisma.pesanan.findFirst({
+    where: { midtransOrderId: publicId, mejaId: meja.id, deletedAt: null },
+  })
+
+  if (!pesanan) return { error: "Pesanan tidak ditemukan" }
+
+  await prisma.pesanan.update({
+    where: { id: pesanan.id },
+    data: { namaPelanggan: nama },
+  })
+
+  return { success: true }
 }

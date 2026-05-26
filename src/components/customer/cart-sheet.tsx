@@ -33,6 +33,7 @@ interface CartSheetProps {
   onUpdateJumlah: (key: string, jumlah: number) => void;
   onHapus: (key: string) => void;
   onCheckout?: () => void;
+  submitting?: boolean;
   subtotal: number;
   totalHarga: number;
   voucher: Voucher | null;
@@ -57,6 +58,7 @@ export function CartSheet({
   onUpdateJumlah,
   onHapus,
   onCheckout,
+  submitting,
   subtotal,
   totalHarga,
   voucher,
@@ -291,8 +293,8 @@ return (
         {/* Checkout Button */}
         {keranjang.length > 0 && (
           <div className="p-4 border-t bg-background">
-            <Button className="w-full rounded-full h-12" size="lg" onClick={onCheckout}>
-              Checkout
+            <Button className="w-full rounded-full h-12" size="lg" onClick={onCheckout} disabled={submitting}>
+              {submitting ? "Memproses..." : "Checkout"}
             </Button>
           </div>
         )}

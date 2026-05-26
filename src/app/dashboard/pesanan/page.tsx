@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -12,9 +13,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { getPesananForDashboard, updateStatusPesanan, markPesananSelesai, getPesananById } from "@/app/actions/pesanan"
+import { getPesananForDashboard, updateStatusPesanan, markPesananSelesai, getPesananById, markItemDiantar } from "@/app/actions/pesanan"
 import { StatusPesanan } from "@prisma/client"
-import { Eye, RotateCcw, Printer, CheckCircle, SearchX, Inbox, XCircle, ChevronLeft, ChevronRight, Clock, ArrowRightLeft } from "lucide-react"
+import { Eye, Printer, CheckCircle, SearchX, Inbox, XCircle, ChevronLeft, ChevronRight, Clock, ArrowRightLeft } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -23,7 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { useSession } from "next-auth/react"
+import { useUserRole } from "@/lib/user-context"
 import { printStruk } from "@/lib/print-struk"
 
 const statusColors: Record<string, string> = {
@@ -48,7 +49,10 @@ interface PesananItem {
   statusBayar: string
   total: number
   items: number
+  itemNames: string[]
+  sisaItems: number
   waktu: string
+  updatedAt: string
   waiterUsername?: string | null
   namaPelanggan?: string | null
 }
@@ -60,13 +64,17 @@ interface PesananDetail {
   status_pesanan: string
   status_pembayaran: string
   total_harga: number
+  biaya_admin: number | null
+  ppn: number | null
   metode_pembayaran?: string | null
   jumlah_bayar?: number | null
   kembalian?: number
   created_at: Date
+  updated_at: Date
   waiter_username: string | null
   kasir_username: string | null
   nama_pelanggan?: string | null
+  catatan?: string | null
   items: Array<{
     id: number
     menu_id: number
@@ -75,12 +83,13 @@ interface PesananDetail {
     harga_saat_pesan: number
     catatan_item: string | null
     foto_urls: string[]
-    checked?: boolean
+    status_antar: string
   }>
 }
 
 export default function PesananPage() {
-  const { data: session } = useSession()
+  const userRole = useUserRole()
+  const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<"aktif" | "riwayat">("aktif")
 
@@ -107,12 +116,14 @@ export default function PesananPage() {
     return {}
   })
 
-  const toggleItemCheck = useCallback((pesananId: number, itemId: number) => {
-    setCheckedMap(prev => {
-      const next = { ...prev, [`${pesananId}-${itemId}`]: !prev[`${pesananId}-${itemId}`] }
-      sessionStorage.setItem("checkedMap", JSON.stringify(next))
-      return next
-    })
+  const toggleItemCheck = useCallback(async (pesananId: number, itemId: number) => {
+    const result = await markItemDiantar(itemId)
+    if (!result.error) {
+      setCheckedMap(prev => {
+        const next = { ...prev, [`${pesananId}-${itemId}`]: result.statusAntar === 'diantar' }
+        return next
+      })
+    }
   }, [])
   
   const pesananAktif = pesanan.filter(p => p.status === 'menunggu' || p.status === 'diproses')
@@ -236,6 +247,20 @@ export default function PesananPage() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  const pollDataAktif = useCallback(async () => {
+    try {
+      const pesananResult = await getPesananForDashboard()
+      if (!('error' in pesananResult) && Array.isArray(pesananResult)) {
+        setPesanan(pesananResult as PesananItem[])
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    const interval = setInterval(pollDataAktif, 5000)
+    return () => clearInterval(interval)
+  }, [pollDataAktif])
   
   const resetFilter = () => {
     setFilterSearchAktif("")
@@ -273,13 +298,12 @@ export default function PesananPage() {
         setShowCompleteModal(false)
       } else {
         const detail = result as unknown as PesananDetail
-        setSelectedPesananForComplete({
-          ...detail,
-          items: detail.items.map(item => ({
-            ...item,
-            checked: checkedMap[`${pesananId}-${item.id}`] || false
-          }))
+        const map: Record<string, boolean> = {}
+        detail.items.forEach(item => {
+          map[`${pesananId}-${item.id}`] = item.status_antar === 'diantar'
         })
+        setCheckedMap(map)
+        setSelectedPesananForComplete(detail)
       }
     } catch {
       setShowCompleteModal(false)
@@ -303,16 +327,9 @@ export default function PesananPage() {
       alert(result.error)
       return
     }
-    setCheckedMap(prev => {
-      const next = { ...prev }
-      Object.keys(next).forEach(k => {
-        if (k.startsWith(`${id}-`)) delete next[k]
-      })
-      sessionStorage.setItem("checkedMap", JSON.stringify(next))
-      return next
-    })
-    setShowDetailModal(false)
-    setSelectedPesanan(null)
+    setCheckedMap({})
+    setShowCompleteModal(false)
+    setSelectedPesananForComplete(null)
     fetchData()
   }
 
@@ -336,10 +353,6 @@ export default function PesananPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Kelola Pesanan</h1>
-        <Button onClick={fetchData} variant="outline" size="sm">
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
       </div>
 
       {/* Tabs & Filter */}
@@ -446,63 +459,56 @@ export default function PesananPage() {
           <>
 <div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-             {paginatedAktif.map((p) => (
-              <div key={p.id} className="bg-white rounded-xl border-2 border-l-chart-5 p-5 hover:shadow-lg transition-shadow flex flex-col">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold">Meja {p.meja}</h3>
-                    <p className="text-sm text-gray-500">#{p.id} · {new Date(p.waktu).toLocaleString("id-ID", { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</p>
-                    {p.waiterUsername && <p className="text-xs text-gray-400 mt-0.5">Waiter: {p.waiterUsername}</p>}
-                  </div>
-                  <Badge className={`${statusBayarColors[p.statusBayar]} text-sm px-3 py-1.5`}>
-                    {p.statusBayar === 'menunggu' ? 'Belum Bayar' : p.statusBayar === 'berhasil' ? 'Lunas' : 'Dibatalkan'}
-                  </Badge>
-                </div>
-                <div className="space-y-2 mb-4 bg-gray-50 rounded-lg p-3 flex-1">
-                  <div className="flex justify-between text-gray-700">
-                    <span className="text-base">{p.items} item</span>
-                    <span className="font-bold text-lg text-chart-5">Rp {p.total.toLocaleString("id-ID")}</span>
-                  </div>
-                </div>
-                <div className="border-t pt-4">
-                  <div className={`grid gap-2 ${session?.user?.role === 'waiter' && p.statusBayar === 'berhasil' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                    <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
-                      <Eye className="w-5 h-5 mr-2" /> Detail
-                    </Button>
-                    {p.statusBayar === 'berhasil' && (
-                      <Button variant="outline" size="lg" onClick={async () => {
-                        const detail = await getPesananById(p.id)
-                        if ('error' in detail) return
-                        printStruk({
-                          id: detail.id,
-                          nomorMeja: detail.nomor_meja,
-                          items: detail.items.map(i => ({
-                            nama: i.nama_menu,
-                            jumlah: i.jumlah,
-                            harga: Number(i.harga_saat_pesan),
-                          })),
-                          totalHarga: Number(detail.total_harga),
-                          metodePembayaran: detail.metode_pembayaran,
-                          jumlahBayar: detail.jumlah_bayar ? Number(detail.jumlah_bayar) : undefined,
-                          kembalian: Number(detail.kembalian),
-                          createdAt: detail.created_at,
-                          waiterUsername: detail.waiter_username,
-                          kasirUsername: detail.kasir_username,
-                          namaPelanggan: detail.nama_pelanggan,
-                        })
-                      }} className="text-base">
-                        <Printer className="w-5 h-5 mr-2" /> Struk
-                      </Button>
+              {paginatedAktif.map((p) => (
+               <div key={p.id} className="bg-white rounded-xl border-2 border-l-chart-5 p-5 hover:shadow-lg transition-shadow flex flex-col">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="text-2xl font-bold">Meja {p.meja}</h3>
+                      <p className="text-sm text-gray-500">#{p.id} · {new Date(p.waktu).toLocaleString("id-ID", { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</p>
+                    </div>
+                    <div className="flex gap-1 items-start">
+                    {Date.now() - new Date(p.updatedAt).getTime() < 60000 && p.statusBayar === 'berhasil' && (
+                      <Badge className="bg-green-500 text-white text-xs px-2 py-0.5">Baru Dibayar</Badge>
                     )}
-                    {session?.user?.role === 'waiter' && p.statusBayar === 'berhasil' && (
-                      <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
-                        <CheckCircle className="w-5 h-5 mr-2" /> Selesai
-                      </Button>
+                    <Badge className={`${p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'bg-orange-100 text-orange-800 border-orange-300' : statusBayarColors[p.statusBayar]} text-sm px-3 py-1.5`}>
+                      {p.statusBayar === 'menunggu' ? 'Belum Bayar' : p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'Menunggu Konfirmasi' : p.statusBayar === 'berhasil' ? 'Lunas' : 'Dibatalkan'}
+                    </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-3 bg-gray-50 rounded-lg p-3 flex-1 flex flex-col">
+                    <div className="flex-1">
+                      {p.namaPelanggan && (
+                        <p className="text-sm text-gray-600">
+                          <span className="text-gray-400">Atas nama:</span> {p.namaPelanggan}
+                        </p>
+                      )}
+                      <div className="text-sm text-gray-600">
+                        {p.itemNames.map((nama, i) => (
+                          <span key={i} className="block">• {nama}</span>
+                        ))}
+                        {p.sisaItems > 0 && (
+                          <p className="text-gray-400 mt-1">...dan {p.sisaItems} lainnya</p>
+                        )}
+                      </div>
+                    </div>
+                    {p.waiterUsername && (
+                      <p className="text-xs text-gray-400 mt-auto">Waiter: {p.waiterUsername}</p>
                     )}
                   </div>
-                </div>
-              </div>
-            ))}
+                 <div className="border-t pt-3">
+                   <div className="flex gap-2">
+                     <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
+                       <Eye className="w-5 h-5 mr-2" /> Detail
+                     </Button>
+                     {userRole === 'waiter' && p.statusBayar === 'berhasil' && (
+                       <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
+                         <CheckCircle className="w-5 h-5 mr-2" /> Tandai Item
+                       </Button>
+                     )}
+                   </div>
+                 </div>
+               </div>
+             ))}
           </div>
             </div>
           <div className="flex items-center justify-center gap-4 pt-2">
@@ -578,7 +584,7 @@ export default function PesananPage() {
                   <TableHead>ID</TableHead>
                   <TableHead>Meja</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Waiter</TableHead>
+                  <TableHead>Pelanggan</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Items</TableHead>
                   <TableHead>Waktu</TableHead>
@@ -604,11 +610,18 @@ export default function PesananPage() {
                            p.status === 'selesai' ? 'Selesai' : 'Dibatalkan'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm">{p.waiterUsername || '-'}</TableCell>
+                      <TableCell className="text-sm">{p.namaPelanggan || '-'}</TableCell>
                       <TableCell>Rp {p.total.toLocaleString("id-ID")}</TableCell>
                       <TableCell>{p.items} item</TableCell>
-                      <TableCell>
-                        {new Date(p.waktu).toLocaleString("id-ID", {
+                      <TableCell className="text-xs">
+                        Dibuat {new Date(p.waktu).toLocaleString("id-ID", {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                        <br />
+                        Layani {new Date(p.updatedAt).toLocaleString("id-ID", {
                           day: '2-digit',
                           month: 'short',
                           hour: '2-digit',
@@ -616,7 +629,7 @@ export default function PesananPage() {
                         })}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => openDetailModal(p.id)}>
+                        <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/pesanan/" + p.id)}>
                           <Eye className="w-4 h-4" />
                         </Button>
                       </TableCell>
@@ -665,80 +678,114 @@ export default function PesananPage() {
                <div className="py-8 text-center">Memuat detail pesanan...</div>
              ) : selectedPesanan ? (
                <div className="flex flex-col min-h-0 overflow-hidden">
-                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                   <div>
-                     <span className="text-gray-500">Meja:</span>
-                     <p className="font-medium">{selectedPesanan.nomor_meja}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Pelanggan:</span>
-                     <p className="font-medium">{selectedPesanan.nama_pelanggan || '-'}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Tipe:</span>
-                     <p className="font-medium">{selectedPesanan.tipe_meja === 'lesehan' ? 'Lesehan' : 'Kursi'}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Status:</span>
-                     <Badge className={`${statusColors[selectedPesanan.status_pesanan]} text-xs px-2 py-0.5`}>
-                       {selectedPesanan.status_pesanan === 'menunggu' ? 'Menunggu' : 
-                        selectedPesanan.status_pesanan === 'selesai' ? 'Selesai' : 'Dibatalkan'}
-                     </Badge>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Status Bayar:</span>
-                     <Badge className={`${statusBayarColors[selectedPesanan.status_pembayaran]} text-xs px-2 py-0.5`}>
-                       {selectedPesanan.status_pembayaran === 'menunggu' ? 'Menunggu' : 
-                        selectedPesanan.status_pembayaran === 'berhasil' ? 'Berhasil' : 'Dibatalkan'}
-                     </Badge>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Waiter:</span>
-                     <p className="font-medium">{selectedPesanan.waiter_username || '-'}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Kasir:</span>
-                     <p className="font-medium">{selectedPesanan.kasir_username || '-'}</p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Waktu:</span>
-                     <p className="font-medium">
-                       {new Date(selectedPesanan.created_at).toLocaleString("id-ID")}
-                     </p>
-                   </div>
-                   <div>
-                     <span className="text-gray-500">Total:</span>
-                     <p className="font-medium">Rp {Number(selectedPesanan.total_harga).toLocaleString("id-ID")}</p>
-                   </div>
-                 </div>
-                 
-                 <h4 className="font-medium text-xs mb-1.5 mt-3">Item Pesanan</h4>
-                 <div className="overflow-y-auto min-h-0" style={{ maxHeight: 150 }}>
-                   <div className="border rounded-lg divide-y">
-                     {selectedPesanan.items.map((item) => (
-                       <div key={item.id} className="p-2 flex items-center justify-between text-xs">
-                         <div className="flex items-center gap-3">
-                           <div>
-                             <p className="font-medium">{item.nama_menu}</p>
-                             <p className="text-gray-500">
-                               {item.jumlah}x Rp {Number(item.harga_saat_pesan).toLocaleString("id-ID")}
-                             </p>
-                             {item.catatan_item && (
-                               <p className="text-amber-600">Catatan: {item.catatan_item}</p>
-                             )}
-                           </div>
-                         </div>
-                         <p className="font-medium">
-                           Rp {(item.jumlah * Number(item.harga_saat_pesan)).toLocaleString("id-ID")}
-                         </p>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div>
+                      <span className="text-gray-500">Meja:</span>
+                      <p className="font-medium">{selectedPesanan.nomor_meja}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Pelanggan:</span>
+                      <p className="font-medium">{selectedPesanan.nama_pelanggan || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Tipe:</span>
+                      <p className="font-medium">{selectedPesanan.tipe_meja === 'lesehan' ? 'Lesehan' : 'Kursi'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Status:</span>
+                       <Badge className={`${statusColors[selectedPesanan.status_pesanan]} text-xs px-2 py-0.5`}>
+                         {selectedPesanan.status_pesanan === 'menunggu' ? 'Menunggu' : 
+                          selectedPesanan.status_pesanan === 'diproses' ? 'Diproses' :
+                          selectedPesanan.status_pesanan === 'selesai' ? 'Selesai' : 'Dibatalkan'}
+                       </Badge>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Status Bayar:</span>
+                      <Badge className={`${selectedPesanan.status_pembayaran === 'berhasil' && selectedPesanan.status_pesanan === 'menunggu' ? 'bg-orange-100 text-orange-800 border-orange-300' : statusBayarColors[selectedPesanan.status_pembayaran]} text-xs px-2 py-0.5`}>
+                        {selectedPesanan.status_pembayaran === 'menunggu' ? 'Menunggu' : 
+                         selectedPesanan.status_pembayaran === 'berhasil' && selectedPesanan.status_pesanan === 'menunggu' ? 'Menunggu Konfirmasi' :
+                         selectedPesanan.status_pembayaran === 'berhasil' ? 'Berhasil' : 'Dibatalkan'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Waiter:</span>
+                      <p className="font-medium">{selectedPesanan.waiter_username || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Kasir:</span>
+                      <p className="font-medium">{selectedPesanan.kasir_username || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Pesanan Dibuat:</span>
+                      <p className="font-medium">
+                        {new Date(selectedPesanan.created_at).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    {activeTab === "riwayat" && (
+                      <div>
+                        <span className="text-gray-500">Terakhir Dilayani:</span>
+                        <p className="font-medium">
+                          {new Date(selectedPesanan.updated_at).toLocaleString("id-ID")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedPesanan.catatan && (
+                    <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                      {selectedPesanan.catatan}
+                    </div>
+                  )}
+                  
+                  <h4 className="font-medium text-xs mb-1.5 mt-3">Item Pesanan</h4>
+                  <div className="overflow-y-auto min-h-0" style={{ maxHeight: 150 }}>
+                    <div className="border rounded-lg divide-y">
+                      {selectedPesanan.items.map((item) => (
+                        <div key={item.id} className="p-2 flex items-center justify-between text-xs">
+                          <div>
+                            <p className="font-medium">{item.nama_menu}</p>
+                            <p className="text-gray-500">
+                              {item.jumlah}x Rp {Number(item.harga_saat_pesan).toLocaleString("id-ID")}
+                            </p>
+                            {item.catatan_item && (
+                              <p className="text-amber-600">Catatan: {item.catatan_item}</p>
+                            )}
+                          </div>
+                          <p className="font-medium">
+                            Rp {(item.jumlah * Number(item.harga_saat_pesan)).toLocaleString("id-ID")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <h4 className="font-medium text-xs mb-1.5 mt-3">Rincian Harga</h4>
+                  <div className="text-xs space-y-0.5 border rounded-lg p-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span>Rp {Number(selectedPesanan.total_harga).toLocaleString("id-ID")}</span>
+                    </div>
+                    {(Number(selectedPesanan.biaya_admin) || 0) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Biaya Admin</span>
+                        <span>Rp {Number(selectedPesanan.biaya_admin).toLocaleString("id-ID")}</span>
+                      </div>
+                    )}
+                    {(Number(selectedPesanan.ppn) || 0) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">PPN</span>
+                        <span>Rp {Number(selectedPesanan.ppn).toLocaleString("id-ID")}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-semibold border-t pt-1">
+                      <span>Total</span>
+                      <span>Rp {(Number(selectedPesanan.total_harga) + (Number(selectedPesanan.biaya_admin) || 0) + (Number(selectedPesanan.ppn) || 0)).toLocaleString("id-ID")}</span>
+                    </div>
+                  </div>
                </div>
              ) : null}
-            <DialogFooter className="gap-2">
-              {activeTab === "riwayat" && selectedPesanan && selectedPesanan.status_pesanan !== 'menunggu' && (
+             <DialogFooter className="gap-2">
+              {selectedPesanan && selectedPesanan.status_pembayaran === 'berhasil' && activeTab === "riwayat" && (
                 <Button variant="outline" size="lg" onClick={() => printStruk({
                   id: selectedPesanan.id,
                   nomorMeja: selectedPesanan.nomor_meja,
@@ -748,6 +795,8 @@ export default function PesananPage() {
                     harga: Number(i.harga_saat_pesan),
                   })),
                   totalHarga: Number(selectedPesanan.total_harga),
+                  adminFee: selectedPesanan.biaya_admin ? Number(selectedPesanan.biaya_admin) : undefined,
+                  ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
                   metodePembayaran: selectedPesanan.metode_pembayaran,
                   jumlahBayar: selectedPesanan.jumlah_bayar ? Number(selectedPesanan.jumlah_bayar) : undefined,
                   kembalian: selectedPesanan.kembalian ? Number(selectedPesanan.kembalian) : undefined,
@@ -771,7 +820,7 @@ export default function PesananPage() {
         <Dialog open={showCompleteModal} onOpenChange={setShowCompleteModal}>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden grid-rows-[auto_1fr_auto]">
             <DialogHeader>
-              <DialogTitle>Selesaikan Pesanan #{selectedPesananForComplete?.id}</DialogTitle>
+              <DialogTitle>Coret Item - Pesanan #{selectedPesananForComplete?.id}</DialogTitle>
             </DialogHeader>
              {detailLoadingComplete ? (
               <div className="py-8 text-center">Memuat detail pesanan...</div>
@@ -783,13 +832,13 @@ export default function PesananPage() {
                     <p className="font-medium">{selectedPesananForComplete.nomor_meja}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Total:</span>
-                    <p className="font-medium">Rp {Number(selectedPesananForComplete.total_harga).toLocaleString("id-ID")}</p>
+                    <span className="text-gray-500">Pelanggan:</span>
+                    <p className="font-medium">{selectedPesananForComplete.nama_pelanggan || '-'}</p>
                   </div>
                 </div>
                 
                 <div className="mb-3 mt-4">
-                  <h4 className="font-medium">Centang Item yang Sudah Diterima</h4>
+                  <h4 className="font-medium">Centang Item yang Sudah Diantar</h4>
                 </div>
                 <div className="overflow-y-auto min-h-0" style={{ maxHeight: 210 }}>
                   <div className="border rounded-lg divide-y">
@@ -812,19 +861,13 @@ export default function PesananPage() {
                             />
                             <div>
                               <p className={`font-medium ${isChecked ? 'line-through text-gray-400' : ''}`}>
-                                {item.nama_menu}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {item.jumlah}x Rp {Number(item.harga_saat_pesan).toLocaleString("id-ID")}
+                                {item.jumlah}x {item.nama_menu}
                               </p>
                               {item.catatan_item && (
                                 <p className="text-sm text-amber-600">Catatan: {item.catatan_item}</p>
                               )}
                             </div>
                           </div>
-                          <p className={`font-medium ${isChecked ? 'line-through text-gray-400' : ''}`}>
-                            Rp {(item.jumlah * Number(item.harga_saat_pesan)).toLocaleString("id-ID")}
-                          </p>
                         </div>
                       )
                     })}
@@ -836,27 +879,27 @@ export default function PesananPage() {
               </div>
             ) : null}
            <DialogFooter>
-             <Button variant="outline" onClick={() => setShowCompleteModal(false)}>
-               Batal
-             </Button>
-             {selectedPesananForComplete && (
-               <Button 
-                 onClick={() => {
-                   const allChecked = selectedPesananForComplete.items.every(i => checkedMap[`${selectedPesananForComplete.id}-${i.id}`])
-                   if (!allChecked) {
-                     alert('Tandai semua item sudah diterima terlebih dahulu!')
-                     return
-                   }
-                   handleMarkArrived(selectedPesananForComplete.id)
-                   setShowCompleteModal(false)
-                 }}
-                  className="bg-chart-5 hover:bg-chart-5/80"
-               >
-                 <CheckCircle className="w-4 h-4 mr-2" />
-                 Selesai ({selectedPesananForComplete.items.filter(i => checkedMap[`${selectedPesananForComplete.id}-${i.id}`]).length}/{selectedPesananForComplete.items.length})
-               </Button>
-             )}
-           </DialogFooter>
+              <Button variant="outline" onClick={() => setShowCompleteModal(false)}>
+                Tutup
+              </Button>
+              {selectedPesananForComplete && selectedPesananForComplete.status_pembayaran === 'berhasil' && (
+                <Button 
+                  onClick={() => {
+                    const allChecked = selectedPesananForComplete.items.every(i => checkedMap[`${selectedPesananForComplete.id}-${i.id}`])
+                    if (!allChecked) {
+                      alert('Tandai semua item sudah diterima terlebih dahulu!')
+                      return
+                    }
+                    handleMarkArrived(selectedPesananForComplete.id)
+                    setShowCompleteModal(false)
+                  }}
+                   className="bg-chart-5 hover:bg-chart-5/80"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Selesai ({selectedPesananForComplete.items.filter(i => checkedMap[`${selectedPesananForComplete.id}-${i.id}`]).length}/{selectedPesananForComplete.items.length})
+                </Button>
+              )}
+            </DialogFooter>
          </DialogContent>
        </Dialog>
     </div>
