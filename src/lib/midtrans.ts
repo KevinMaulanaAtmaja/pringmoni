@@ -77,7 +77,7 @@ export async function checkMidtransTransaction(transactionId: string): Promise<
 export async function createCorePayment(data: {
   order_id: string
   gross_amount: number
-  payment_type: "bank_transfer" | "qris" | "other_qris"
+  payment_type: "bank_transfer" | "gopay" | "echannel"
   bank?: string
   customer_details?: { first_name?: string }
   item_details?: Array<{ id: string; price: number; quantity: number; name: string }>
@@ -100,6 +100,13 @@ export async function createCorePayment(data: {
 
     if (data.payment_type === "bank_transfer") {
       parameter.bank_transfer = { bank: data.bank || "bca" }
+    }
+
+    if (data.payment_type === "echannel") {
+      parameter.echannel = {
+        bill_info1: "Pembayaran Pesanan",
+        bill_info2: data.order_id,
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

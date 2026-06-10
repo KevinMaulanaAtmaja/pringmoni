@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Wallet, ArrowLeft, Banknote, CreditCard, Smartphone, Loader2, AlertCircle, Clock } from "lucide-react";
 import { getPesananForCheckout, updateNamaPelanggan, createMidtransPayment, konfirmasiPembayaranCustomer } from "@/app/actions/pesanan";
 import { hitungAdminFee } from "@/lib/fee";
-import { BankIcon, POPULAR_BANKS } from "@/components/BankIcon";
+import { BankIcon, POPULAR_BANKS } from "@/components/ui/BankIcon";
 
 const BATAS_KONFIRMASI_MENIT = 60
 

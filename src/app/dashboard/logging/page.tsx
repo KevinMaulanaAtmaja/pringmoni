@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
@@ -19,127 +19,89 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { getLogs, getUniqueUsers, getLogCount, type LogItem } from '@/app/actions/logs'
 
 type JenisAksi =
-  | 'LOGIN' | 'LOGOUT'
-  | 'CREATE_USER' | 'UPDATE_USER' | 'DELETE_USER'
-  | 'CREATE_MENU' | 'UPDATE_MENU' | 'DELETE_MENU'
-  | 'CREATE_MEJA' | 'UPDATE_MEJA' | 'DELETE_MEJA'
-  | 'CREATE_ORDER' | 'UPDATE_ORDER_STATUS' | 'CANCEL_ORDER'
+  | 'LOGIN' | 'LOGOUT' | 'RESET_PASSWORD'
+  | 'CREATE_ORDER' | 'UPDATE_ORDER_STATUS'
+  | 'CANCEL_ORDER_KASIR' | 'CANCEL_ORDER_EXPIRED' | 'CANCEL_ORDER_STALE'
   | 'PROCESS_PAYMENT'
-
-interface LogItem {
-  id: number
-  userId: number | null
-  userName: string
-  aksi: JenisAksi
-  keterangan: string
-  ipAddress: string
-  createdAt: string
-}
-
-const mockLogs: LogItem[] = [
-  { id: 1, userId: 1, userName: 'Admin', aksi: 'LOGIN', keterangan: 'Admin login ke sistem', ipAddress: '192.168.1.100', createdAt: '2026-05-17 08:00:00' },
-  { id: 2, userId: 1, userName: 'Admin', aksi: 'CREATE_USER', keterangan: 'Menambah user kasir: Siti', ipAddress: '192.168.1.100', createdAt: '2026-05-17 08:15:00' },
-  { id: 3, userId: 2, userName: 'Siti', aksi: 'LOGIN', keterangan: 'Siti login ke sistem', ipAddress: '192.168.1.101', createdAt: '2026-05-17 08:30:00' },
-  { id: 4, userId: 1, userName: 'Admin', aksi: 'CREATE_MENU', keterangan: 'Menambah menu: Nasi Goreng Spesial Rp25,000', ipAddress: '192.168.1.100', createdAt: '2026-05-17 09:00:00' },
-  { id: 5, userId: 1, userName: 'Admin', aksi: 'CREATE_MENU', keterangan: 'Menambah menu: Es Teh Manis Rp5,000', ipAddress: '192.168.1.100', createdAt: '2026-05-17 09:05:00' },
-  { id: 6, userId: 1, userName: 'Admin', aksi: 'UPDATE_MENU', keterangan: 'Update menu: Nasi Goreng spesial → Rp27,000', ipAddress: '192.168.1.100', createdAt: '2026-05-17 09:30:00' },
-  { id: 7, userId: 1, userName: 'Admin', aksi: 'CREATE_MEJA', keterangan: 'Menambah meja: Meja 6 (lesehan, 4 kursi)', ipAddress: '192.168.1.100', createdAt: '2026-05-17 10:00:00' },
-  { id: 8, userId: 3, userName: 'Budi', aksi: 'LOGIN', keterangan: 'Budi (waiter) login ke sistem', ipAddress: '192.168.1.102', createdAt: '2026-05-17 10:15:00' },
-  { id: 9, userId: 3, userName: 'Budi', aksi: 'CREATE_ORDER', keterangan: 'Pesanan baru dari Meja 3: Nasi Goreng x2, Es Teh x1', ipAddress: '192.168.1.102', createdAt: '2026-05-17 10:30:00' },
-  { id: 10, userId: 3, userName: 'Budi', aksi: 'UPDATE_ORDER_STATUS', keterangan: 'Pesanan #001 disiapkan', ipAddress: '192.168.1.102', createdAt: '2026-05-17 10:35:00' },
-  { id: 11, userId: 2, userName: 'Siti', aksi: 'PROCESS_PAYMENT', keterangan: 'Pembayaran pesanan #001: Rp65,000 (Tunai)', ipAddress: '192.168.1.101', createdAt: '2026-05-17 11:00:00' },
-  { id: 12, userId: 1, userName: 'Admin', aksi: 'UPDATE_MEJA', keterangan: 'Update meja: Meja 3 → status terpakai', ipAddress: '192.168.1.100', createdAt: '2026-05-17 11:15:00' },
-  { id: 13, userId: 3, userName: 'Budi', aksi: 'CREATE_ORDER', keterangan: 'Pesanan baru dari Meja 5: Mie Goreng x1, Es Jeruk x2', ipAddress: '192.168.1.102', createdAt: '2026-05-17 12:00:00' },
-  { id: 14, userId: 3, userName: 'Budi', aksi: 'CANCEL_ORDER', keterangan: 'Pesanan #003 dibatalkan: pelanggan batal order', ipAddress: '192.168.1.102', createdAt: '2026-05-17 12:10:00' },
-  { id: 15, userId: 2, userName: 'Siti', aksi: 'PROCESS_PAYMENT', keterangan: 'Pembayaran pesanan #002: Rp45,000 (QRIS)', ipAddress: '192.168.1.101', createdAt: '2026-05-17 12:30:00' },
-  { id: 16, userId: 1, userName: 'Admin', aksi: 'DELETE_MENU', keterangan: 'Menghapus menu: Es Teh Manis', ipAddress: '192.168.1.100', createdAt: '2026-05-17 13:00:00' },
-  { id: 17, userId: 1, userName: 'Admin', aksi: 'UPDATE_USER', keterangan: 'Update user: Siti → role cashier', ipAddress: '192.168.1.100', createdAt: '2026-05-17 13:30:00' },
-  { id: 18, userId: 3, userName: 'Budi', aksi: 'UPDATE_ORDER_STATUS', keterangan: 'Pesanan #004 selesai', ipAddress: '192.168.1.102', createdAt: '2026-05-17 14:00:00' },
-  { id: 19, userId: 2, userName: 'Siti', aksi: 'LOGOUT', keterangan: 'Siti logout dari sistem', ipAddress: '192.168.1.101', createdAt: '2026-05-17 14:30:00' },
-  { id: 20, userId: 1, userName: 'Admin', aksi: 'CREATE_MEJA', keterangan: 'Menambah meja: Meja 7 (kursi, 6 kursi)', ipAddress: '192.168.1.100', createdAt: '2026-05-17 15:00:00' },
-  { id: 21, userId: 1, userName: 'Admin', aksi: 'DELETE_MEJA', keterangan: 'Menghapus meja: Meja 6', ipAddress: '192.168.1.100', createdAt: '2026-05-17 15:15:00' },
-  { id: 22, userId: 1, userName: 'Admin', aksi: 'LOGIN', keterangan: 'Admin login ke sistem', ipAddress: '192.168.1.100', createdAt: '2026-05-18 07:00:00' },
-  { id: 23, userId: 3, userName: 'Budi', aksi: 'LOGIN', keterangan: 'Budi login ke sistem', ipAddress: '192.168.1.102', createdAt: '2026-05-18 07:30:00' },
-  { id: 24, userId: 3, userName: 'Budi', aksi: 'CREATE_ORDER', keterangan: 'Pesanan baru dari Meja 2: Kopi x2, Roti Bakar x1', ipAddress: '192.168.1.102', createdAt: '2026-05-18 08:00:00' },
-  { id: 25, userId: 2, userName: 'Siti', aksi: 'LOGIN', keterangan: 'Siti login ke sistem', ipAddress: '192.168.1.101', createdAt: '2026-05-18 08:15:00' },
-  { id: 26, userId: 2, userName: 'Siti', aksi: 'PROCESS_PAYMENT', keterangan: 'Pembayaran pesanan #005: Rp35,000 (Transfer)', ipAddress: '192.168.1.101', createdAt: '2026-05-18 09:00:00' },
-  { id: 27, userId: 3, userName: 'Budi', aksi: 'UPDATE_ORDER_STATUS', keterangan: 'Pesanan #006 selesai', ipAddress: '192.168.1.102', createdAt: '2026-05-18 09:30:00' },
-  { id: 28, userId: 1, userName: 'Admin', aksi: 'UPDATE_USER', keterangan: 'Nonaktifkan user: Budi', ipAddress: '192.168.1.100', createdAt: '2026-05-18 10:00:00' },
-  { id: 29, userId: 1, userName: 'Admin', aksi: 'DELETE_USER', keterangan: 'Menghapus user: Budi', ipAddress: '192.168.1.100', createdAt: '2026-05-18 10:05:00' },
-  { id: 30, userId: 1, userName: 'Admin', aksi: 'LOGOUT', keterangan: 'Admin logout dari sistem', ipAddress: '192.168.1.100', createdAt: '2026-05-18 17:00:00' },
-]
 
 const aksiColors: Record<JenisAksi, string> = {
   LOGIN: 'bg-blue-100 text-blue-800',
   LOGOUT: 'bg-slate-100 text-slate-800',
-  CREATE_USER: 'bg-purple-100 text-purple-800',
-  UPDATE_USER: 'bg-purple-100 text-purple-800',
-  DELETE_USER: 'bg-red-100 text-red-800',
-  CREATE_MENU: 'bg-orange-100 text-orange-800',
-  UPDATE_MENU: 'bg-orange-100 text-orange-800',
-  DELETE_MENU: 'bg-red-100 text-red-800',
-  CREATE_MEJA: 'bg-teal-100 text-teal-800',
-  UPDATE_MEJA: 'bg-teal-100 text-teal-800',
-  DELETE_MEJA: 'bg-red-100 text-red-800',
+  RESET_PASSWORD: 'bg-purple-100 text-purple-800',
   CREATE_ORDER: 'bg-amber-100 text-amber-800',
   UPDATE_ORDER_STATUS: 'bg-amber-100 text-amber-800',
-  CANCEL_ORDER: 'bg-red-100 text-red-800',
+  CANCEL_ORDER_KASIR: 'bg-orange-100 text-orange-800',
+  CANCEL_ORDER_EXPIRED: 'bg-yellow-100 text-yellow-800',
+  CANCEL_ORDER_STALE: 'bg-yellow-100 text-yellow-800',
   PROCESS_PAYMENT: 'bg-green-100 text-green-800',
 }
 
 const aksiLabels: Record<JenisAksi, string> = {
   LOGIN: 'Login',
   LOGOUT: 'Logout',
-  CREATE_USER: 'Tambah User',
-  UPDATE_USER: 'Update User',
-  DELETE_USER: 'Hapus User',
-  CREATE_MENU: 'Tambah Menu',
-  UPDATE_MENU: 'Update Menu',
-  DELETE_MENU: 'Hapus Menu',
-  CREATE_MEJA: 'Tambah Meja',
-  UPDATE_MEJA: 'Update Meja',
-  DELETE_MEJA: 'Hapus Meja',
+  RESET_PASSWORD: 'Reset Password',
   CREATE_ORDER: 'Pesanan Baru',
   UPDATE_ORDER_STATUS: 'Update Status',
-  CANCEL_ORDER: 'Batal Pesanan',
+  CANCEL_ORDER_KASIR: 'Batal (Kasir)',
+  CANCEL_ORDER_EXPIRED: 'Batal (Expired)',
+  CANCEL_ORDER_STALE: 'Batal (Stale)',
   PROCESS_PAYMENT: 'Pembayaran',
 }
 
 const aksiKategori: Record<string, JenisAksi[]> = {
   Semua: [],
-  Auth: ['LOGIN', 'LOGOUT'],
-  User: ['CREATE_USER', 'UPDATE_USER', 'DELETE_USER'],
-  Menu: ['CREATE_MENU', 'UPDATE_MENU', 'DELETE_MENU'],
-  Meja: ['CREATE_MEJA', 'UPDATE_MEJA', 'DELETE_MEJA'],
-  Pesanan: ['CREATE_ORDER', 'UPDATE_ORDER_STATUS', 'CANCEL_ORDER'],
+  Auth: ['LOGIN', 'LOGOUT', 'RESET_PASSWORD'],
+  Pesanan: ['CREATE_ORDER', 'UPDATE_ORDER_STATUS'],
+  Pembatalan: ['CANCEL_ORDER_KASIR', 'CANCEL_ORDER_EXPIRED', 'CANCEL_ORDER_STALE'],
   Pembayaran: ['PROCESS_PAYMENT'],
 }
 
-const uniqueUsers = [...new Set(mockLogs.map((l) => l.userName))]
-
 export default function LoggingPage() {
+  const [logs, setLogs] = useState<LogItem[]>([])
+  const [uniqueUsers, setUniqueUsers] = useState<string[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterUser, setFilterUser] = useState<string>('all')
   const [filterKategori, setFilterKategori] = useState<string>('Semua')
   const [currentPage, setCurrentPage] = useState(1)
+
+  const fetchData = useCallback(async () => {
+    const [logsRes, usersRes, countRes] = await Promise.all([
+      getLogs(),
+      getUniqueUsers(),
+      getLogCount(),
+    ])
+    if (!logsRes.error) setLogs(logsRes.data)
+    setUniqueUsers(usersRes)
+    setTotalCount(countRes)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+    const interval = setInterval(fetchData, 5000)
+    return () => clearInterval(interval)
+  }, [fetchData])
 
   useEffect(() => {
     setCurrentPage(1)
   }, [search, filterUser, filterKategori])
 
   const filteredLogs = useMemo(() => {
-    let result = mockLogs
+    let result = logs
 
     if (search) {
       const q = search.toLowerCase()
       result = result.filter(
         (log) =>
           log.userName.toLowerCase().includes(q) ||
-          log.keterangan.toLowerCase().includes(q) ||
-          log.ipAddress.toLowerCase().includes(q)
+          (log.keterangan?.toLowerCase() ?? '').includes(q) ||
+          (log.ipAddress?.toLowerCase() ?? '').includes(q)
       )
     }
 
@@ -150,12 +112,12 @@ export default function LoggingPage() {
     if (filterKategori !== 'Semua') {
       const selectedAksis = aksiKategori[filterKategori]
       if (selectedAksis) {
-        result = result.filter((log) => selectedAksis.includes(log.aksi))
+        result = result.filter((log) => selectedAksis.includes(log.aksi as JenisAksi))
       }
     }
 
     return result
-  }, [search, filterUser, filterKategori])
+  }, [search, filterUser, filterKategori, logs])
 
   const totalPages = Math.ceil(filteredLogs.length / 10)
   const paginatedLogs = filteredLogs.slice(
@@ -167,7 +129,21 @@ export default function LoggingPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Logging</h1>
-        <span className="text-sm text-gray-500">{mockLogs.length} total log</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">
+            {loading ? 'Memuat...' : `${totalCount} total log`}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchData}
+            disabled={loading}
+            className="h-8"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-6">
@@ -220,7 +196,13 @@ export default function LoggingPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedLogs.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-12 text-gray-500">
+                  Memuat data log...
+                </TableCell>
+              </TableRow>
+            ) : paginatedLogs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-12 text-gray-500">
                   Tidak ada log yang ditemukan
@@ -233,8 +215,8 @@ export default function LoggingPage() {
                   <TableCell className="text-xs text-gray-600 whitespace-nowrap">{log.createdAt}</TableCell>
                   <TableCell className="font-medium">{log.userName || '-'}</TableCell>
                   <TableCell>
-                    <Badge className={aksiColors[log.aksi]}>
-                      {aksiLabels[log.aksi]}
+                    <Badge className={aksiColors[log.aksi as JenisAksi]}>
+                      {aksiLabels[log.aksi as JenisAksi]}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-gray-600 max-w-md truncate">{log.keterangan}</TableCell>

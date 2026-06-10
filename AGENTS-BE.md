@@ -38,11 +38,18 @@
 |-----|------------|--------|
 | PBI-3.1 | Hitung Total (subtotal, pajak) | 🔲 |
 | PBI-3.2 | Pembayaran (simpan status) | 🔲 |
+| PBI-3.3 | Struk & Riwayat (generasi struk, query riwayat) | 🔲 |
 
 ### Modul 4: Sistem
 | PBI | Deskripsi | Status |
 |-----|----------|--------|
 | PBI-4.1 | Logging (create log action) | 🔲 |
+
+### Modul 5: Laporan & Analitik
+| PBI | Deskripsi | Status |
+|-----|----------|--------|
+| PBI-5.1 | Laporan (query pendapatan harian/bulanan) | 🔲 |
+| PBI-5.2 | Analitik (query menu terlaris, jumlah terjual) | 🔲 |
 
 ---
 
@@ -56,6 +63,10 @@
 | `src/app/actions/meja.ts` | CRUD meja | 🔲 |
 | `src/app/actions/menu.ts` | CRUD menu | 🔲 |
 | `src/app/actions/pesanan.ts` | CRUD pesanan | 🔲 |
+| `src/app/actions/user.ts` | CRUD user | 🔲 |
+| `src/app/actions/log.ts` | Logging activity | 🔲 |
+| `src/app/actions/laporan.ts` | Laporan & analitik queries | 🔲 |
+| `src/app/actions/struk.ts` | Generate struk PDF | 🔲 |
 
 ---
 

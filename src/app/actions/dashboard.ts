@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import { createLog } from "@/lib/log"
 import type { RoleUser } from "@/types"
 
 export async function getDashboardStats() {
@@ -352,6 +353,10 @@ export async function autoCancelStaleUnpaid() {
         data: { statusMeja: 'kosong' },
       }),
     ])
+
+    if (stale.length > 0) {
+      await createLog('CANCEL_ORDER_STALE', `Auto-cancel ${stale.length} pesanan stale (tanpa metode: ${tanpaMetode.length}, tunai: ${pilihTunai.length}, qris/transfer: ${pilihLain.length})`)
+    }
 
     return {
       cancelled: stale.length,

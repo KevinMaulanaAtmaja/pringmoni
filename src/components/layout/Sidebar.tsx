@@ -80,7 +80,14 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
             const Icon = item.icon
             const isActive = item.href === '/dashboard'
               ? pathname === '/dashboard'
-              : pathname === item.href || pathname.startsWith(item.href + '/')
+              : pathname === item.href || (
+                  pathname.startsWith(item.href + '/') &&
+                  !navItems.some(other =>
+                    other.href !== item.href &&
+                    other.href.startsWith(item.href + '/') &&
+                    pathname.startsWith(other.href)
+                  )
+                )
             return (
               <Link key={item.name} href={item.href}
                 className={cn("flex items-center gap-3 p-3 rounded-xl transition-all",

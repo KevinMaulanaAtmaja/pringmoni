@@ -43,7 +43,7 @@ import {
 
 type ActionResult = { success: boolean } | { error: string };
 import { saveMenuFotoUrls, deleteMenuFoto, getMenuFotos, deleteAllMenuFotos } from '@/app/actions/menu-foto';
-import { UploadButton } from '@/lib/uploadthing-client';
+import { useUploadThing } from '@/lib/uploadthing-client';
 import { KategoriMenu, StatusMenu } from '@prisma/client';
 
 const statusColors: Record<StatusMenu, string> = {
@@ -109,7 +109,47 @@ export default function MenuPage() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState<Record<string, boolean>>({});
   const totalPhotos = existingFotos.length + uploadedFotoUrls.length;
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { startUpload } = useUploadThing("menuFoto", {
+    onClientUploadComplete: (res: { url: string; key: string }[]) => {
+      setUploading(false);
+      if (res) {
+        const urls = res.map((file) => file.url);
+        const keys = res.map((file) => file.key);
+
+        const currentTotal = existingFotos.length + uploadedFotoUrls.length;
+        if (currentTotal + urls.length > 5) {
+          alert('Maksimal 5 foto per menu. Hapus foto lama jika ingin menambah foto baru.');
+          keys.forEach(async (key) => {
+            try {
+              await fetch('/api/uploadthing/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileKey: key })
+              });
+            } catch (error) {
+              console.error('Error deleting file:', error);
+            }
+          });
+          return;
+        }
+
+        const newLoadingState: Record<string, boolean> = {};
+        urls.forEach(url => { newLoadingState[url] = true; });
+        setImageLoading(prev => ({ ...prev, ...newLoadingState }));
+
+        setUploadedFotoUrls(prev => [...prev, ...urls]);
+        setUploadedFileKeys(prev => [...prev, ...keys]);
+      }
+    },
+    onUploadError: (error: Error) => {
+      setUploading(false);
+      alert('Gagal upload: ' + error.message);
+    },
+    onUploadBegin: () => setUploading(true),
+  });
+
   // Menu name states
   const [duplicateWarning, setDuplicateWarning] = useState('');
   useEffect(() => {
@@ -753,76 +793,34 @@ export default function MenuPage() {
   
                    {/* UploadThing Upload Button */}
                    <div className="flex items-center gap-2">
-                     <UploadButton
-                       endpoint="menuFoto"
-                       appearance={{
-                         button: {
-                           background: "transparent",
-                           padding: "0",
-                           width: "48px",
-                           height: "48px",
-                           display: "flex",
-                           alignItems: "center",
-                           justifyContent: "center",
-                           border: "none",
-                         },
-                         allowedContent: { display: "none" },
-                         container: { display: "flex", alignItems: "center" },
-                       }}
-                       content={{
-                         button({ ready }: { ready: boolean }) {
-                           if (uploading) {
-                             return <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />;
-                           }
-                           return ready ? (
-                             <Upload className="w-10 h-10 text-blue-600 hover:text-blue-800" />
-                           ) : (
-                             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                           );
-                         },
-                       }}
-onClientUploadComplete={(res: { url: string; key: string }[]) => {
-                          setUploading(false);
-                          if (res) {
-                            const urls = res.map((file) => file.url);
-                            const keys = res.map((file) => file.key);
-                            
-                            // Check if adding new photos would exceed 5
-                            const currentTotal = existingFotos.length + uploadedFotoUrls.length;
-                            if (currentTotal + urls.length > 5) {
-                              alert('Maksimal 5 foto per menu. Hapus foto lama jika ingin menambah foto baru.');
-                              // Delete uploaded files from UploadThing
-                              keys.forEach(async (key) => {
-                                try {
-                                  await fetch('/api/uploadthing/delete', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ fileKey: key })
-                                  });
-                                } catch (error) {
-                                  console.error('Error deleting file:', error);
-                                }
-                              });
-                              return;
-                            }
-                            
-                            const newLoadingState: Record<string, boolean> = {};
-                            urls.forEach(url => {
-                              newLoadingState[url] = true;
-                            });
-                            setImageLoading(prev => ({ ...prev, ...newLoadingState }));
-                            
-                            setUploadedFotoUrls(prev => [...prev, ...urls]);
-                            setUploadedFileKeys(prev => [...prev, ...keys]);
-                          }
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        hidden
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (files.length === 0) return;
+                          const renamed = files.map(f =>
+                            new File([f], `${crypto.randomUUID()}.${f.name.split('.').pop()}`, { type: f.type })
+                          );
+                          await startUpload(renamed);
+                          e.target.value = '';
                         }}
-                       onUploadBegin={() => setUploading(true)}
-                       disabled={totalPhotos >= 5 || uploading}
-                       onUploadError={(error: Error) => {
-                         setUploading(false);
-                         alert('Gagal upload: ' + error.message);
-                       }}
-                     />
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={totalPhotos >= 5 || uploading}
+                        className="w-12 h-12 flex items-center justify-center border-none bg-transparent cursor-pointer disabled:opacity-50"
+                      >
+                        {uploading ? (
+                          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Upload className="w-10 h-10 text-blue-600 hover:text-blue-800" />
+                        )}
+                      </button>
                       <p className="text-[10px] text-gray-500">
                           {`${totalPhotos}/5 foto`}
                         </p>

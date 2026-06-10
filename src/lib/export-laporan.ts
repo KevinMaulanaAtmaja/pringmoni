@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf"
-import * as XLSX from "xlsx"
+import ExcelJS from "exceljs"
 import type { ItemLaporanPesanan, MenuTerlaris } from "@/types"
 
 interface KasirExport {
@@ -196,46 +196,42 @@ export function exportLaporanPDF(
   window.open(url)
 }
 
-export function exportLaporanExcel(
+export async function exportLaporanExcel(
   title: string,
   detailPesanan: ItemLaporanPesanan[],
   perMonth?: { label: string; detailPesanan: ItemLaporanPesanan[] }[],
 ) {
-  const wb = XLSX.utils.book_new()
+  const wb = new ExcelJS.Workbook()
+
+  const header = ["ID", "Meja", "Pelanggan", "Total", "Status", "Status Bayar", "Metode", "Waktu", "Kasir"]
 
   if (perMonth) {
     for (const m of perMonth) {
       if (m.detailPesanan.length > 0) {
-        const data = [
-          ["ID", "Meja", "Pelanggan", "Total", "Status", "Status Bayar", "Metode", "Waktu", "Kasir"],
-          ...m.detailPesanan.map(p => [
-            p.id, p.nomorMeja, p.namaPelanggan || "-",
-            Number(p.totalHarga), p.statusPesanan, p.statusPembayaran,
-            p.metodePembayaran || "-",
-            new Date(p.createdAt).toISOString(),
-            p.kasirUsername || "-",
-          ]),
-        ]
-        const ws = XLSX.utils.aoa_to_sheet(data)
-        XLSX.utils.book_append_sheet(wb, ws, m.label)
+        const ws = wb.addWorksheet(m.label.slice(0, 31))
+        ws.addRow(header)
+        ws.addRows(m.detailPesanan.map(p => [
+          p.id, p.nomorMeja, p.namaPelanggan || "-",
+          Number(p.totalHarga), p.statusPesanan, p.statusPembayaran,
+          p.metodePembayaran || "-",
+          new Date(p.createdAt).toISOString(),
+          p.kasirUsername || "-",
+        ]))
       }
     }
   } else if (detailPesanan.length > 0) {
-    const detailData = [
-      ["ID", "Meja", "Pelanggan", "Total", "Status", "Status Bayar", "Metode", "Waktu", "Kasir"],
-      ...detailPesanan.map(p => [
-        p.id, p.nomorMeja, p.namaPelanggan || "-",
-        Number(p.totalHarga), p.statusPesanan, p.statusPembayaran,
-        p.metodePembayaran || "-",
-        new Date(p.createdAt).toISOString(),
-        p.kasirUsername || "-",
-      ]),
-    ]
-    const wsDetail = XLSX.utils.aoa_to_sheet(detailData)
-    XLSX.utils.book_append_sheet(wb, wsDetail, "Detail Pesanan")
+    const ws = wb.addWorksheet("Detail Pesanan")
+    ws.addRow(header)
+    ws.addRows(detailPesanan.map(p => [
+      p.id, p.nomorMeja, p.namaPelanggan || "-",
+      Number(p.totalHarga), p.statusPesanan, p.statusPembayaran,
+      p.metodePembayaran || "-",
+      new Date(p.createdAt).toISOString(),
+      p.kasirUsername || "-",
+    ]))
   }
 
-  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" })
+  const wbout = await wb.xlsx.writeBuffer()
   const blob = new Blob([wbout], { type: "application/octet-stream" })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")

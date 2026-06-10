@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { KategoriMenu, StatusMenu } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@/lib/auth';
 import { deleteAllMenuFotos } from './menu-foto';
 
 export type MenuWithKategori = {
@@ -52,7 +53,15 @@ export async function getKategoriMenus(): Promise<KategoriMenu[]> {
   });
 }
 
+async function requireOwner() {
+  const session = await auth()
+  if (!session?.user || session.user.role !== 'owner') {
+    throw new Error("Unauthorized")
+  }
+}
+
 export async function createMenu(data: CreateMenuInput) {
+  await requireOwner()
   // Validation
   if (!data.namaMenu?.trim()) {
     return { error: "Nama menu wajib diisi" }
@@ -75,6 +84,7 @@ export async function createMenu(data: CreateMenuInput) {
 }
 
 export async function updateMenu(data: UpdateMenuInput) {
+  await requireOwner()
   const { id, ...rest } = data;
   
   // Validation
@@ -96,6 +106,7 @@ export async function updateMenu(data: UpdateMenuInput) {
 }
 
 export async function deleteMenu(id: number) {
+  await requireOwner()
   // Delete all associated photos first
   await deleteAllMenuFotos(id);
   
@@ -108,6 +119,7 @@ export async function deleteMenu(id: number) {
 }
 
 export async function toggleStatusMenu(id: number, status: StatusMenu) {
+  await requireOwner()
   await prisma.menu.update({
     where: { id },
     data: { statusMenu: status },
@@ -116,6 +128,7 @@ export async function toggleStatusMenu(id: number, status: StatusMenu) {
 }
 
 export async function createKategori(data: { namaKategori: string }) {
+  await requireOwner()
   // Check if kategori with same name exists (including soft-deleted)
   const existing = await prisma.kategoriMenu.findFirst({
     where: {
@@ -148,6 +161,7 @@ export async function createKategori(data: { namaKategori: string }) {
 }
 
 export async function updateKategori(id: number, data: { namaKategori: string }) {
+  await requireOwner()
   // Check if namaKategori already exists (excluding current id, ONLY active ones)
   const existing = await prisma.kategoriMenu.findFirst({
     where: {
@@ -170,6 +184,7 @@ export async function updateKategori(id: number, data: { namaKategori: string })
 }
 
 export async function deleteKategori(id: number) {
+  await requireOwner()
   // Count active menus using this category
   const menuCount = await prisma.menu.count({
     where: { 

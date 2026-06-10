@@ -9,9 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getPesananById, updateStatusPesanan, cancelPesanan } from "@/app/actions/pesanan"
 import type { DetailPesananItem } from "@/types"
 import { StatusPesanan } from "@prisma/client"
-import { ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight, Printer } from "lucide-react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
+import { printStruk } from "@/lib/print-struk"
 
 const statusColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
@@ -58,6 +59,7 @@ export default function PesananDetailPage() {
     detailPesanan: DetailPesananItem[]
     waiterUsername?: string | null
     kasirUsername?: string | null
+    namaPelanggan?: string | null
   }
 
   const [pesanan, setPesanan] = useState<PesananDetailView | null>(null)
@@ -104,6 +106,7 @@ export default function PesananDetailPage() {
           },
           waiterUsername: result.waiter_username || null,
           kasirUsername: result.kasir_username || null,
+          namaPelanggan: result.nama_pelanggan || null,
           catatan: result.catatan || null,
           detailPesanan: items,
         }
@@ -370,7 +373,33 @@ export default function PesananDetailPage() {
       </Card>
 
        {/* Actions */}
-       <div className="flex gap-4">
+       <div className="flex gap-4 flex-wrap">
+         {pesanan.statusPembayaran === 'berhasil' && (
+           <Button
+             variant="outline"
+             onClick={() => printStruk({
+               id: pesanan.id,
+               nomorMeja: pesanan.meja.nomorMeja,
+               items: pesanan.detailPesanan.map(i => ({
+                 nama: i.menuName,
+                 jumlah: i.jumlah,
+                 harga: Number(i.hargaSaatPesan),
+               })),
+               totalHarga: Number(pesanan.totalHarga),
+               adminFee: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : undefined,
+               ppn: pesanan.ppn ? Number(pesanan.ppn) : undefined,
+               metodePembayaran: pesanan.metodePembayaran,
+               jumlahBayar: pesanan.jumlahBayar ? Number(pesanan.jumlahBayar) : undefined,
+               kembalian: Number(pesanan.kembalian),
+               createdAt: new Date(pesanan.createdAt),
+               kasirUsername: pesanan.kasirUsername,
+               namaPelanggan: pesanan.namaPelanggan,
+             })}
+           >
+             <Printer className="w-4 h-4 mr-2" />
+             Cetak Struk
+           </Button>
+         )}
          {!isOwner && pesanan.statusPesanan === 'menunggu' && (
            <>
              <Button onClick={() => handleUpdateStatus('selesai')}>

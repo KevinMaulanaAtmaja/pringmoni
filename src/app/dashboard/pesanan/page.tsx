@@ -629,9 +629,43 @@ export default function PesananPage() {
                         })}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/pesanan/" + p.id)}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1 justify-end">
+                          {p.statusBayar === 'berhasil' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                const result = await getPesananById(p.id)
+                                if (!('error' in result)) {
+                                  const d = result as unknown as PesananDetail
+                                  printStruk({
+                                    id: d.id,
+                                    nomorMeja: d.nomor_meja,
+                                    items: d.items.map(i => ({
+                                      nama: i.nama_menu,
+                                      jumlah: i.jumlah,
+                                      harga: Number(i.harga_saat_pesan),
+                                    })),
+                                    totalHarga: Number(d.total_harga),
+                                    adminFee: d.biaya_admin ? Number(d.biaya_admin) : undefined,
+                                    ppn: d.ppn ? Number(d.ppn) : undefined,
+                                    metodePembayaran: d.metode_pembayaran,
+                                    jumlahBayar: d.jumlah_bayar ? Number(d.jumlah_bayar) : undefined,
+                                    kembalian: Number(d.kembalian),
+                                    createdAt: d.created_at,
+                                    kasirUsername: d.kasir_username,
+                                    namaPelanggan: d.nama_pelanggan,
+                                  })
+                                }
+                              }}
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/pesanan/" + p.id)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

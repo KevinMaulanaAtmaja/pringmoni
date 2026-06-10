@@ -211,7 +211,7 @@ export function LaporanClient() {
       label: `${m.month} ${selectedYear}`,
       detailPesanan: results[i]?.pendapatan.detailPesanan ?? [],
     }))
-    exportLaporanExcel(`Laporan_Tahunan_${selectedYear}`, [], perMonth)
+    await exportLaporanExcel(`Laporan_Tahunan_${selectedYear}`, [], perMonth)
   }
 
   const tabs = ["harian", "mingguan", "bulanan", "tahunan", "menu", "kasir", "bandingkan"] as const

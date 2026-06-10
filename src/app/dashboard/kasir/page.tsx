@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,10 +10,17 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight, Bell } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
-import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, prosesPembayaranTransfer, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment } from "@/app/actions/kasir"
+import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, prosesPembayaranTransfer, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
 import { checkMidtransStatusReadOnly } from "@/app/actions/pesanan"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
+
+const BANK_OPTIONS = [
+  { id: 'bca', label: 'BCA', icon: '🏦' },
+  { id: 'bni', label: 'BNI', icon: '🏦' },
+  { id: 'bri', label: 'BRI', icon: '🏦' },
+  { id: 'mandiri', label: 'Mandiri', icon: '🏦' },
+]
 
 const metodeLabels: Record<MetodePembayaran, string> = {
   qris: "QRIS",
@@ -69,6 +77,7 @@ interface Pesanan {
 }
 
 export default function KasirPage() {
+  const router = useRouter()
   const { data: session, status } = useSession()
   const role = session?.user?.role as string || 'kasir'
   const isOwner = role === 'owner'
@@ -96,7 +105,9 @@ export default function KasirPage() {
   const [isConfirmCancelDialogOpen, setIsConfirmCancelDialogOpen] = useState(false)
   const [cancelConfirmInput, setCancelConfirmInput] = useState("")
   const [isBayarTunaiFinal, setIsBayarTunaiFinal] = useState(false)
-const [showConfirmProcess, setShowConfirmProcess] = useState(false)
+  const [selectedBank, setSelectedBank] = useState<string>("bca")
+  const [showBankSelection, setShowBankSelection] = useState(false)
+  const [showConfirmProcess, setShowConfirmProcess] = useState(false)
   const [showMethodWarning, setShowMethodWarning] = useState(false)
   const [midtransStatus, setMidtransStatus] = useState<string | null>(null)
   const [qrisQrUrl, setQrisQrUrl] = useState<string | null>(null)
@@ -332,6 +343,8 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
     setSelectedPesanan(pesanan)
     setShowConfirmProcess(false)
     setSelectedMetode((pesanan.metodePembayaran as MetodePembayaran) || "qris")
+    setSelectedBank("bca")
+    setShowBankSelection(false)
     setJumlahBayar("")
     setInputRibuan("")
     setShowPaymentInfo(pesanan.statusPembayaran === 'berhasil')
@@ -381,12 +394,22 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
         }
         setQrisQrUrl(result.qrUrl)
         setQrisTotalBayar(result.totalBayar)
-        setShowPaymentInfo(true)
+        // Redirect to confirmation page
+        setIsPaymentOpen(false)
+        router.push(`/dashboard/kasir/pesanan-baru/${selectedPesanan.id}?metode=qris&meja=${selectedPesanan.nomorMeja}&nama=${encodeURIComponent(selectedPesanan.namaPelanggan || '')}`)
         setSubmitting(false)
         return
       } else {
-        // Transfer: show payment info first
-        setShowPaymentInfo(true)
+        // Transfer: process with selected bank
+        const result = await prosesPembayaranTransfer(selectedPesanan.id, selectedBank)
+        if ('error' in result) {
+          alert(result.error)
+          setSubmitting(false)
+          return
+        }
+        // Redirect to confirmation page
+        setIsPaymentOpen(false)
+        router.push(`/dashboard/kasir/pesanan-baru/${selectedPesanan.id}?metode=transfer&bank=${selectedBank}&meja=${selectedPesanan.nomorMeja}&nama=${encodeURIComponent(selectedPesanan.namaPelanggan || '')}`)
         setSubmitting(false)
         return
       }
@@ -767,7 +790,7 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
                       </Badge>
                     </div>
                   )}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className={`grid gap-3 ${p.statusPembayaran === 'berhasil' ? 'grid-cols-4' : 'grid-cols-3'}`}>
                     <Button
                       variant="outline"
                       onClick={() => openDetail(p)}
@@ -778,7 +801,22 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
                     </Button>
                      {!isOwner && (
                       <>
-                        {p.metodePembayaran ? (
+                        {p.statusPembayaran === 'berhasil' && p.statusPesanan === 'diproses' ? (
+                          <Button
+                            className="text-base min-h-[52px] bg-green-600 hover:bg-green-700 text-white"
+                            onClick={async () => {
+                              const result = await selesaikanPesananKasir(p.id)
+                              if ('error' in result) {
+                                alert(result.error)
+                              } else {
+                                pollData()
+                              }
+                            }}
+                            aria-label="Selesai & kosongkan meja"
+                          >
+                            <CheckCircle className="w-6 h-6" />
+                          </Button>
+                        ) : p.metodePembayaran ? (
                           <Button
                             className="text-base min-h-[52px]"
                             onClick={() => openPayment(p)}
@@ -810,7 +848,7 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
                 </div>
               </div>
             ))}
-          </div>
+            </div>
             </div>
           <div className="flex items-center justify-center gap-4 pt-2">
             <Button
@@ -924,9 +962,37 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
                           {formatWaktu(p.updatedAt || p.createdAt)}
                         </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="lg" onClick={() => openDetail(p)}>
-                          <Eye className="w-5 h-5 mr-2" />Detail
-                        </Button>
+                        <div className="flex items-center gap-1.5 justify-end">
+                          {p.statusPembayaran === "berhasil" && (
+                            <Button
+                              variant="outline"
+                              size="lg"
+                              onClick={() => printStruk({
+                                id: p.id,
+                                nomorMeja: p.nomorMeja,
+                                items: p.items.map((i: any) => ({
+                                  nama: i.namaMenu,
+                                  jumlah: i.jumlah,
+                                  harga: Number(i.hargaSaatPesan),
+                                })),
+                                totalHarga: Number(p.totalHarga),
+                                adminFee: p.biayaAdmin ? Number(p.biayaAdmin) : undefined,
+                                ppn: p.ppn ? Number(p.ppn) : undefined,
+                                metodePembayaran: p.metodePembayaran,
+                                jumlahBayar: p.jumlahBayar ? Number(p.jumlahBayar) : undefined,
+                                kembalian: Number(p.kembalian),
+                                createdAt: p.createdAt,
+                                kasirUsername: p.kasirUsername,
+                                namaPelanggan: p.namaPelanggan,
+                              })}
+                            >
+                              <Printer className="w-5 h-5 mr-1" />Cetak
+                            </Button>
+                          )}
+                          <Button variant="outline" size="lg" onClick={() => openDetail(p)}>
+                            <Eye className="w-5 h-5 mr-2" />Detail
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -964,7 +1030,7 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
       )}
       
       {/* Payment Dialog */}
-      <Dialog open={isPaymentOpen} onOpenChange={(open) => { if (!open) { setShowPaymentInfo(false); setPaymentSuccess(false); setIsPaymentOpen(false) } }}>
+      <Dialog open={isPaymentOpen} onOpenChange={(open) => { if (!open) { setShowPaymentInfo(false); setPaymentSuccess(false); setShowBankSelection(false); setIsPaymentOpen(false) } }}>
         <DialogContent className="max-w-lg gap-3" onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
@@ -988,11 +1054,8 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
               <h2 className="text-xl font-bold mb-2">Pembayaran Berhasil!</h2>
-              <p className="text-gray-500 text-sm mb-4">Pesanan #{selectedPesanan?.id} telah dibayar</p>
-              <div className="flex gap-2 justify-center">
-                <Button variant="outline" onClick={() => { setIsPaymentOpen(false); setPaymentSuccess(false); pollData() }}>
-                  Tutup
-                </Button>
+              <p className="text-gray-500 text-sm mb-4">Pesanan #{selectedPesanan?.id} — Meja {selectedPesanan?.nomorMeja} telah dibayar</p>
+              <div className="flex flex-row gap-2 justify-center">
                 <Button
                   onClick={() => {
                     if (!selectedPesanan) return
@@ -1018,7 +1081,10 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <Printer className="w-4 h-4 mr-1" />
-                  Cetak
+                  Cetak Struk
+                </Button>
+                <Button variant="outline" onClick={() => { setIsPaymentOpen(false); setPaymentSuccess(false); pollData() }} className="">
+                  Tutup
                 </Button>
               </div>
             </div>
@@ -1205,6 +1271,53 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
               </>
               )}
 
+              {/* Bank Selection for Transfer */}
+              {selectedMetode === "transfer" && !showBankSelection && (
+                <div className="space-y-3 bg-white rounded-xl border p-4">
+                  <p className="text-sm font-semibold text-center">Pilih Bank Tujuan</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {BANK_OPTIONS.map((bank) => (
+                      <button
+                        key={bank.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBank(bank.id)
+                          setShowBankSelection(true)
+                        }}
+                        className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                          selectedBank === bank.id
+                            ? "border-green-500 bg-green-50"
+                            : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                      >
+                        <span className="text-2xl">{bank.icon}</span>
+                        <div className="text-left">
+                          <p className="font-semibold text-sm">{bank.label}</p>
+                          <p className="text-xs text-gray-400">Transfer {bank.label}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedMetode === "transfer" && showBankSelection && (
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-center space-y-2">
+                  <Landmark className="w-10 h-10 mx-auto text-blue-600" />
+                  <p className="text-base font-bold">Transfer {BANK_OPTIONS.find(b => b.id === selectedBank)?.label}</p>
+                  <p className="text-sm text-blue-700">
+                    Total tagihan akan diproses dengan transfer via {BANK_OPTIONS.find(b => b.id === selectedBank)?.label}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowBankSelection(false)}
+                    className="text-xs text-blue-500 underline"
+                  >
+                    Ganti Bank
+                  </button>
+                </div>
+              )}
+
               {/* Tunai Input */}
               {isBayarTunaiFinal && selectedMetode === "tunai" ? (
                 <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 text-center space-y-2">
@@ -1296,7 +1409,7 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
                       Bayar Tunai
                     </Button>
                   </>
-                ) : (
+                ) : selectedMetode === "transfer" && !showBankSelection ? (
                   <>
                     <Button
                       variant="outline"
@@ -1306,8 +1419,24 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
                       Batal
                     </Button>
                     <Button
+                      disabled={true}
+                      className="text-sm flex-1 opacity-60"
+                    >
+                      Pilih Bank Dahulu
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setIsPaymentOpen(false); setShowBankSelection(false) }}
+                      className="text-sm flex-1"
+                    >
+                      Batal
+                    </Button>
+                    <Button
                       onClick={selectedMetode === "tunai" ? () => handleBayarTunaiStep() : () => handleBayar()}
-                      disabled={selectedMetode === "tunai" ? !selectedPesanan?.metodePembayaran : submitting || !selectedPesanan?.metodePembayaran}
+                      disabled={selectedMetode === "tunai" ? false : submitting}
                       className="text-sm flex-1"
                     >
                       {submitting ? (
@@ -1315,7 +1444,7 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
                       ) : (
                         <CheckCircle className="w-4 h-4 mr-1" />
                       )}
-                      {selectedMetode === "tunai" ? "Bayar Tunai" : "Konfirmasi"}
+                      {selectedMetode === "tunai" ? "Bayar Tunai" : selectedMetode === "transfer" ? "Proses Transfer" : "Bayar QRIS"}
                     </Button>
                   </>
                 )}
@@ -1357,30 +1486,51 @@ const [showConfirmProcess, setShowConfirmProcess] = useState(false)
               </div>
             )}
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 flex-wrap">
             {selectedPesanan && selectedPesanan.statusPembayaran !== 'menunggu' && (
-              <Button variant="outline" size="lg" onClick={() => printStruk({
-                id: selectedPesanan.id,
-                nomorMeja: selectedPesanan.nomorMeja,
-                items: selectedPesanan.items.map(i => ({
-                  nama: i.namaMenu,
-                  jumlah: i.jumlah,
-                  harga: Number(i.hargaSaatPesan),
-                })),
-                totalHarga: Number(selectedPesanan.totalHarga),
-                adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
-                ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
-                metodePembayaran: selectedPesanan.metodePembayaran,
-                jumlahBayar: selectedPesanan.jumlahBayar ? Number(selectedPesanan.jumlahBayar) : undefined,
-                kembalian: Number(selectedPesanan.kembalian),
-                createdAt: selectedPesanan.createdAt,
-                waiterUsername: selectedPesanan.waiterUsername,
-                kasirUsername: selectedPesanan.kasirUsername,
-                namaPelanggan: selectedPesanan.namaPelanggan,
-              })}>
-                <Printer className="w-5 h-5 mr-2" />
-                Cetak Struk
-              </Button>
+              <>
+                {selectedPesanan.statusPembayaran === 'berhasil' && selectedPesanan.statusPesanan === 'diproses' && (
+                  <Button
+                    size="lg"
+                    onClick={async () => {
+                      if (!selectedPesanan) return
+                      const result = await selesaikanPesananKasir(selectedPesanan.id)
+                      if ('error' in result) {
+                        alert(result.error)
+                      } else {
+                        setIsDetailOpen(false)
+                        pollData()
+                      }
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                  >
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Selesai &amp; Kosongkan Meja
+                  </Button>
+                )}
+                <Button variant="outline" size="lg" onClick={() => printStruk({
+                  id: selectedPesanan.id,
+                  nomorMeja: selectedPesanan.nomorMeja,
+                  items: selectedPesanan.items.map(i => ({
+                    nama: i.namaMenu,
+                    jumlah: i.jumlah,
+                    harga: Number(i.hargaSaatPesan),
+                  })),
+                  totalHarga: Number(selectedPesanan.totalHarga),
+                  adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
+                  ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
+                  metodePembayaran: selectedPesanan.metodePembayaran,
+                  jumlahBayar: selectedPesanan.jumlahBayar ? Number(selectedPesanan.jumlahBayar) : undefined,
+                  kembalian: Number(selectedPesanan.kembalian),
+                  createdAt: selectedPesanan.createdAt,
+                  waiterUsername: selectedPesanan.waiterUsername,
+                  kasirUsername: selectedPesanan.kasirUsername,
+                  namaPelanggan: selectedPesanan.namaPelanggan,
+                })}>
+                  <Printer className="w-5 h-5 mr-2" />
+                  Cetak Struk
+                </Button>
+              </>
             )}
             <Button variant="outline" size="lg" onClick={() => setIsDetailOpen(false)} className="text-base">
               Tutup

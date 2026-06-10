@@ -6,50 +6,55 @@
 
 ## Role & Akses Folder
 
-### FE-1: Dashboard & Kasir
+### FE-1: Customer, Waiter & Cashier
 **Akses folder:**
-- `src/app/dashboard/` - Halaman dashboard
-- `src/app/dashboard/pesanan/` - Kelola pesanan
-- `src/app/dashboard/kasir/` - Halaman kasir
-- `src/components/dashboard/` - Komponen dashboard
+- `src/app/(customer)/` - Halaman customer kiosk
+- `src/app/(auth)/login/` - Halaman login
+- `src/app/dashboard/pesanan/` - Kelola pesanan (waiter)
+- `src/app/dashboard/kasir/` - Halaman kasir (cashier)
+- `src/components/customer/` - Komponen customer
+- `src/components/pesanan/` - Komponen pesanan
 - `src/components/kasir/` - Komponen kasir
 
-**Tugas:** UI halaman admin, statistik, kelola pesanan, kasir
+**Tugas:** UI customer kiosk, login, kelola pesanan (waiter), kasir (cashier)
 
-### FE-2: Customer & Admin
+### FE-2: Owner / Admin
 **Akses folder:**
-- `src/app/(customer)/` - Halaman customer
+- `src/app/dashboard/page.tsx` - Halaman utama dashboard (statistik)
+- `src/app/dashboard/user/` - Kelola user
 - `src/app/dashboard/menu/` - Kelola menu
 - `src/app/dashboard/meja/` - Kelola meja
-- `src/components/customer/` - Komponen customer
+- `src/app/dashboard/laporan/` - Laporan & analitik
+- `src/components/dashboard/` - Komponen dashboard/admin
 
-**Tugas:** UI customer kiosk, CRUD menu, CRUD meja
+**Tugas:** UI dashboard owner, statistik, CRUD user/menu/meja, laporan, analitik
 
 ---
 
 ## PBI yang Bisa Dikerjakan
 
-### Modul 2: Pesanan (FE-1)
+### FE-1 (Customer, Waiter, Cashier)
+
+#### Modul 1: Auth
 | PBI | Deskripsi | Status |
 |-----|----------|--------|
-| PBI-2.1 | Buat Pesanan (QR scan / input manual) - UI | 🔲 |
+| PBI-1.1 | Login & Logout - UI | 🔲 |
+
+#### Modul 2: Pesanan
+| PBI | Deskripsi | Status |
+|-----|----------|--------|
+| PBI-2.1 | Buat Pesanan (customer kiosk / waiter input manual) - UI | 🔲 |
 | PBI-2.2 | Kelola Item Pesanan (tambah/edit/hapus item) - UI | 🔲 |
 | PBI-2.3 | Status & Pembatalan (tampil status, batal) - UI | 🔲 |
 
-### Modul 3: Pembayaran (FE-1)
+#### Modul 3: Pembayaran
 | PBI | Deskripsi | Status |
 |-----|----------|--------|
 | PBI-3.1 | Hitung Total (subtotal, pajak, kembalian) - UI | 🔲 |
 | PBI-3.2 | Pembayaran (tunai/non-tunai) - UI | 🔲 |
 | PBI-3.3 | Struk (tampil/cetak) - UI | 🔲 |
 
-### Modul 1: CRUD (FE-2)
-| PBI | Deskripsi | Status |
-|-----|----------|--------|
-| PBI-1.3 | CRUD Meja - UI | 🔲 |
-| PBI-1.4 | CRUD Menu - UI | 🔲 |
-
-### Fitur Tambahan (FE-2)
+#### Fitur Tambahan
 | Fitur | Deskripsi | Status |
 |-------|-----------|--------|
 | Customer Kiosk | Menu digital via scan QR | 🔲 |
@@ -57,10 +62,38 @@
 
 ---
 
+### FE-2 (Owner / Admin)
+
+#### Modul 1: Manajemen
+| PBI | Deskripsi | Status |
+|-----|----------|--------|
+| PBI-1.2 | CRUD User - UI (tambah/edit/hapus user) | 🔲 |
+| PBI-1.3 | CRUD Meja - UI (tambah/edit/hapus meja) | 🔲 |
+| PBI-1.4 | CRUD Menu - UI (tambah/edit/hapus menu) | 🔲 |
+
+#### Modul 4: Sistem
+| PBI | Deskripsi | Status |
+|-----|----------|--------|
+| PBI-4.1 | Logging - UI (tampil log aktivitas) | 🔲 |
+
+#### Modul 5: Laporan & Analitik
+| PBI | Deskripsi | Status |
+|-----|----------|--------|
+| PBI-5.1 | Laporan - UI (pendapatan harian/bulanan) | 🔲 |
+| PBI-5.2 | Analitik - UI (menu terlaris, jumlah terjual) | 🔲 |
+
+#### Dashboard
+| Fitur | Deskripsi | Status |
+|-------|-----------|--------|
+| Dashboard Utama | Statistik ringkasan (total pesanan, pendapatan) | 🔲 |
+| Real-time Update | Status pesanan real-time di dashboard | 🔲 |
+
+---
+
 ## Fitur yang TIDAK Bisa Dikerjakan (Harus BE)
 
 - Logika database (Prisma schema)
-- Server Actions (CRUD di `src/app/actions/`)
+- Server Actions (CRUD di `src/app/actions/`) — meja.ts, menu.ts, pesanan.ts, user.ts, log.ts, laporan.ts, struk.ts
 - Auth logic (login, session)
 - API routes
 
@@ -81,10 +114,12 @@
 ## Catatan Penting
 
 - **Jangan ubah folder `src/app/actions/`, `prisma/`, `src/lib/`**
+- **FE-1 → jangan ubah folder FE-2, FE-2 → jangan ubah folder FE-1**
 - **Selalu tanya/opencode dengan merujuk file ini:**
   > "FE-1 mau kerja PBI-2.1, cek AGENTS-FE.md dulu ya"
 - **Komponen UI:** Pakai shadcn/ui (`src/components/ui/`)
 - **Style:** Tailwind CSS v4
+- **Halaman baru:** Buat folder route baru di `src/app/` sesuai kebutuhan (contoh: `dashboard/laporan/`)
 
 ---
 

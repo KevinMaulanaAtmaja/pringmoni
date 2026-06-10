@@ -195,7 +195,7 @@ const [error, setError] = useState<string | null>(null);
             const barcodes = await detector.detect(videoRef.current);
             if (barcodes.length > 0) {
                 const token = barcodes[0].rawValue.split("/").pop() || barcodes[0].rawValue;
-                stopScanner();
+                stopCamera();
                 window.location.href = `/${token}`;
                 return;
             }
@@ -205,9 +205,13 @@ const [error, setError] = useState<string | null>(null);
         }
     };
 
-    const stopScanner = () => {
+    const stopCamera = () => {
         scannerRef.current.stream?.getTracks().forEach((t: MediaStreamTrack) => t.stop());
         scannerRef.current = {};
+    };
+
+    const handleCloseScanner = () => {
+        stopCamera();
         setShowScanner(false);
     };
 
@@ -224,7 +228,7 @@ const [error, setError] = useState<string | null>(null);
         if (showScanner) {
             startScanner();
         }
-        return () => stopScanner();
+        return () => stopCamera();
     }, [showScanner]);
 
 return (
@@ -300,7 +304,7 @@ return (
                                             variant="secondary"
                                             size="icon"
                                             className="absolute top-2 right-2 rounded-full"
-                                            onClick={stopScanner}
+                                            onClick={handleCloseScanner}
                                         >
                                             <X className="size-4" />
                                         </Button>

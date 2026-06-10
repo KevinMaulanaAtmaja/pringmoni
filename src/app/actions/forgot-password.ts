@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma'
 import { sendResetPasswordEmail } from '@/lib/email'
+import { createLog } from '@/lib/log'
 import crypto from 'crypto'
 
 export async function forgotPasswordAction(
@@ -35,6 +36,7 @@ export async function forgotPasswordAction(
 
   try {
     await sendResetPasswordEmail(user.email!, token)
+    await createLog('RESET_PASSWORD', `User ${user.username} meminta reset password`, user.id)
   } catch {
     await prisma.users.update({
       where: { id: user.id },

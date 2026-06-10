@@ -72,6 +72,10 @@ async function generateNomorMeja(tipe: TipeMeja): Promise<string> {
 }
 
 export async function getNextNomorMeja(tipe: TipeMeja): Promise<string> {
+  const session = await auth()
+  if (!session?.user || session.user.role !== 'owner') {
+    throw new Error("Unauthorized")
+  }
   return await generateNomorMeja(tipe)
 }
 

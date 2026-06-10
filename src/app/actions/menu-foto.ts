@@ -2,8 +2,15 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@/lib/auth';
+
+async function requireOwner() {
+  const session = await auth()
+  if (!session?.user || session.user.role !== 'owner') throw new Error("Unauthorized")
+}
 
 export async function saveMenuFotoUrls(menuId: number, urls: string[], fileKeys: string[]) {
+  await requireOwner()
   console.log('Saving foto URLs:', { menuId, urls, fileKeys });
   for (let i = 0; i < urls.length; i++) {
     await prisma.menuFoto.create({
@@ -19,6 +26,7 @@ export async function saveMenuFotoUrls(menuId: number, urls: string[], fileKeys:
 }
 
 export async function deleteMenuFoto(fotoId: number) {
+  await requireOwner()
   const foto = await prisma.menuFoto.findUnique({
     where: { id: fotoId },
   });
@@ -53,6 +61,7 @@ export async function deleteMenuFoto(fotoId: number) {
 }
 
 export async function getMenuFotos(menuId: number) {
+  await requireOwner()
   return await prisma.menuFoto.findMany({
     where: { menuId },
     orderBy: { urutan: 'asc' },
@@ -61,6 +70,7 @@ export async function getMenuFotos(menuId: number) {
 
 // Delete all fotos for a menu (used when deleting menu)
 export async function deleteAllMenuFotos(menuId: number) {
+  await requireOwner()
   const fotos = await prisma.menuFoto.findMany({
     where: { menuId },
   });
