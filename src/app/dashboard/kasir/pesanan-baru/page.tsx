@@ -12,11 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, Plus, Minus, Trash2, ShoppingCart, Check, ImageIcon, Banknote, CreditCard, Landmark, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Plus, Minus, Trash2, ShoppingCart, Check, ImageIcon, Banknote, CreditCard, Landmark, ChevronDown } from "lucide-react"
 import { getMenus, getKategoriMenus } from "@/app/actions/menu"
 import { getMeja } from "@/app/actions/meja"
 import { createPesanan } from "@/app/actions/pesanan"
-import { prosesPembayaranQRIS, prosesPembayaranTransfer } from "@/app/actions/kasir"
 import type { KategoriMenu } from "@prisma/client"
 import type { MenuWithKategori } from "@/app/actions/menu"
 
@@ -40,10 +39,18 @@ export default function PesananBaruPage() {
   const [selectedMejaId, setSelectedMejaId] = useState<string>("")
   const [namaPelanggan, setNamaPelanggan] = useState("")
   const [metodePembayaran, setMetodePembayaran] = useState<string>("")
-  const [jumlahBayar, setJumlahBayar] = useState<string>("")
+  const [selectedBank, setSelectedBank] = useState("bca")
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [successMsg, setSuccessMsg] = useState("")
+  const [visibleCount, setVisibleCount] = useState(8)
+
+const BANK_OPTIONS = [
+  { id: 'bca', label: 'BCA' },
+  { id: 'bni', label: 'BNI' },
+  { id: 'bri', label: 'BRI' },
+  { id: 'mandiri', label: 'Mandiri' },
+]
 
   useEffect(() => {
     Promise.all([
@@ -56,6 +63,10 @@ export default function PesananBaruPage() {
       setMejas(Array.isArray(mejaData) ? mejaData : [])
     }).finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    setVisibleCount(8)
+  }, [activeKategori, search])
 
   const filteredMenus = useMemo(() => {
     let result = menus
@@ -79,24 +90,26 @@ export default function PesananBaruPage() {
   function tambahKeCart(menu: MenuWithKategori) {
     setCart((prev) => {
       const exist = prev.find((item) => item.menuId === menu.id)
-      if (exist) {
-        return prev.map((item) =>
-          item.menuId === menu.id
-            ? { ...item, jumlah: item.jumlah + 1 }
-            : item
-        )
-      }
-      return [
-        ...prev,
-        {
-          menuId: menu.id,
-          namaMenu: menu.namaMenu,
-          harga: Number(menu.harga),
-          jumlah: 1,
-          catatan: "",
-        },
-      ]
+      return exist
+        ? prev.map((item) =>
+            item.menuId === menu.id
+              ? { ...item, jumlah: item.jumlah + 1 }
+              : item
+          )
+        : [
+            ...prev,
+            {
+              menuId: menu.id,
+              namaMenu: menu.namaMenu,
+              harga: Number(menu.harga),
+              jumlah: 1,
+              catatan: "",
+            },
+          ]
     })
+    setSuccessMsg(`+1 ${menu.namaMenu} ditambahkan`)
+    setSuccess(true)
+    setTimeout(() => setSuccess(false), 1500)
   }
 
   function updateJumlah(menuId: number, delta: number) {
@@ -157,6 +170,8 @@ export default function PesananBaruPage() {
           catatan: item.catatan || null,
         })),
         namaPelanggan: namaPelanggan || null,
+        catatan: "Dibuat oleh kasir",
+        metodePembayaran,
       })
 
       if ("error" in result) {
@@ -164,40 +179,7 @@ export default function PesananBaruPage() {
         return
       }
 
-      const id = result.id as number
-      const orderId = result.orderId
-      let paymentResult: any = { success: true }
-
-      if (metodePembayaran === "tunai") {
-        const bayar = Number(jumlahBayar)
-        if (!bayar || bayar < totalHarga) {
-          alert("Jumlah bayar kurang dari total")
-          setSubmitting(false)
-          return
-        }
-        const { prosesPembayaranTunai } = await import("@/app/actions/kasir")
-        paymentResult = await prosesPembayaranTunai(id, bayar)
-      } else if (metodePembayaran === "qris") {
-        paymentResult = await prosesPembayaranQRIS(id)
-      } else if (metodePembayaran === "transfer") {
-        paymentResult = await prosesPembayaranTransfer(id)
-      }
-
-      if ("error" in paymentResult) {
-        alert(paymentResult.error)
-        return
-      }
-
-      const params = new URLSearchParams({
-        metode: metodePembayaran,
-        nama: namaPelanggan,
-        meja: mejas.find((m: any) => m.id === Number(selectedMejaId))?.nomorMeja || "",
-      })
-      if (metodePembayaran === "tunai") {
-        params.set("jumlahBayar", jumlahBayar)
-        params.set("kembalian", String(paymentResult.kembalian || 0))
-      }
-      router.push(`/dashboard/kasir/pesanan-baru/${orderId}?${params.toString()}`)
+      router.push(`/dashboard/kasir/pesanan-baru/${result.id}`)
     } catch {
       alert("Gagal membuat pesanan")
     } finally {
@@ -214,18 +196,64 @@ export default function PesananBaruPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col">
+    <div className="h-[calc(100vh-4rem)] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 shrink-0">
         <h1 className="text-2xl font-bold">Buat Pesanan Baru</h1>
       </div>
 
       {success && (
-        <div className="bg-green-100 border border-green-300 text-green-800 rounded-xl px-4 py-3 mb-4 flex items-center gap-2 shrink-0">
-          <Check size={20} />
+        <div className="fixed top-20 right-8 z-50 bg-green-700 text-white rounded-xl px-4 py-2.5 shadow-xl flex items-center gap-2 text-sm animate-in fade-in">
+          <Check size={16} />
           {successMsg}
         </div>
       )}
+
+      {/* Nama Pelanggan & Meja */}
+      <div className="flex gap-2 mb-3 shrink-0">
+        <div className="flex-1 min-w-0">
+          <label className="text-sm font-medium mb-1 block">
+            Nama Pelanggan <span className="text-red-500">*</span>
+          </label>
+          <Input
+            placeholder="Nama pelanggan"
+            value={namaPelanggan}
+            onChange={(e) => setNamaPelanggan(e.target.value)}
+          />
+        </div>
+        <div className="w-44 shrink-0">
+          <label className="text-sm font-medium mb-1 block">
+            Meja <span className="text-red-500">*</span>
+          </label>
+          <Select value={selectedMejaId} onValueChange={setSelectedMejaId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Pilih Meja" />
+            </SelectTrigger>
+            <SelectContent position="popper" align="center">
+              {mejas.map((m: any) => {
+                const kosong = m.statusMeja === "kosong"
+                return (
+                  <SelectItem
+                    key={m.id}
+                    value={String(m.id)}
+                    disabled={!kosong}
+                    className={!kosong ? "opacity-50" : ""}
+                  >
+                    <span className="flex items-center gap-2">
+                      Meja {m.nomorMeja} ({m.kapasitas} kursi)
+                      {!kosong && (
+                        <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
+                          Terpakai
+                        </span>
+                      )}
+                    </span>
+                  </SelectItem>
+                )
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 flex gap-4 min-h-0">
@@ -272,47 +300,57 @@ export default function PesananBaruPage() {
                 Tidak ada menu ditemukan
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {filteredMenus.map((menu) => (
-                  <button
-                    key={menu.id}
-                    onClick={() => tambahKeCart(menu)}
-                    className="bg-white rounded-xl border hover:border-green-400 hover:shadow-md active:scale-[0.97] transition-all text-left flex flex-col cursor-pointer overflow-hidden"
-                  >
-                    <div className="w-full h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
-                      {menu.fotoUrl ? (
-                        <img
-                          src={menu.fotoUrl}
-                          alt={menu.namaMenu}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <ImageIcon className="size-8 text-gray-300" />
-                      )}
-                    </div>
-                    <div className="p-3 flex flex-col flex-1">
-                      <span className="font-semibold text-sm leading-tight line-clamp-2">
-                        {menu.namaMenu}
-                      </span>
-                      {menu.deskripsi && (
-                        <span className="text-xs text-gray-400 mt-1 line-clamp-1">
-                          {menu.deskripsi}
+              <div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {filteredMenus.slice(0, visibleCount).map((menu) => (
+                    <button
+                      key={menu.id}
+                      onClick={() => tambahKeCart(menu)}
+                      className="bg-white rounded-lg border hover:border-green-400 hover:shadow-sm active:scale-[0.97] transition-all text-left flex flex-col cursor-pointer overflow-hidden group"
+                    >
+                      <div className="w-full h-14 bg-gray-100 flex items-center justify-center overflow-hidden">
+                        {menu.fotoUrl ? (
+                          <img
+                            src={menu.fotoUrl}
+                            alt={menu.namaMenu}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="size-6 text-gray-300" />
+                        )}
+                      </div>
+                      <div className="p-1.5 flex flex-col flex-1">
+                        <span className="font-semibold text-xs leading-tight line-clamp-1 group-hover:text-green-700">
+                          {menu.namaMenu}
                         </span>
-                      )}
-                      <span className="mt-auto pt-2 text-sm font-bold text-green-700">
-                        Rp {Number(menu.harga).toLocaleString()}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                        <span className="mt-auto pt-0.5 text-xs font-bold text-green-700">
+                          Rp {Number(menu.harga).toLocaleString()}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {visibleCount < filteredMenus.length && (
+                  <div className="flex justify-center pt-3 pb-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setVisibleCount((prev) => prev + 8)}
+                      className="text-green-700 hover:text-green-800 hover:bg-green-50 gap-1"
+                    >
+                      <ChevronDown size={18} />
+                      Lihat Menu Lainnya ({filteredMenus.length - visibleCount} lainnya)
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
 
         {/* Right: Cart Panel */}
-        <div className="w-80 lg:w-96 bg-white rounded-xl border flex flex-col shrink-0">
-          <div className="p-4 border-b">
+        <div className="w-96 bg-white rounded-xl border flex flex-col min-h-0">
+          <div className="p-3 border-b shrink-0">
             <div className="flex items-center gap-2 text-lg font-semibold">
               <ShoppingCart size={20} />
               Keranjang
@@ -323,7 +361,7 @@ export default function PesananBaruPage() {
           </div>
 
           {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
             {cart.length === 0 ? (
               <div className="text-center text-gray-400 py-12 text-sm">
                 Belum ada item
@@ -333,8 +371,8 @@ export default function PesananBaruPage() {
                 <div key={item.menuId} className="bg-gray-50 rounded-xl p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{item.namaMenu}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="font-semibold text-sm truncate">{item.namaMenu}</p>
+                      <p className="text-sm text-gray-500">
                         Rp {item.harga.toLocaleString()}
                       </p>
                     </div>
@@ -342,34 +380,34 @@ export default function PesananBaruPage() {
                       onClick={() => hapusDariCart(item.menuId)}
                       className="text-gray-400 hover:text-red-500 p-1 shrink-0"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                   <div className="flex items-center gap-2 mt-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 w-9 p-0 rounded-lg"
+                      className="h-8 w-8 p-0 rounded-lg"
                       onClick={() => updateJumlah(item.menuId, -1)}
                     >
-                      <Minus size={16} />
+                      <Minus size={14} />
                     </Button>
-                    <span className="w-8 text-center font-semibold text-sm">
+                    <span className="w-8 text-center font-bold text-sm">
                       {item.jumlah}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 w-9 p-0 rounded-lg"
+                      className="h-8 w-8 p-0 rounded-lg"
                       onClick={() => updateJumlah(item.menuId, 1)}
                     >
-                      <Plus size={16} />
+                      <Plus size={14} />
                     </Button>
                     <input
                       placeholder="Catatan..."
                       value={item.catatan}
                       onChange={(e) => updateCatatan(item.menuId, e.target.value)}
-                      className="flex-1 min-w-0 h-9 px-2 text-xs bg-white border rounded-lg outline-none focus:border-green-400"
+                      className="flex-1 min-w-0 h-8 px-3 text-sm bg-white border rounded-lg outline-none focus:border-green-400"
                     />
                   </div>
                 </div>
@@ -378,47 +416,7 @@ export default function PesananBaruPage() {
           </div>
 
           {/* Bottom: Order Info + Submit */}
-          <div className="border-t p-4 space-y-3">
-            <Select value={selectedMejaId} onValueChange={setSelectedMejaId}>
-              <SelectTrigger className="h-12 text-base">
-                <SelectValue placeholder="Pilih Meja" />
-              </SelectTrigger>
-              <SelectContent position="popper" align="center">
-                {mejas.map((m: any) => {
-                  const kosong = m.statusMeja === "kosong"
-                  return (
-                    <SelectItem
-                      key={m.id}
-                      value={String(m.id)}
-                      disabled={!kosong}
-                      className={!kosong ? "opacity-50" : ""}
-                    >
-                      <span className="flex items-center gap-2">
-                        Meja {m.nomorMeja} ({m.kapasitas} kursi)
-                        {!kosong && (
-                          <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
-                            Terpakai
-                          </span>
-                        )}
-                      </span>
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-
-            <div>
-              <label className="text-sm font-medium mb-1 block">
-                Nama Pelanggan <span className="text-red-500">*</span>
-              </label>
-              <Input
-                placeholder="Masukkan nama pelanggan"
-                value={namaPelanggan}
-                onChange={(e) => setNamaPelanggan(e.target.value)}
-                className="h-12 text-base"
-              />
-            </div>
-
+          <div className="border-t p-3 space-y-2 shrink-0">
             <div>
               <label className="text-sm font-medium mb-2 block">
                 Metode Pembayaran <span className="text-red-500">*</span>
@@ -435,10 +433,7 @@ export default function PesananBaruPage() {
                     <button
                       key={m.value}
                       type="button"
-                      onClick={() => {
-                        setMetodePembayaran(m.value)
-                        if (m.value !== "tunai") setJumlahBayar("")
-                      }}
+                      onClick={() => setMetodePembayaran(m.value)}
                       className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-sm ${
                         active
                           ? "border-green-500 bg-green-50 text-green-700"
@@ -453,23 +448,23 @@ export default function PesananBaruPage() {
               </div>
             </div>
 
-            {metodePembayaran === "tunai" && (
+            {metodePembayaran === "transfer" && (
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  Jumlah Bayar <span className="text-red-500">*</span>
+                  Pilih Bank Tujuan <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  type="number"
-                  placeholder="Masukkan jumlah uang"
-                  value={jumlahBayar}
-                  onChange={(e) => setJumlahBayar(e.target.value)}
-                  className="h-12 text-base"
-                />
-                {jumlahBayar && Number(jumlahBayar) >= totalHarga && (
-                  <p className="text-xs text-green-600 mt-1">
-                    Kembalian: Rp {(Number(jumlahBayar) - totalHarga).toLocaleString()}
-                  </p>
-                )}
+                <Select value={selectedBank} onValueChange={setSelectedBank}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Pilih bank" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BANK_OPTIONS.map((bank) => (
+                      <SelectItem key={bank.id} value={bank.id}>
+                        {bank.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 

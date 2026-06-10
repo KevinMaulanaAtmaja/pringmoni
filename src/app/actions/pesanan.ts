@@ -4,6 +4,7 @@ import crypto from "crypto"
 import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
+import { createLog } from "@/lib/log"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { hitungAdminFee, hitungExpiryMenit } from "@/lib/fee"
 
@@ -39,6 +40,12 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
     data: { statusPesanan: status },
   })
 
+  if (status === StatusPesanan.dibatalkan) {
+    await createLog('CANCEL_ORDER_KASIR', `Pesanan #${id} dibatalkan oleh ${session.user.username || 'staff'} (${session.user.role}) — status sebelumnya: ${pesanan.statusPesanan}`)
+  } else {
+    await createLog('UPDATE_ORDER_STATUS', `Status pesanan #${id} diubah dari ${pesanan.statusPesanan} → ${status} oleh ${session.user.username || 'staff'} (${session.user.role})`)
+  }
+
   revalidatePath("/dashboard/pesanan")
   return { success: true }
 }
@@ -53,6 +60,8 @@ export interface CreatePesananData {
   tokenMeja: string
   items: CreatePesananItem[]
   namaPelanggan?: string | null
+  catatan?: string | null
+  metodePembayaran?: string | null
 }
 
 export async function getMejaByToken(tokenMeja: string) {
@@ -81,7 +90,10 @@ export async function getMenusForCustomer() {
 }
 
 export async function createPesanan(data: CreatePesananData) {
-  const { tokenMeja, items, namaPelanggan } = data
+  const { tokenMeja, items, namaPelanggan, catatan, metodePembayaran } = data
+
+  const session = await auth()
+  const kasirId = session?.user?.id ? Number(session.user.id) : null
 
   const meja = await getMejaByToken(tokenMeja)
   if (!meja) {
@@ -114,14 +126,21 @@ export async function createPesanan(data: CreatePesananData) {
   }
 
   const publicId = crypto.randomUUID()
+  const transactionId = metodePembayaran && metodePembayaran !== "tunai" ? `SIM-${crypto.randomUUID()}` : null
 
   const pesanan = await prisma.pesanan.create({
     data: {
       mejaId: meja.id,
+      kasirId,
       statusPesanan: StatusPesanan.menunggu,
       totalHarga: totalHarga,
       namaPelanggan: namaPelanggan || null,
+      catatan: catatan || null,
+      metodePembayaran: (metodePembayaran as MetodePembayaran) || null,
+      biayaAdmin: 0,
+      ppn: 0,
       midtransOrderId: publicId,
+      midtransTransactionId: transactionId,
       detailPesanan: {
         create: items.map(item => ({
           menuId: item.menuId,
@@ -137,6 +156,9 @@ export async function createPesanan(data: CreatePesananData) {
     where: { id: meja.id },
     data: { statusMeja: 'terpakai' },
   })
+
+  const itemsSummary = items.map(i => `${i.jumlah}x menu #${i.menuId}`).join(', ')
+  await createLog('CREATE_ORDER', `Pesanan baru #${pesanan.id} dari ${meja.nomorMeja}: ${itemsSummary} (Total: Rp${totalHarga.toLocaleString('id-ID')})`)
 
   revalidatePath("/dashboard/pesanan")
   revalidatePath(`/${tokenMeja}`)
@@ -204,7 +226,7 @@ export async function updatePembayaran(
   data: { metodePembayaran: string; jumlahBayar: number | null; kembalian: number }
 ) {
   const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+  if (!session?.user || session.user.role !== 'cashier') {
     return { error: "Unauthorized" }
   }
 
@@ -226,6 +248,8 @@ export async function updatePembayaran(
       kasirId: parseInt(session.user.id),
     },
   })
+
+  await createLog('PROCESS_PAYMENT', `Pembayaran pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')} (${data.metodePembayaran}) oleh ${session.user.username || 'staff'} — bayar: Rp${Number(data.jumlahBayar).toLocaleString('id-ID')}, kembalian: Rp${Number(data.kembalian).toLocaleString('id-ID')}`)
 
   revalidatePath("/dashboard/pesanan")
   revalidatePath("/dashboard/kasir")
@@ -346,6 +370,41 @@ export async function createMidtransPayment(publicId: string, tokenMeja: string,
 
   // Kalo udah pernah generate, skip Midtrans API
   if (pesanan.midtransTransactionId) {
+    // SIM transaction — kembalikan data simulasi tanpa Midtrans API
+    if (pesanan.midtransTransactionId.startsWith("SIM-")) {
+      const simAdminFee = Number(pesanan.biayaAdmin) || hitungAdminFee(metode, totalHarga)
+      const simTotalBayar = totalHarga + simAdminFee
+      const simExpiry = hitungExpiryMenit(metode)
+
+      if (metode === "qris") {
+        const simQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SIMULASI-QRIS-${publicId}`
+        return {
+          success: true,
+          payment_type: "gopay" as const,
+          qr_url: simQrUrl,
+          transaction_id: pesanan.midtransTransactionId,
+          adminFee: simAdminFee,
+          totalBayar: simTotalBayar,
+          expiryMenit: simExpiry,
+        }
+      }
+
+      if (metode === "transfer") {
+        const simBank = bank || "bca"
+        return {
+          success: true,
+          payment_type: "bank_transfer" as const,
+          bank: simBank,
+          va_number: "SIM-" + publicId.replace(/-/g, "").slice(0, 12),
+          biller_code: simBank === "mandiri" ? "70012" : null,
+          transaction_id: pesanan.midtransTransactionId,
+          adminFee: simAdminFee,
+          totalBayar: simTotalBayar,
+          expiryMenit: simExpiry,
+        }
+      }
+    }
+
     const { checkMidtransTransaction } = await import("@/lib/midtrans")
     const result = await checkMidtransTransaction(midtransOrderId)
 
@@ -357,13 +416,31 @@ export async function createMidtransPayment(publicId: string, tokenMeja: string,
 
     if (metode === "transfer") {
       const vaNumbers = data.va_numbers as Array<{ bank: string; va_number: string }> | undefined
-      const vaNumber = vaNumbers?.[0]?.va_number || null
-      const actualBank = vaNumbers?.[0]?.bank || "bca"
+      const permataVa = data.permata_va_number as string | undefined
+      const billKey = data.bill_key as string | undefined
+      const billerCode = data.biller_code as string | undefined
+      const actualPaymentType = data.payment_type as string | undefined
+
+      let vaNumber: string | null = null
+      let actualBank = "bca"
+
+      if (actualPaymentType === "echannel" && billKey) {
+        vaNumber = billKey
+        actualBank = "mandiri"
+      } else if (permataVa) {
+        vaNumber = permataVa
+        actualBank = "permata"
+      } else if (vaNumbers?.[0]) {
+        vaNumber = vaNumbers[0].va_number || null
+        actualBank = vaNumbers[0].bank || "bca"
+      }
+
       return {
         success: true,
         payment_type: "bank_transfer" as const,
         bank: actualBank,
         va_number: vaNumber,
+        biller_code: billerCode || null,
         transaction_id: data.transaction_id as string || pesanan.midtransTransactionId,
         adminFee,
         totalBayar: grossAmount,
@@ -373,13 +450,24 @@ export async function createMidtransPayment(publicId: string, tokenMeja: string,
 
     if (metode === "qris") {
       const actions = data.actions as Array<{ name: string; method: string; url: string }> | undefined
-      const qrAction = actions?.find(a => a.name === "generate-qr-code")
-      const qrUrl = qrAction?.url || null
+      const qrV2 = actions?.find(a => a.name === "generate-qr-code-v2")
+      const qrV1 = actions?.find(a => a.name === "generate-qr-code")
+      const qrAction = qrV2 || qrV1
+      const transactionId = (data.transaction_id as string) || pesanan.midtransTransactionId || ''
+      let qrUrl: string | null = qrAction?.url || null
+
+      if (!qrUrl && transactionId) {
+        const baseUrl = process.env.NODE_ENV === "production"
+          ? "https://api.midtrans.com"
+          : "https://api.sandbox.midtrans.com"
+        qrUrl = `${baseUrl}/v2/gopay/${transactionId}/qr-code`
+      }
+
       return {
         success: true,
-        payment_type: "other_qris" as const,
+        payment_type: "gopay" as const,
         qr_url: qrUrl,
-        transaction_id: data.transaction_id as string || pesanan.midtransTransactionId,
+        transaction_id: transactionId,
         adminFee,
         totalBayar: grossAmount,
         expiryMenit,
@@ -390,11 +478,14 @@ export async function createMidtransPayment(publicId: string, tokenMeja: string,
   }
 
   // First time: call Midtrans API
+  const paymentType = metode === "transfer"
+    ? (bank === "mandiri" ? "echannel" as const : "bank_transfer" as const)
+    : "gopay" as const
   const { createCorePayment } = await import("@/lib/midtrans")
   const result = await createCorePayment({
     order_id: midtransOrderId,
     gross_amount: grossAmount,
-    payment_type: metode === "transfer" ? "bank_transfer" : "other_qris",
+    payment_type: paymentType,
     bank: metode === "transfer" ? bank : undefined,
     customer_details: {
       first_name: pesanan.namaPelanggan || "Customer",
@@ -430,34 +521,65 @@ export async function createMidtransPayment(publicId: string, tokenMeja: string,
           midtransTransactionId: data.transaction_id as string,
           biayaAdmin: adminFee,
           ppn: 0,
+          updatedAt: new Date(),
         },
       })
       return buildPaymentResult(metode, data, adminFee, grossAmount, data.transaction_id as string, expiryMenit)
     }
 
-    // Fallback: QRIS simulation for sandbox/development
-    if (metode === "qris" && process.env.NODE_ENV !== "production") {
+    // Simulation fallback for sandbox/development (Midtrans not active)
+    if (process.env.NODE_ENV !== "production") {
       const simTransactionId = `SIM-${crypto.randomUUID()}`
-      const simQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SIMULASI-QRIS-${publicId}`
 
-      await prisma.pesanan.update({
-        where: { id: pesanan.id },
-        data: {
-          metodePembayaran: metode as MetodePembayaran,
-          midtransTransactionId: simTransactionId,
-          biayaAdmin: adminFee,
-          ppn: 0,
-        },
-      })
+      if (metode === "qris") {
+        const simQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SIMULASI-QRIS-${publicId}`
 
-      return {
-        success: true,
-        payment_type: "other_qris" as const,
-        qr_url: simQrUrl,
-        transaction_id: simTransactionId,
-        adminFee,
-        totalBayar: grossAmount,
-        expiryMenit,
+        await prisma.pesanan.update({
+          where: { id: pesanan.id },
+          data: {
+            metodePembayaran: metode as MetodePembayaran,
+            midtransTransactionId: simTransactionId,
+            biayaAdmin: adminFee,
+            ppn: 0,
+            updatedAt: new Date(),
+          },
+        })
+
+        return {
+          success: true,
+          payment_type: "gopay" as const,
+          qr_url: simQrUrl,
+          transaction_id: simTransactionId,
+          adminFee,
+          totalBayar: grossAmount,
+          expiryMenit,
+        }
+      }
+
+      if (metode === "transfer") {
+        const simBank = bank || "bca"
+        await prisma.pesanan.update({
+          where: { id: pesanan.id },
+          data: {
+            metodePembayaran: metode as MetodePembayaran,
+            midtransTransactionId: simTransactionId,
+            biayaAdmin: adminFee,
+            ppn: 0,
+            updatedAt: new Date(),
+          },
+        })
+
+        return {
+          success: true,
+          payment_type: "bank_transfer" as const,
+          bank: simBank,
+          va_number: "SIM-" + publicId.replace(/-/g, "").slice(0, 12),
+          biller_code: simBank === "mandiri" ? "70012" : null,
+          transaction_id: simTransactionId,
+          adminFee,
+          totalBayar: grossAmount,
+          expiryMenit,
+        }
       }
     }
 
@@ -474,6 +596,7 @@ export async function createMidtransPayment(publicId: string, tokenMeja: string,
       midtransTransactionId: data.transaction_id as string,
       biayaAdmin: adminFee,
       ppn: 0,
+      updatedAt: new Date(),
     },
   })
 
@@ -490,13 +613,31 @@ function buildPaymentResult(
 ) {
   if (metode === "transfer") {
     const vaNumbers = data.va_numbers as Array<{ bank: string; va_number: string }> | undefined
-    const vaNumber = vaNumbers?.[0]?.va_number || null
-    const actualBank = vaNumbers?.[0]?.bank || "bca"
+    const permataVa = data.permata_va_number as string | undefined
+    const billKey = data.bill_key as string | undefined
+    const billerCode = data.biller_code as string | undefined
+    const actualPaymentType = data.payment_type as string | undefined
+
+    let vaNumber: string | null = null
+    let actualBank = "bca"
+
+    if (actualPaymentType === "echannel" && billKey) {
+      vaNumber = billKey
+      actualBank = "mandiri"
+    } else if (permataVa) {
+      vaNumber = permataVa
+      actualBank = "permata"
+    } else if (vaNumbers?.[0]) {
+      vaNumber = vaNumbers[0].va_number || null
+      actualBank = vaNumbers[0].bank || "bca"
+    }
+
     return {
       success: true,
       payment_type: "bank_transfer" as const,
       bank: actualBank,
       va_number: vaNumber,
+      biller_code: billerCode || null,
       transaction_id: transactionId,
       adminFee,
       totalBayar,
@@ -506,19 +647,21 @@ function buildPaymentResult(
 
   if (metode === "qris") {
     const actions = data.actions as Array<{ name: string; method: string; url: string }> | undefined
-    const qrAction = actions?.find(a => a.name === "generate-qr-code")
+    const qrV2 = actions?.find(a => a.name === "generate-qr-code-v2")
+    const qrV1 = actions?.find(a => a.name === "generate-qr-code")
+    const qrAction = qrV2 || qrV1
     let qrUrl: string | null = qrAction?.url || null
 
     if (!qrUrl && transactionId) {
       const baseUrl = process.env.NODE_ENV === "production"
         ? "https://api.midtrans.com"
         : "https://api.sandbox.midtrans.com"
-      qrUrl = `${baseUrl}/v2/qris/${transactionId}/qr-code`
+      qrUrl = `${baseUrl}/v2/gopay/${transactionId}/qr-code`
     }
 
     return {
       success: true,
-      payment_type: "other_qris" as const,
+      payment_type: "gopay" as const,
       qr_url: qrUrl,
       transaction_id: transactionId,
       adminFee,
@@ -533,7 +676,7 @@ function buildPaymentResult(
 export async function checkMidtransPaymentStatus(publicId: string) {
   const pesanan = await prisma.pesanan.findFirst({
     where: { midtransOrderId: publicId, deletedAt: null },
-    select: { id: true, midtransOrderId: true, midtransTransactionId: true, statusPembayaran: true },
+    select: { id: true, midtransOrderId: true, midtransTransactionId: true, statusPembayaran: true, totalHarga: true },
   })
 
   if (!pesanan) {
@@ -553,6 +696,7 @@ export async function checkMidtransPaymentStatus(publicId: string) {
         statusPembayaran: StatusBayar.berhasil,
       },
     })
+    await createLog('PROCESS_PAYMENT', `Pembayaran SIM-QRIS pesanan #${pesanan.id} terkonfirmasi otomatis: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')}`)
     revalidatePath("/dashboard/kasir")
     revalidatePath("/dashboard/pesanan")
     return { success: true, transaction_status: "settlement", isSuccess: true }
@@ -584,6 +728,7 @@ export async function checkMidtransPaymentStatus(publicId: string) {
           kembalian: 0,
         },
       })
+      await createLog('PROCESS_PAYMENT', `Pembayaran Midtrans pesanan #${pesanan.id}: Rp${Number(result.data.gross_amount).toLocaleString('id-ID')}`)
       revalidatePath("/dashboard/kasir")
       revalidatePath("/dashboard/pesanan")
     }
@@ -673,7 +818,7 @@ export async function markPesananSelesai(id: number) {
 
   const pesanan = await prisma.pesanan.findFirst({
     where: { id, deletedAt: null },
-    include: { detailPesanan: true }
+    include: { detailPesanan: true, meja: true }
   })
 
   if (!pesanan) {
@@ -684,16 +829,26 @@ export async function markPesananSelesai(id: number) {
     return { error: "Pesanan belum diproses" }
   }
 
-  await prisma.pesanan.update({
-    where: { id },
-    data: {
-      statusPesanan: StatusPesanan.selesai,
-      waiterId: parseInt(session.user.id),
-      updatedAt: new Date(),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.pesanan.update({
+      where: { id },
+      data: {
+        statusPesanan: StatusPesanan.selesai,
+        waiterId: parseInt(session.user.id),
+        updatedAt: new Date(),
+      },
+    })
+
+    await tx.meja.update({
+      where: { id: pesanan.mejaId },
+      data: { statusMeja: 'kosong' },
+    })
   })
 
+  await createLog('UPDATE_ORDER_STATUS', `Pesanan #${id} ditandai selesai oleh ${session.user.username || 'waiter'} — meja ${pesanan.mejaId} dikosongkan`)
+
   revalidatePath("/dashboard/pesanan")
+  revalidatePath("/dashboard/kasir")
   return { success: true, message: "Pesanan berhasil ditandai selesai" }
 }
 
@@ -732,6 +887,8 @@ export async function cancelPesanan(id: number) {
     where: { id: pesanan.mejaId },
     data: { statusMeja: 'kosong' },
   })
+
+  await createLog('CANCEL_ORDER_KASIR', `Pesanan #${id} dibatalkan oleh ${session.user.username || 'staff'} (${session.user.role}) via detail pesanan — status: ${pesanan.statusPesanan}, total: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')}`)
 
   revalidatePath("/dashboard/pesanan")
   return { success: true }
@@ -907,12 +1064,13 @@ export async function cancelExpiredOrders() {
       metodePembayaran: { not: null },
       deletedAt: null,
     },
-    select: { id: true, createdAt: true, metodePembayaran: true, midtransTransactionId: true },
+    select: { id: true, createdAt: true, updatedAt: true, metodePembayaran: true, midtransTransactionId: true },
   })
 
   for (const p of expiredWithMethod) {
     const expiryMenit = p.metodePembayaran === 'qris' ? 15 : 60
-    const expiredAt = new Date(p.createdAt.getTime() + expiryMenit * 60000)
+    const startTime = p.updatedAt || p.createdAt
+    const expiredAt = new Date(startTime.getTime() + expiryMenit * 60000)
     if (now >= expiredAt) {
       await prisma.pesanan.update({
         where: { id: p.id },
@@ -922,7 +1080,7 @@ export async function cancelExpiredOrders() {
           catatan: 'Expired',
         },
       })
-      // Void Midtrans transaction if not SIM
+      await createLog('CANCEL_ORDER_EXPIRED', `Pesanan #${p.id} expired (${p.metodePembayaran}, ${expiryMenit} menit)`)
       if (p.midtransTransactionId && !p.midtransTransactionId.startsWith('SIM-')) {
         try {
           const { voidMidtransTransaction } = await import("@/lib/midtrans")
@@ -953,6 +1111,7 @@ export async function cancelExpiredOrders() {
           catatan: 'Tidak memilih pembayaran',
         },
       })
+      await createLog('CANCEL_ORDER_EXPIRED', `Pesanan #${p.id} expired (tidak memilih pembayaran, 60 menit)`)
     }
   }
 

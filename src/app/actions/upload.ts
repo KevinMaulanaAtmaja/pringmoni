@@ -47,7 +47,7 @@ export async function uploadMenuFoto(menuId: number, formData: FormData) {
        compressedBuffer.byteOffset + compressedBuffer.byteLength
      ) as ArrayBuffer;
      
-     formDataUpload.append("file", new Blob([arrayBuffer], { type: "image/jpeg" }), `menu-${menuId}-${uuidv4()}.jpg`)
+     formDataUpload.append("file", new Blob([arrayBuffer], { type: "image/jpeg" }), `${uuidv4()}.jpg`)
     
     const uploadResponse = await fetch("https://uploadthing.com/api/upload", {
       method: "POST",

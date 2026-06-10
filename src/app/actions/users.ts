@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { RoleUser } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { revalidatePath } from 'next/cache'
+import { auth } from '@/lib/auth'
 
 export type UserWithRole = {
   id: number
@@ -14,7 +15,15 @@ export type UserWithRole = {
   createdAt: Date
 }
 
+async function requireOwner() {
+  const session = await auth()
+  if (!session?.user || session.user.role !== 'owner') {
+    throw new Error('Unauthorized')
+  }
+}
+
 export async function getUsers(): Promise<UserWithRole[]> {
+  await requireOwner()
   const users = await prisma.users.findMany({
     select: {
       id: true,
@@ -36,6 +45,7 @@ export async function createUser(data: {
   password: string
   role: RoleUser
 }) {
+  await requireOwner()
   if (data.password.length < 8) {
     return { error: "Password minimal 8 karakter" }
   }
@@ -79,6 +89,7 @@ export async function updateUser(data: {
   status: boolean
   password?: string
 }) {
+  await requireOwner()
   const updateData: {
     username: string
     email: string | null
@@ -125,6 +136,7 @@ export async function updateUser(data: {
 }
 
 export async function deleteUser(id: number) {
+  await requireOwner()
   // Check if user is owner
   const user = await prisma.users.findUnique({
     where: { id },
@@ -146,6 +158,7 @@ export async function deleteUser(id: number) {
 }
 
 export async function toggleUserStatus(id: number, status: boolean) {
+  await requireOwner()
   await prisma.users.update({
     where: { id },
     data: { status },
@@ -154,6 +167,7 @@ export async function toggleUserStatus(id: number, status: boolean) {
 }
 
 export async function getKasirUsers() {
+  await requireOwner()
   try {
     const users = await prisma.users.findMany({
       where: { role: 'cashier', status: true },

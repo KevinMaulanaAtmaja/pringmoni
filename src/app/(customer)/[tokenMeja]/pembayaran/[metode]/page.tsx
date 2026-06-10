@@ -14,7 +14,7 @@ import {
   createMidtransPayment, checkMidtransPaymentStatus,
   getCustomerPaymentStatus, cancelExpiredOrders
 } from "@/app/actions/pesanan";
-import { BankIcon, getBankLabel } from "@/components/BankIcon";
+import { BankIcon, getBankLabel } from "@/components/ui/BankIcon";
 import { hitungAdminFee } from "@/lib/fee";
 
 export default function PembayaranMetodePage() {
@@ -41,6 +41,7 @@ export default function PembayaranMetodePage() {
   const [adminFee, setAdminFee] = useState(0);
   const [totalBayar, setTotalBayar] = useState<number | null>(null);
   const [vaNumber, setVaNumber] = useState<string | null>(null);
+  const [billerCode, setBillerCode] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [paymentBank, setPaymentBank] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -101,8 +102,9 @@ export default function PembayaranMetodePage() {
 
         if (payResult.payment_type === "bank_transfer") {
           setVaNumber(payResult.va_number || null);
+          setBillerCode(payResult.biller_code || null);
           setPaymentBank(payResult.bank || null);
-        } else if (payResult.payment_type === "other_qris") {
+        } else if (payResult.payment_type === "gopay" || payResult.payment_type === "other_qris") {
           setQrUrl(payResult.qr_url || null);
         }
         setGenerating(false);
@@ -189,7 +191,8 @@ export default function PembayaranMetodePage() {
 
   const handleCopyVa = () => {
     if (!vaNumber) return;
-    navigator.clipboard.writeText(vaNumber);
+    const text = billerCode ? `Biller Code: ${billerCode}\nBill Key: ${vaNumber}` : vaNumber;
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -395,25 +398,33 @@ export default function PembayaranMetodePage() {
                 <p className="text-sm text-muted-foreground">Lakukan pembayaran melalui ATM, mobile banking, atau internet banking</p>
               </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    {paymentBank && <BankIcon bank={paymentBank} size={8} />}
-                    <p className="text-xs text-blue-600 mb-1 font-medium">
-                      {paymentBank ? `${getBankLabel(paymentBank)} Virtual Account` : "Virtual Account"}
-                    </p>
-                  </div>
-                  <p className="text-2xl font-mono font-bold tracking-wider text-blue-900">
-                    {vaNumber || "-"}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center space-y-2">
+                <div className="flex items-center justify-center gap-2">
+                  {paymentBank && <BankIcon bank={paymentBank} size={8} />}
+                  <p className="text-xs text-blue-600 font-medium">
+                    {paymentBank ? `${getBankLabel(paymentBank)} Virtual Account` : "Virtual Account"}
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 rounded-full"
-                    onClick={handleCopyVa}
-                  >
-                    {copied ? "✓ Tersalin" : <><Copy className="size-3 mr-1" /> Salin</>}
-                  </Button>
                 </div>
+
+                {billerCode && (
+                  <div className="text-sm">
+                    <span className="text-blue-600">Biller Code: </span>
+                    <span className="font-mono font-bold text-blue-900">{billerCode}</span>
+                  </div>
+                )}
+
+                <p className="text-2xl font-mono font-bold tracking-wider text-blue-900">
+                  {vaNumber || "-"}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={handleCopyVa}
+                >
+                  {copied ? "✓ Tersalin" : <><Copy className="size-3 mr-1" /> Salin</>}
+                </Button>
+              </div>
 
               <div className="bg-white rounded-lg space-y-1">
                 <div className="flex justify-between text-sm">
@@ -441,13 +452,32 @@ export default function PembayaranMetodePage() {
 
               <div className="space-y-2 text-sm">
                 <p className="font-medium">Cara Pembayaran:</p>
-                <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>Catat atau salin nomor Virtual Account di atas</li>
-                  <li>Buka aplikasi mobile banking / ATM / internet banking</li>
-                  <li>Pilih menu <strong>Transfer ke Virtual Account</strong></li>
-                  <li>Masukkan nomor Virtual Account dan jumlah nominal yang sesuai</li>
-                  <li>Konfirmasi dan selesaikan pembayaran</li>
-                </ol>
+                {paymentBank === "mandiri" ? (
+                  <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Catat atau salin <strong>Biller Code</strong> dan <strong>Bill Key</strong> di atas</li>
+                    <li>Buka ATM Mandiri atau aplikasi Livin' by Mandiri</li>
+                    <li>Pilih menu <strong>Bayar</strong> → <strong>Lainnya</strong> → <strong>Multipayment</strong></li>
+                    <li>Masukkan <strong>Biller Code</strong> (70012) lalu tekan Benar</li>
+                    <li>Masukkan <strong>Bill Key</strong> (nomor di atas) lalu tekan Benar</li>
+                    <li>Konfirmasi nominal dan selesaikan pembayaran</li>
+                  </ol>
+                ) : paymentBank === "permata" ? (
+                  <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Catat atau salin nomor Virtual Account di atas</li>
+                    <li>Buka ATM Permata atau aplikasi PermataMobile</li>
+                    <li>Pilih menu <strong>Transfer ke Rekening Virtual Account</strong></li>
+                    <li>Masukkan nomor Virtual Account dan jumlah nominal yang sesuai</li>
+                    <li>Konfirmasi dan selesaikan pembayaran</li>
+                  </ol>
+                ) : (
+                  <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Catat atau salin nomor Virtual Account di atas</li>
+                    <li>Buka aplikasi mobile banking / ATM / internet banking</li>
+                    <li>Pilih menu <strong>Transfer ke Virtual Account</strong></li>
+                    <li>Masukkan nomor Virtual Account dan jumlah nominal yang sesuai</li>
+                    <li>Konfirmasi dan selesaikan pembayaran</li>
+                  </ol>
+                )}
               </div>
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
@@ -475,7 +505,7 @@ export default function PembayaranMetodePage() {
                 {qrUrl ? (
                   <>
                     <img
-                      src={qrUrl}
+                      src={qrUrl || ""}
                       alt="QR Code Pembayaran"
                       className="w-56 h-56 object-contain"
                     />

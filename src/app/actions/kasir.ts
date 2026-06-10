@@ -4,8 +4,9 @@ import crypto from "crypto"
 import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
+import { createLog } from "@/lib/log"
 import { hitungAdminFee } from "@/lib/fee"
-import { MetodePembayaran } from "@/types/index"
+import { MetodePembayaran } from "@/types"
 
 export interface KasirPesananItem {
   id: number
@@ -37,7 +38,7 @@ export interface KasirPesananItem {
 
 export async function getPesananBelumBayar() {
   const session = await auth()
-  if (!session?.user) {
+  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
     return { error: "Unauthorized" }
   }
 
@@ -92,7 +93,7 @@ export async function getPesananBelumBayar() {
 
 export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week' | 'month' | 'all' }) {
   const session = await auth()
-  if (!session?.user) {
+  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
     return { error: "Unauthorized" }
   }
 
@@ -183,7 +184,7 @@ export async function prosesPembayaranTunai(
 ) {
   try {
     const session = await auth()
-    if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+    if (!session?.user || session.user.role !== 'cashier') {
       return { error: "Unauthorized" }
     }
 
@@ -229,6 +230,8 @@ export async function prosesPembayaranTunai(
       },
     })
 
+    await createLog('PROCESS_PAYMENT', `Pembayaran tunai pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')}, kembalian Rp${kembalian.toLocaleString('id-ID')}`)
+
     revalidatePath("/dashboard/kasir")
     revalidatePath("/dashboard/pesanan")
 
@@ -241,7 +244,7 @@ export async function prosesPembayaranTunai(
 
 export async function prosesPembayaranQRIS(pesananId: number) {
   const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+  if (!session?.user || session.user.role !== 'cashier') {
     return { error: "Unauthorized" }
   }
 
@@ -277,15 +280,17 @@ export async function prosesPembayaranQRIS(pesananId: number) {
     },
   })
 
+  await createLog('PROCESS_PAYMENT', `Pembayaran QRIS pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')}`)
+
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
 
   return { success: true }
 }
 
-export async function prosesPembayaranTransfer(pesananId: number) {
+export async function prosesPembayaranTransfer(pesananId: number, bank?: string) {
   const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+  if (!session?.user || session.user.role !== 'cashier') {
     return { error: "Unauthorized" }
   }
 
@@ -301,10 +306,12 @@ export async function prosesPembayaranTransfer(pesananId: number) {
     return { error: "Pesanan sudah dibayar" }
   }
 
-  // Transfer otomatis langsung berhasil
+  const selectedBank = bank || 'bca'
   const totalHarga = Number(pesanan.totalHarga)
   const adminFee = hitungAdminFee('transfer', totalHarga)
   const grandTotal = totalHarga + adminFee
+  const vaNumber = generateVANumber(selectedBank, pesananId)
+  const bankLabel = BANK_LABELS[selectedBank] || 'BCA'
 
   await prisma.pesanan.update({
     where: { id: pesananId },
@@ -317,9 +324,120 @@ export async function prosesPembayaranTransfer(pesananId: number) {
       statusPembayaran: 'berhasil',
       statusPesanan: 'diproses' as any,
       kasirId: parseInt(session.user.id),
+      catatan: `Bank:${selectedBank}|VA:${vaNumber}`,
       updatedAt: new Date(),
     },
   })
+
+  await createLog('PROCESS_PAYMENT', `Pembayaran transfer (${bankLabel}) pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')}, VA: ${vaNumber}`)
+
+  revalidatePath("/dashboard/kasir")
+  revalidatePath("/dashboard/pesanan")
+
+  return { success: true, bank: selectedBank, bankLabel, vaNumber, adminFee, totalBayar: grandTotal }
+}
+
+const BANK_VA_PREFIX: Record<string, string> = {
+  bca: '8800',
+  bni: '8801',
+  bri: '8802',
+  mandiri: '8803',
+}
+
+const BANK_LABELS: Record<string, string> = {
+  bca: 'BCA',
+  bni: 'BNI',
+  bri: 'BRI',
+  mandiri: 'Mandiri',
+}
+
+function generateVANumber(bank: string, orderId: number): string {
+  const prefix = BANK_VA_PREFIX[bank] || '8800'
+  return `${prefix}${String(orderId).padStart(10, '0')}`
+}
+
+export async function getPembayaranInfo(pesananId: number) {
+  const session = await auth()
+  if (!session?.user) return { error: "Unauthorized" }
+
+  const pesanan = await prisma.pesanan.findFirst({
+    where: { id: pesananId, deletedAt: null },
+    include: { meja: true, detailPesanan: { include: { menu: true } } },
+  })
+
+  if (!pesanan) return { error: "Pesanan tidak ditemukan" }
+
+  let bank = 'bca'
+  let bankLabel = 'BCA'
+  let vaNumber: string | null = null
+
+  if (pesanan.catatan?.startsWith('Bank:')) {
+    const parts = pesanan.catatan.split('|')
+    bank = parts[0].replace('Bank:', '')
+    bankLabel = BANK_LABELS[bank] || bank.toUpperCase()
+    if (parts[1]?.startsWith('VA:')) {
+      vaNumber = parts[1].replace('VA:', '')
+    }
+  }
+
+  return {
+    id: pesanan.id,
+    midtransOrderId: pesanan.midtransOrderId,
+    nomorMeja: pesanan.meja.nomorMeja,
+    namaPelanggan: pesanan.namaPelanggan,
+    totalHarga: Number(pesanan.totalHarga),
+    biayaAdmin: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : 0,
+    ppn: pesanan.ppn ? Number(pesanan.ppn) : 0,
+    metodePembayaran: pesanan.metodePembayaran,
+    statusPembayaran: pesanan.statusPembayaran,
+    jumlahBayar: pesanan.jumlahBayar ? Number(pesanan.jumlahBayar) : 0,
+    kembalian: Number(pesanan.kembalian),
+    createdAt: pesanan.createdAt.toISOString(),
+    items: pesanan.detailPesanan.map(d => ({
+      id: d.id,
+      namaMenu: d.menu.namaMenu,
+      jumlah: d.jumlah,
+      hargaSaatPesan: Number(d.hargaSaatPesan),
+    })),
+    bank,
+    bankLabel,
+    vaNumber,
+    qrUrl: pesanan.midtransTransactionId?.startsWith('SIM-')
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SIMULASI-QRIS-${pesanan.midtransOrderId}`
+      : null,
+  }
+}
+
+export async function selesaikanPesananKasir(pesananId: number) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== 'cashier') {
+    return { error: "Unauthorized" }
+  }
+
+  const pesanan = await prisma.pesanan.findFirst({
+    where: { id: pesananId, deletedAt: null },
+  })
+
+  if (!pesanan) return { error: "Pesanan tidak ditemukan" }
+  if (pesanan.statusPembayaran !== 'berhasil') return { error: "Pesanan belum dibayar" }
+  if (pesanan.statusPesanan !== 'diproses') return { error: "Pesanan belum diproses" }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.pesanan.update({
+      where: { id: pesananId },
+      data: {
+        statusPesanan: 'selesai' as any,
+        updatedAt: new Date(),
+      },
+    })
+
+    await tx.meja.update({
+      where: { id: pesanan.mejaId },
+      data: { statusMeja: 'kosong' },
+    })
+  })
+
+  await createLog('UPDATE_ORDER_STATUS', `Pesanan #${pesananId} ditandai selesai oleh kasir — meja dikosongkan`)
 
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
@@ -381,7 +499,7 @@ export async function updatePesananMeja(tokenMeja: string, updates: {
 export async function konfirmasiPembayaran(pesananId: number) {
   try {
     const session = await auth()
-    if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+    if (!session?.user || session.user.role !== 'cashier') {
       return { error: "Unauthorized" }
     }
 
@@ -407,6 +525,8 @@ export async function konfirmasiPembayaran(pesananId: number) {
       },
     })
 
+    await createLog('PROCESS_PAYMENT', `Konfirmasi pembayaran pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')}`)
+
     revalidatePath("/dashboard/kasir")
     revalidatePath("/dashboard/pesanan")
 
@@ -419,7 +539,7 @@ export async function konfirmasiPembayaran(pesananId: number) {
 
 export async function batalkanPesananKasir(pesananId: number) {
   const session = await auth()
-  if (!session?.user) {
+  if (!session?.user || session.user.role !== 'cashier') {
     return { error: "Unauthorized" }
   }
 
@@ -453,6 +573,8 @@ export async function batalkanPesananKasir(pesananId: number) {
     },
   })
 
+  await createLog('CANCEL_ORDER_KASIR', `Pesanan #${pesananId} dibatalkan oleh kasir (via halaman kasir)`)
+
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
 
@@ -461,7 +583,7 @@ export async function batalkanPesananKasir(pesananId: number) {
 
 export async function accPesanan(pesananId: number) {
   const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+  if (!session?.user || session.user.role !== 'cashier') {
     return { error: "Unauthorized" }
   }
 
@@ -482,6 +604,8 @@ export async function accPesanan(pesananId: number) {
     },
   })
 
+  await createLog('UPDATE_ORDER_STATUS', `Pesanan #${pesananId} diterima (menunggu → diproses)`)
+
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
 
@@ -490,7 +614,7 @@ export async function accPesanan(pesananId: number) {
 
 export async function generateQRISCode(pesananId: number) {
   const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+  if (!session?.user || session.user.role !== 'cashier') {
     return { error: "Unauthorized" }
   }
 
@@ -519,10 +643,11 @@ export async function generateQRISCode(pesananId: number) {
     }
     const data = result.data as Record<string, unknown>
     const actions = data.actions as Array<{ name: string; method: string; url: string }> | undefined
-    const qrAction = actions?.find(a => a.name === "generate-qr-code")
+    const qrV2 = actions?.find(a => a.name === "generate-qr-code-v2")
+    const qrV1 = actions?.find(a => a.name === "generate-qr-code")
     return {
       success: true,
-      qrUrl: qrAction?.url || null,
+      qrUrl: (qrV2 || qrV1)?.url || null,
       totalBayar: grossAmount,
       adminFee,
       expiryMenit,
@@ -532,7 +657,7 @@ export async function generateQRISCode(pesananId: number) {
   const chargeResult = await createCorePayment({
     order_id: midtransOrderId,
     gross_amount: grossAmount,
-    payment_type: "other_qris",
+    payment_type: "gopay",
     customer_details: { first_name: pesanan.namaPelanggan || "Customer" },
     item_details: [
       ...pesanan.detailPesanan.map(item => ({
@@ -576,8 +701,9 @@ export async function generateQRISCode(pesananId: number) {
 
   const data = chargeResult.data as Record<string, unknown>
   const actions = data.actions as Array<{ name: string; method: string; url: string }> | undefined
-  const qrAction = actions?.find(a => a.name === "generate-qr-code")
-  const qrUrl = qrAction?.url || null
+  const qrV2 = actions?.find(a => a.name === "generate-qr-code-v2")
+  const qrV1 = actions?.find(a => a.name === "generate-qr-code")
+  const qrUrl = (qrV2 || qrV1)?.url || null
   const transactionId = data.transaction_id as string
 
   await prisma.pesanan.update({
@@ -602,7 +728,7 @@ export async function generateQRISCode(pesananId: number) {
 
 export async function confirmQrisPayment(pesananId: number) {
   const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+  if (!session?.user || session.user.role !== 'cashier') {
     return { error: "Unauthorized" }
   }
 
@@ -660,6 +786,8 @@ export async function confirmQrisPayment(pesananId: number) {
       updatedAt: new Date(),
     },
   })
+
+  await createLog('PROCESS_PAYMENT', `Konfirmasi QRIS pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')}`)
 
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")

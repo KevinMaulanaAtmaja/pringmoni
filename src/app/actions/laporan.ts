@@ -571,6 +571,19 @@ export async function getLaporanAll(
   periode: string,
   dateStr: string
 ) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== "owner") {
+    return {
+      pendapatan: { periode: "", label: "", totalPendapatan: 0, totalPesanan: 0, totalItemTerjual: 0, tunai: 0, qris: 0, transfer: 0, rataRataPesanan: 0, detailPesanan: [] },
+      menuTerlaris: [],
+      laporanKasir: { periode: "", label: "", daftarKasir: [] },
+      grafik: [],
+      perbandingan: null,
+      kategori: [],
+      analisis: { cancelRate: 0, totalBatal: 0, totalPesanan: 0, rataItemPerPesanan: 0 },
+    }
+  }
+
   const [pendapatan, menus, kasir, grafik, perbandingan, kategori, analisis] = await Promise.all([
     getLaporanPendapatan(periode, dateStr),
     getLaporanMenuTerlaris(periode, dateStr),

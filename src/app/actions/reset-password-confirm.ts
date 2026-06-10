@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { createLog } from '@/lib/log'
 
 export async function resetPasswordConfirmAction(
   prevState: { error: string; success: boolean },
@@ -44,6 +45,8 @@ export async function resetPasswordConfirmAction(
       resetTokenExpiry: null,
     },
   })
+
+  await createLog('RESET_PASSWORD', `User ${user.username} berhasil reset password`, user.id)
 
   return { error: '', success: true }
 }
