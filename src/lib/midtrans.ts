@@ -1,7 +1,7 @@
 import Midtrans from "midtrans-client"
 import crypto from "crypto"
 
-const isProduction = process.env.NODE_ENV === "production"
+const isProduction = process.env.MIDTRANS_IS_PRODUCTION === "true"
 const serverKey = process.env.MIDTRANS_SERVER_KEY || ""
 const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || ""
 

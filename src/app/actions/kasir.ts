@@ -573,6 +573,13 @@ export async function batalkanPesananKasir(pesananId: number) {
     },
   })
 
+  if (pesanan.mejaId) {
+    await prisma.meja.update({
+      where: { id: pesanan.mejaId },
+      data: { statusMeja: 'kosong' },
+    })
+  }
+
   await createLog('CANCEL_ORDER_KASIR', `Pesanan #${pesananId} dibatalkan oleh kasir (via halaman kasir)`)
 
   revalidatePath("/dashboard/kasir")

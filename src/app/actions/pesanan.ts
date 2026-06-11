@@ -1064,7 +1064,7 @@ export async function cancelExpiredOrders() {
       metodePembayaran: { not: null },
       deletedAt: null,
     },
-    select: { id: true, createdAt: true, updatedAt: true, metodePembayaran: true, midtransTransactionId: true },
+    select: { id: true, mejaId: true, createdAt: true, updatedAt: true, metodePembayaran: true, midtransTransactionId: true },
   })
 
   for (const p of expiredWithMethod) {
@@ -1080,6 +1080,12 @@ export async function cancelExpiredOrders() {
           catatan: 'Expired',
         },
       })
+      if (p.mejaId) {
+        await prisma.meja.update({
+          where: { id: p.mejaId },
+          data: { statusMeja: 'kosong' },
+        })
+      }
       await createLog('CANCEL_ORDER_EXPIRED', `Pesanan #${p.id} expired (${p.metodePembayaran}, ${expiryMenit} menit)`)
       if (p.midtransTransactionId && !p.midtransTransactionId.startsWith('SIM-')) {
         try {
@@ -1097,7 +1103,7 @@ export async function cancelExpiredOrders() {
       metodePembayaran: null,
       deletedAt: null,
     },
-    select: { id: true, createdAt: true },
+    select: { id: true, mejaId: true, createdAt: true },
   })
 
   for (const p of expiredNoMethod) {
@@ -1111,6 +1117,12 @@ export async function cancelExpiredOrders() {
           catatan: 'Tidak memilih pembayaran',
         },
       })
+      if (p.mejaId) {
+        await prisma.meja.update({
+          where: { id: p.mejaId },
+          data: { statusMeja: 'kosong' },
+        })
+      }
       await createLog('CANCEL_ORDER_EXPIRED', `Pesanan #${p.id} expired (tidak memilih pembayaran, 60 menit)`)
     }
   }

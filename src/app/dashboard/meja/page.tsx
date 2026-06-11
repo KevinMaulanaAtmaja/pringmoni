@@ -392,7 +392,7 @@ export default function MejaPage() {
           </DialogHeader>
 
           <div className="py-4">
-            <div className="inline-block bg-white p-4 rounded-lg border">
+            <div className="inline-block bg-gray-100 p-3 rounded">
               {selectedMeja?.tokenMeja && (
                 <QRCodeSVG
                   id="qr-code-svg"

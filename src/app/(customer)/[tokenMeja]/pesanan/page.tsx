@@ -108,12 +108,14 @@ export default function DetailPesananPage() {
     if (pesanan && (pesanan.status === "menunggu" || pesanan.status === "diproses")) {
       setShowKembaliDialog(true);
     } else {
+      sessionStorage.setItem(`reorder_${tokenMeja}`, "true");
       router.push(`/${tokenMeja}`);
     }
   };
 
   const confirmKembali = () => {
     setShowKembaliDialog(false);
+    sessionStorage.setItem(`reorder_${tokenMeja}`, "true");
     router.push(`/${tokenMeja}`);
   };
 
@@ -156,7 +158,7 @@ export default function DetailPesananPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
           <button onClick={handleKembali} className="text-muted-foreground hover:text-foreground">
-            Kembali
+            Pesan Lagi
           </button>
           <h1 className="flex-1 text-center font-bold">Status Pesanan</h1>
           <div className="w-12" />
@@ -294,7 +296,6 @@ export default function DetailPesananPage() {
           </CardContent>
         </Card>
 
-
       </main>
 
       <Dialog open={showKembaliDialog} onOpenChange={setShowKembaliDialog}>
@@ -318,7 +319,7 @@ export default function DetailPesananPage() {
               Tetap di Sini
             </Button>
             <Button variant="destructive" onClick={confirmKembali} className="flex-1">
-              Tetap Kembali
+              Tetap Pesan Lagi
             </Button>
           </DialogFooter>
         </DialogContent>
