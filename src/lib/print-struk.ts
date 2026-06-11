@@ -28,10 +28,6 @@ function formatRupiah(amount: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount)
 }
 
-function sep(count = 28) {
-  return "=".repeat(count)
-}
-
 function centerText(doc: jsPDF, text: string, y: number, size = 11) {
   doc.setFontSize(size)
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -39,10 +35,10 @@ function centerText(doc: jsPDF, text: string, y: number, size = 11) {
   doc.text(text, (pageWidth - textWidth) / 2, y)
 }
 
-function rightText(doc: jsPDF, text: string, y: number) {
+function rightText(doc: jsPDF, text: string, y: number, margin: number) {
   const pageWidth = doc.internal.pageSize.getWidth()
   const textWidth = doc.getTextWidth(text)
-  doc.text(text, pageWidth - 10 - textWidth, y)
+  doc.text(text, pageWidth - margin - textWidth, y)
 }
 
 function nomorPesanan(id: number, date: Date | string) {
@@ -51,7 +47,12 @@ function nomorPesanan(id: number, date: Date | string) {
   return `ORD/${tgl}/${String(id).padStart(4, '0')}`
 }
 
-function renderStruk(doc: jsPDF, data: StrukData, startY: number, kitchen: boolean = false, showWifi: boolean = true): number {
+function renderStruk(doc: jsPDF, data: StrukData, startY: number, kitchen: boolean = false, showWifi: boolean = true, mg: number = 10): number {
+  const pw = doc.internal.pageSize.getWidth()
+  const is58 = pw < 65
+  const sepCount = is58 ? 18 : 28
+  const sepLine = "=".repeat(sepCount)
+  const maxNama = is58 ? (kitchen ? 20 : 13) : (kitchen ? 30 : 20)
   let y = startY
 
   if (!kitchen) {
@@ -67,7 +68,7 @@ function renderStruk(doc: jsPDF, data: StrukData, startY: number, kitchen: boole
     }
 
     y += 3
-    centerText(doc, sep(), y, 9)
+    centerText(doc, sepLine, y, 9)
     y += 6
   } else {
     doc.setFont("helvetica", "bold")
@@ -77,45 +78,45 @@ function renderStruk(doc: jsPDF, data: StrukData, startY: number, kitchen: boole
 
   doc.setFontSize(11)
   doc.setFont("helvetica", "bold")
-  doc.text(nomorPesanan(data.id, data.createdAt), kitchen ? 10 : 10, y)
+  doc.text(nomorPesanan(data.id, data.createdAt), mg, y)
   doc.setFont("helvetica", "normal")
-  rightText(doc, `Meja ${data.nomorMeja}`, y)
+  rightText(doc, `Meja ${data.nomorMeja}`, y, mg)
   y += 6
-  doc.text(new Date(data.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), 10, y)
+  doc.text(new Date(data.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), mg, y)
   y += 6
 
   if (!kitchen) {
     if (data.kasirUsername) {
-      doc.text(`Kasir: ${data.kasirUsername}`, 10, y)
+      doc.text(`Kasir: ${data.kasirUsername}`, mg, y)
       y += 5
     }
     if (data.metodePembayaran) {
-      doc.text(`Metode: ${data.metodePembayaran.toUpperCase()}`, 10, y)
+      doc.text(`Metode: ${data.metodePembayaran.toUpperCase()}`, mg, y)
       y += 5
     }
   }
 
   y += 2
-  centerText(doc, sep(), y, 9)
+  centerText(doc, sepLine, y, 9)
   y += 6
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(11)
-  doc.text("Item", 10, y)
-  if (!kitchen) rightText(doc, "Harga", y)
+  doc.text("Item", mg, y)
+  if (!kitchen) rightText(doc, "Harga", y, mg)
   y += 5
   doc.setFont("helvetica", "normal")
 
   for (const item of data.items) {
-    const nama = item.nama.length > (kitchen ? 30 : 20) ? item.nama.slice(0, (kitchen ? 29 : 19)) + ".." : item.nama
-    doc.text(`${item.jumlah}x ${nama}`, 10, y)
-    if (!kitchen) rightText(doc, formatRupiah(item.harga * item.jumlah), y)
+    const nama = item.nama.length > maxNama ? item.nama.slice(0, maxNama - 2) + ".." : item.nama
+    doc.text(`${item.jumlah}x ${nama}`, mg, y)
+    if (!kitchen) rightText(doc, formatRupiah(item.harga * item.jumlah), y, mg)
     y += 5
   }
 
   if (!kitchen) {
     y += 3
-    centerText(doc, sep(), y, 9)
+    centerText(doc, sepLine, y, 9)
     y += 6
 
     const subtotal = data.subtotal ?? data.totalHarga
@@ -128,13 +129,13 @@ function renderStruk(doc: jsPDF, data: StrukData, startY: number, kitchen: boole
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(11)
-    doc.text("Subtotal", 10, y)
-    rightText(doc, formatRupiah(subtotal), y)
+    doc.text("Subtotal", mg, y)
+    rightText(doc, formatRupiah(subtotal), y, mg)
     y += 6
 
     if (adminFee > 0) {
-      doc.text("Biaya Admin", 10, y)
-      rightText(doc, formatRupiah(adminFee), y)
+      doc.text("Biaya Admin", mg, y)
+      rightText(doc, formatRupiah(adminFee), y, mg)
       y += 6
     }
 
@@ -142,27 +143,27 @@ function renderStruk(doc: jsPDF, data: StrukData, startY: number, kitchen: boole
     doc.setFontSize(14)
     const grandTotal = subtotal + adminFee + ppn
     const totalStr = `Rp ${grandTotal.toLocaleString("id-ID")}`
-    doc.text("TOTAL", 10, y)
-    rightText(doc, totalStr, y)
+    doc.text("TOTAL", mg, y)
+    rightText(doc, totalStr, y, mg)
     y += 8
 
     if (data.jumlahBayar) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(11)
-      doc.text(`Dibayar:`, 10, y)
-      rightText(doc, formatRupiah(data.jumlahBayar), y)
+      doc.text(`Dibayar:`, mg, y)
+      rightText(doc, formatRupiah(data.jumlahBayar), y, mg)
       y += 5
     }
     if (data.kembalian && data.kembalian > 0) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(11)
-      doc.text(`Kembalian:`, 10, y)
-      rightText(doc, formatRupiah(data.kembalian), y)
+      doc.text(`Kembalian:`, mg, y)
+      rightText(doc, formatRupiah(data.kembalian), y, mg)
       y += 5
     }
 
     y += 3
-    centerText(doc, sep(), y, 9)
+    centerText(doc, sepLine, y, 9)
     y += 6
 
     doc.setFont("helvetica", "normal")
@@ -181,46 +182,56 @@ function renderStruk(doc: jsPDF, data: StrukData, startY: number, kitchen: boole
   return y
 }
 
-function renderAllPages(doc: jsPDF, data: StrukData): number {
+function renderAllPages(doc: jsPDF, data: StrukData, mg: number): number {
+  const is58 = doc.internal.pageSize.getWidth() < 65
+  const sepLine = "=".repeat(is58 ? 18 : 28)
+
   let y = 10
-  centerText(doc, sep(), y, 11)
+  centerText(doc, sepLine, y, 11)
   y += 6
   centerText(doc, "COPY PELANGGAN", y, 11)
   y += 6
-  centerText(doc, sep(), y, 11)
+  centerText(doc, sepLine, y, 11)
   y += 8
-  y = renderStruk(doc, data, y, false, true)
+  y = renderStruk(doc, data, y, false, true, mg)
 
   y += 6
-  centerText(doc, sep(), y, 11)
+  centerText(doc, sepLine, y, 11)
   y += 6
   centerText(doc, "COPY KITCHEN", y, 11)
   y += 6
-  centerText(doc, sep(), y, 11)
+  centerText(doc, sepLine, y, 11)
   y += 8
 
-  y = renderStruk(doc, data, y, false, true)
+  y = renderStruk(doc, data, y, false, true, mg)
 
   const footerY = y + 5
-  centerText(doc, sep(24), footerY, 9)
+  centerText(doc, is58 ? "=".repeat(14) : "=".repeat(24), footerY, 9)
   y += 5
   centerText(doc, `Printed: ${new Date().toLocaleString("id-ID")}`, footerY + 4, 9)
 
   return footerY + 8
 }
 
-export function printStruk(data: StrukData) {
-  const width = 80
-
+function renderDoc(width: number, data: StrukData) {
+  const mg = width < 65 ? 5 : 10
   const tempDoc = new jsPDF({ unit: "mm", format: [width, 500] })
-  const finalY = renderAllPages(tempDoc, data)
+  const finalY = renderAllPages(tempDoc, data, mg)
   const pageHeight = Math.ceil(finalY) + 20
 
   const doc = new jsPDF({ unit: "mm", format: [width, pageHeight] })
-  renderAllPages(doc, data)
+  renderAllPages(doc, data, mg)
 
   doc.autoPrint()
   const blob = doc.output("blob")
   const url = URL.createObjectURL(blob)
   window.open(url)
+}
+
+export function printStruk(data: StrukData) {
+  renderDoc(80, data)
+}
+
+export function printStruk58(data: StrukData) {
+  renderDoc(58, data)
 }
