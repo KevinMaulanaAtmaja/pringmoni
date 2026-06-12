@@ -1073,7 +1073,7 @@ export async function cancelExpiredOrders() {
     const expiredAt = new Date(startTime.getTime() + expiryMenit * 60000)
     if (now >= expiredAt) {
       await prisma.pesanan.update({
-        where: { id: p.id },
+        where: { id: p.id, statusPembayaran: 'menunggu' },
         data: {
           statusPembayaran: 'dibatalkan',
           statusPesanan: 'dibatalkan',
@@ -1110,7 +1110,7 @@ export async function cancelExpiredOrders() {
     const expiredAt = new Date(p.createdAt.getTime() + 60 * 60000)
     if (now >= expiredAt) {
       await prisma.pesanan.update({
-        where: { id: p.id },
+        where: { id: p.id, statusPembayaran: 'menunggu' },
         data: {
           statusPembayaran: 'dibatalkan',
           statusPesanan: 'dibatalkan',

@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       await createLogNoSession('PROCESS_PAYMENT', `Pembayaran Midtrans pesanan #${pesanan.id}: Rp${parseFloat(grossAmount).toLocaleString('id-ID')}`, null, ip)
     } else if (isExpired) {
       await prisma.pesanan.update({
-        where: { id: pesanan.id },
+        where: { id: pesanan.id, statusPembayaran: "menunggu" },
         data: {
           statusPembayaran: "dibatalkan",
           statusPesanan: "dibatalkan",

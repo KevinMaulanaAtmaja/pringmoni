@@ -345,7 +345,7 @@ export async function autoCancelStaleUnpaid() {
 
     await prisma.$transaction([
       prisma.pesanan.updateMany({
-        where: { id: { in: stale.map(p => p.id) } },
+        where: { id: { in: stale.map(p => p.id) }, statusPembayaran: 'menunggu' },
         data: { statusPesanan: 'dibatalkan', statusPembayaran: 'dibatalkan' },
       }),
       prisma.meja.updateMany({

@@ -10,6 +10,37 @@ export interface User {
   status: boolean
 }
 
+export interface UserWithRole {
+  id: number
+  username: string
+  email: string | null
+  role: RoleUser
+  status: boolean
+  createdAt: Date
+}
+
+export interface CreateUserInput {
+  username: string
+  email?: string
+  password: string
+  role: RoleUser
+}
+
+export interface UpdateUserInput {
+  id: number
+  username: string
+  email?: string
+  role: RoleUser
+  status: boolean
+  password?: string
+}
+
+export interface UserResponse {
+  success?: boolean
+  error?: string
+  data?: UserWithRole
+}
+
 export type StatusMeja = 'kosong' | 'terpakai'
 
 export interface Meja {
