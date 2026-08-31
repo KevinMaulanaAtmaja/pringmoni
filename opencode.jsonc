@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "default_agent": "orchestrator",
+  "agent": {
+    "orchestrator": {
+      "color": "success"
+    },
+    "build": {
+      "color": "#7C3AED"
+    },
+    "plan": {
+      "color": "warning"
+    }
+  }
+}

@@ -6,258 +6,180 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Pringmoni - Resto POS & Monitoring
 
-## Konteks Project
+## SESSION STARTUP (WAJIB DIBACA SETIAP SESI BARU)
 
-Project ini adalah **Project Based Learning (PBL)** untuk mitra kami: **Restoran Pringsewu**. Tujuan utama adalah membuat sistem manajemen pesanan dan kasir yang modern dan efisien.
+**Setiap kali sesi baru dimulai, agent WAJIB membaca dokumen referensi berikut secara berurutan:**
 
-### Fitur Utama:
-1. **Customer Self-Order**: Customer scan QR code di masing-masing meja (dengan token meja berbeda) lalu akses halaman menu dan pesan langsung tanpa perlu login
-2. **Dashboard Admin**: Untuk owner/staff melihat pesanan, menu, meja, dan statistik
-3. **Kasir System**: Untuk proses pembayaran
+1. `.opencode/PRD.md` — Product Requirements Document, backlog PBI, status pengerjaan
+2. `.opencode/DESIGN.md` — Design system (warna, tipografi, spacing, komponen)
+3. `.opencode/ARCHITECTURE.md` — Arsitektur teknis (database schema, routes, auth flow)
+4. `.opencode/CONVENTIONS.md` — Code conventions (naming, folder structure, commit format)
+5. `.opencode/SECURITY.md` — Security rules (critical rules, best practices, audit checklist)
 
-### Catatan Penting:
-- Project ini adalah project PBL belajar, sehingga perlu mempertimbangkan:
-  - Gunakan library/dependency yang **free** dan **sesuai untuk pembelajaran**
-  - Hindari dependency yang memerlukan biaya langganan mahal
-  - Dokumentasi yang lengkap dan komunitas yang aktif
+**Gunakan tools `read` untuk membaca file-file di atas sebelum memulai tugas apapun.**
 
-### Pembatasan Kerja
+## Project Overview
 
-| Aktivitas | Diizinkan |
-|-----------|-----------|
-| `npm run dev` | ❌ Tidak - dijalankan oleh user |
-| `npm run build` | ✅ Diizinkan |
-| `npm run lint` | ✅ Diizinkan |
-| Install dependencies baru | ⚠️ Hanya BE yang boleh |
-| **Mengosongkan database** | ❌ **Hanya atas perintah eksplisit user** |
+Sistem **Resto POS & Monitoring** untuk **Restoran Pringsewu** (PBL project).
 
-**⚠️ ATURAN PENTING:**
-- **DILARANG** mengosongkan (DELETE/DROP) tabel database secara otomatis tanpa perintah tegas dari user
-- **DILARANG** menjalankan script seed yang menghapus data tanpa instruksi "kosongkan DB" atau "seed ulang"
-- Jika perlu menguji fitur, gunakan **mock data** daripada menghapus data asli
-- Selaalu tanya user dulu sebelum melakukan operasi `DELETE FROM` atau `prisma.*.deleteMany()`
-
-### Pembagian Role
-
-Project ini dipisahkan peran untuk pembelajaran:
-
-| Role | File Panduan | Akses Folder | Tugas |
-|------|-------------|--------------|-------|
-| **Frontend (FE)** | `AGENTS-FE.md` | `src/app/`, `src/components/`, `src/types/` | UI, halaman, interaksi user |
-| **Backend (BE)** | `AGENTS-BE.md` | `prisma/`, `src/app/actions/`, `src/lib/` | Database, API, logika backend |
-| **Tester** | `AGENTS-TESTER.md` | Semua folder (test only) | Test fitur, verifikasi |
-
-**Catatan Security & Performance:**
-- **Security Engineer**: Invoke dengan `@secu-engi` (read-only, kasih saran)
-- **Performance Engineer**: Invoke dengan `@perf-engi` (bisa bash, kasih saran)
-
-Contoh:
-```
-@secu-engi cek security di halaman login
-@perf-engi analisis performa dashboard
-```
-
-**CATATAN:**
-- **Sebelum generate code, SELALU tanya/interaktif:**
-  > "FE mau kerja PBI-2.1, cek AGENTS-FE.md dulu ya"
-- **Jangan langsung generate** - harus dapat persetujuan lead/manager
-- **Referensi utama:** `AGENTS.md` - semua aturan dan konvensi ada di sini
-
-### Versi yang Sedang Digunakan
-
-Selalu cek dan sesuaikan dengan versi di `package.json`:
-
-| Library | Versi Terinstall |
-|---------|------------------|
+### Tech Stack
+| Library | Versi |
+|---------|-------|
 | Next.js | 16.2.1 |
 | React | 19.2.4 |
 | NextAuth | 5.0.0-beta.30 |
 | Prisma | 5.22.0 |
-| Tailwind CSS | 4 |
-| shadcn/ui | 4.1.1 |
+| Tailwind CSS | v4 |
+| shadcn/ui | v4.1.1 |
+| jsPDF | v4.2.1 |
+| Pusher | v5.3.3 |
+| UploadThing | v7.7.4 |
 
-**Sebelum menulis code, WAJIB:**
-1. Cek dokumentasi resmi Next.js (`node_modules/next/dist/docs/`)
-2. Survey/search perubahan API karena versi Next.js 16 dan React 19 punya breaking changes
-3. Sesuaikan pattern code dengan versi yang terinstall
+## Project Structure (Ringkasan)
 
----
-
-## Tech Stack (Free & Beginner-Friendly)
-
-| Kategori | Library/Dependency | Catatan |
-|----------|---------------------|---------|
-| Database | **Prisma + PostgreSQL** | v5.22.0 |
-| Auth | **NextAuth v5** | v5.0.0-beta.30, free, open source |
-| UI | **Tailwind CSS + shadcn/ui** | v4 + v4.1.1 |
-| Hosting | **Vercel (free tier)** | Free untuk hobby |
-| Route Protection | **Next.js Proxy** | Route protection (Next.js 16) |
-| PDF Generation | **jsPDF** | v4.2.1, free |
-| Real-time | **Pusher** | v5.3.3 |
-| Image Upload | **UploadThing** | v7.7.4, free tier |
-
-**Proxy (`proxy.ts`)**: Melindungi route dashboard, redirect ke login kalau belum login.
-
-### Breaking Changes & Catatan Penting:
-- **Next.js 16**: Middleware di-rename jadi `proxy.ts` dengan function `proxy()`
-- **React 19**: Ada breaking changes dengan Server Components
-- **NextAuth v5 beta**: API berbeda dengan v4, menggunakan `auth()` function
-- **Tailwind CSS v4**: Konfigurasi berbeda (gunakan CSS-based config)
-- **shadcn/ui v4**: Menggunakan Tailwind CSS v4
-
----
-
-## Project Structure
+Agar agent langsung paham isi project tanpa eksplorasi, berikut peta ringkas `src/`:
 
 ```
 src/
 ├── app/
-│   ├── page.tsx                   # Landing page (home restoran)
-│   ├── (auth)/                     # Halaman Auth
-│   │   ├── login/
-│   │   │   └── page.tsx
-│   │   └── layout.tsx
-│   ├── (customer)/                # Halaman Public untuk Customer
-│   │   ├── [tokenMeja]/            # Dynamic route: /{tokenMeja}
-│   │   │   ├── page.tsx            # Menu & pesan (tanpa login)
-│   │   │   └── pesanan/page.tsx   # Lihat pesanan sendiri
-│   │   └── layout.tsx
-│   ├── dashboard/                  # Dashboard Admin (memerlukan login)
-│   │   ├── layout.tsx
-│   │   ├── page.tsx               # Statistik
-│   │   ├── pesanan/page.tsx       # Kelola pesanan
-│   │   ├── kasir/page.tsx         # Pembayaran
-│   │   ├── menu/page.tsx          # Kelola menu
-│   │   └── meja/page.tsx           # Kelola meja
-│   └── api/
-│       └── auth/[...nextauth]/route.ts
-│       
-├── components/
-│   ├── ui/                        # shadcn components
-│   ├── customer/
-│   ├── pesanan/
-│   ├── kasir/
-│   └── layout/
-│
-├── types/
-│   └── index.ts
-├── lib/
-│   ├── prisma.ts                  # Database client
-│   ├── utils.ts                  # Utility functions
-│   └── auth.ts                   # NextAuth configuration
-└── proxy.ts                       # Route protection (Next.js 16)
+│   ├── page.tsx                        # Landing page
+│   ├── (auth)/login/page.tsx           # Login (NextAuth v5)
+│   ├── (customer)/[tokenMeja]/         # Customer kiosk (QR scan, tanpa login)
+│   │   ├── page.tsx                    #   Menu & order
+│   │   └── pesanan/page.tsx            #   Lihat pesanan
+│   ├── dashboard/                      # Admin dashboard (auth)
+│   │   ├── page.tsx                    #   Statistik
+│   │   ├── pesanan/page.tsx            #   Kelola pesanan
+│   │   ├── kasir/page.tsx              #   Kasir (POS)
+│   │   ├── menu/page.tsx               #   Kelola menu
+│   │   ├── meja/page.tsx               #   Kelola meja (+QR token)
+│   │   ├── user/page.tsx               #   Kelola user
+│   │   └── laporan/page.tsx            #   Laporan (PDF/Excel export)
+│   └── api/auth/[...nextauth]/route.ts   # Auth API
+├── app/actions/                        # Server Actions (inti logika bisnis)
+│   ├── meja.ts  menu.ts  pesanan.ts
+│   ├── users.ts  auth.ts  login.ts  forgot-password.ts
+│   ├── dashboard.ts  laporan.ts  logs.ts  export-laporan.ts  print-struk.ts
+├── components/                         # UI (shadcn/ui) + charts (recharts)
+├── lib/                                # utils, prisma.ts, uploadthing.ts, dll
+└── types/                              # Shared TypeScript types
 ```
 
----
+Fitur & integrasi utama:
+- **Auth**: NextAuth v5 + role-based (OWNER / CASHIER / WAITER)
+- **Payment**: Midtrans (QRIS/Transfer/VA) + callback
+- **Realtime**: Pusher (customer order -> dashboard update)
+- **Export**: jsPDF (struk/laporan) & exceljs/xlsx
+- **DB**: Prisma + PostgreSQL (models: Users, Meja, Menu, KategoriMenu, Pesanan, DetailPesanan, Logs)
 
-## Struktur Database (Prisma Schema)
+## Workflow Configuration
 
-Lihat `prisma/schema.prisma` untuk detail schema lengkap.
+Project ini menggunakan **OpenCode Workflow** dengan konfigurasi di folder `.opencode/`.
 
-### Model Utama:
+### Folder Structure
+```
+.opencode/
+├── agent/          # Agents (orchestrator, specialists, project-specific)
+├── command/        # Commands (/review, /commit, /start, dll)
+├── skill/          # Skills (domain knowledge)
+├── plugin/         # Plugins (auto-format, security-scan, dll)
+├── PRD.md          # Product Requirements Document
+├── DESIGN.md       # UI Design System (warna, tipografi, dll)
+├── ARCHITECTURE.md # Arsitektur Teknis
+├── CONVENTIONS.md  # Code Conventions
+└── SECURITY.md     # Security Rules
+```
 
-- **Users**: Akun owner, cashier, waiter
-- **Meja**: Meja restoran (ada token unik per meja)
-- **Menu**: Menu makanan/minuman
-- **KategoriMenu**: Kategori menu
-- **Pesanan**: Pesanan customer
-- **DetailPesanan**: Item-item dalam pesanan
-- **Logs**: Log aktivitas (untuk audit)
+### Available Agents
 
----
+**Primary (Tab to switch):**
+| Agent | Fungsi |
+|-------|--------|
+| `orchestrator` | Master coordinator, multi-step tasks |
+| `build` | Default development work |
+| `plan` | Analysis only, no file changes |
 
-## API & Server Actions
+**Subagents (@mention):**
+| Agent | Fungsi | Bash? | Edit? |
+|-------|--------|-------|-------|
+| `@code-reviewer` | Code quality review | No | No |
+| `@debugger` | Bug investigation | Yes | No |
+| `@security-auditor` | OWASP vulnerability check | No | No |
+| `@refactorer` | Code cleanup | No | Yes |
+| `@test-architect` | Test strategy & design | No | Yes |
+| `@docs-writer` | Documentation generation | No | Yes |
+| `@frontend-dev` | Frontend UI specialist | No | Yes |
+| `@backend-dev` | Backend/database specialist | Yes | Yes |
+| `@tester` | Testing specialist | No | Yes |
 
-Backend logic menggunakan **Server Actions** (Next.js App Router):
+### Available Commands (/)
 
-Server Actions diletakkan di `src/app/actions/` dengan penamaan langsung:
+| Command | Fungsi |
+|---------|--------|
+| `/start` | Interactive PBI selector & role workflow |
+| `/review` | Multi-perspective code review |
+| `/commit` | Generate conventional commit message |
+| `/architect` | High-level design session |
+| `/rapid` | Fast iteration, minimal ceremony |
+| `/debug` | Systematic bug investigation |
+| `/refactor` | Code cleanup workflow |
+| `/security-audit` | OWASP vulnerability check |
+| `/test-design` | Plan test coverage |
+| `/docs` | Generate documentation |
+| `/parallel` | Run multiple tasks at once |
+| `/verify-changes` | Lint -> Type -> Build -> Test -> Review |
+| `/mentor` | Educational explanations |
 
-| File | Fungsi |
-|------|--------|
-| `src/app/actions/meja.ts` | getMejas, createMeja, updateMeja, getMejaByToken |
-| `src/app/actions/menu.ts` | getMenus, createMenu, updateMenu, deleteMenu |
-| `src/app/actions/pesanan.ts` | getPesanan, createPesanan, updateStatusPesanan, prosesPembayaran |
+### Available Skills
 
-Auth sudah ada di `src/lib/auth.ts` (NextAuth configuration).
+| Skill | Fungsi |
+|-------|--------|
+| `analyzing-projects` | Codebase exploration & architecture recognition |
+| `designing-apis` | REST/GraphQL API design patterns |
+| `designing-architecture` | Software architecture decisions |
+| `designing-tests` | Test strategy & TDD/BDD approaches |
+| `managing-git` | Git workflows & commit conventions |
+| `optimizing-performance` | Performance optimization techniques |
+| `parallel-execution` | Parallel task execution patterns |
 
----
+### Plugins (Auto-activated)
 
-## Types
+| Plugin | Fungsi |
+|--------|--------|
+| `auto-format` | Auto-format files after edits |
+| `security-scan` | Block edits to sensitive files (.env, keys) |
+| `verification` | Reminds to test after 3+ file edits |
+| `notifications` | Session completion notifications |
+| `parallel-guard` | Educates about parallel execution |
 
-Lihat `src/types/index.ts` untuk semua type definitions.
+## Pembatasan Kerja
 
----
+| Aktivitas | Diizinkan |
+|-----------|-----------|
+| `npm run dev` | Tidak - dijalankan oleh user |
+| `npm run build` | Ya |
+| `npm run lint` | Ya |
+| Install dependencies baru | Hanya BE yang boleh |
+| Mengosongkan database | **HANYA atas perintah eksplisit user** |
 
-## Cara Kerja Customer Self-Order
+## Referensi
 
-1. **Setup Meja**: Admin membuat meja dengan nomor dan token unik
-2. **QR Code**: Generated QR code berisi URL: `{domain}/{tokenMeja}`
-3. **Customer Scan**: Customer scan QR → redirect ke halaman menu
-4. **Pilih Menu**: Customer pilih menu, masukkan jumlah, tambah ke keranjang
-5. **Kirim Pesanan**: Customer kirim pesanan (tanpa login)
-6. **Notifikasi**: Staff dapat melihat pesanan masuk via dashboard
-7. **Pembayaran**: Customer ke kasir untuk pembayaran
+- **PRD**: `.opencode/PRD.md`
+- **Design System**: `.opencode/DESIGN.md`
+- **Arsitektur**: `.opencode/ARCHITECTURE.md`
+- **Conventions**: `.opencode/CONVENTIONS.md`
+- **Security**: `.opencode/SECURITY.md`
+- **Product Backlog**: `.opencode/PRD.md` (section 3)
 
----
+## graphify
 
-## Folder & Naming Conventions
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
 
-- **Page components**: `page.tsx` di folder route (Next.js App Router)
-- **UI components**: `{nama}.tsx` (shadcn style)
-- **Server actions**: langsung nama file (misal `meja.ts`, `menu.ts`) di folder `app/actions/`
-- **Types**: `types/index.ts`
-- **Utils**: `lib/utils.ts`
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
 
----
-
-## Product Backlog (PBI)
-
-### Modul 1: User Management
-
-| PBI | Deskripsi |
-|-----|----------|
-| PBI-1.1 | Login & Logout (username/password, role-based, validasi) |
-| PBI-1.2 | CRUD User (tambah/edit/hapus user, atur role) |
-| PBI-1.3 | CRUD Meja (tambah/edit/hapus meja, status) |
-| PBI-1.4 | CRUD Menu (tambah/edit/hapus menu, kategori, status) |
-
-### Modul 2: Pesanan
-
-| PBI | Deskripsi |
-|-----|----------|
-| PBI-2.1 | Buat Pesanan (QR scan / input manual) |
-| PBI-2.2 | Kelola Item Pesanan (tambah/edit/hapus item) |
-| PBI-2.3 | Status & Pembatalan (tampil status, batal sebelum bayar) |
-
-### Modul 3: Pembayaran
-
-| PBI | Deskripsi |
-|-----|----------|
-| PBI-3.1 | Hitung Total (subtotal, pajak, hitung kembalian) |
-| PBI-3.2 | Pembayaran (tunai/non-tunai, simpan status) |
-| PBI-3.3 | Struk & Riwayat (cetak/tampil struk, simpan riwayat) |
-
-### Modul 4: Sistem
-
-| PBI | Deskripsi |
-|-----|----------|
-| PBI-4.1 | Logging (log user activity, log system event) |
-
-### Modul 5: Laporan & Analitik
-
-| PBI | Deskripsi |
-|-----|----------|
-| PBI-5.1 | Laporan (harian/bulanan, total pendapatan) |
-| PBI-5.2 | Analitik (ranking menu terlaris, jumlah terjual) |
-
----
-
-## Fitur Tambahan (Beyond PBI)
-
-Fitur ekstra untuk customer experience:
-
-| Fitur | Deskripsi |
-|-------|-----------|
-| Customer Kiosk | Menu digital tanpa login via scan QR |
-| QR Generation | Generate QR code meja dengan token unik |
-| Real-time Update | Status pesanan real-time di dashboard |
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
