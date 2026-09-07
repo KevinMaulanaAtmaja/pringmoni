@@ -14,21 +14,22 @@ export async function getDashboardStats() {
 
   try {
     const [pesananHariIni, totalPendapatan] = await Promise.all([
-      prisma.pesanan.findMany({
+      prisma.pesanan.count({
         where: { createdAt: { gte: today } },
       }),
-      prisma.pesanan.findMany({
+      prisma.pesanan.aggregate({
         where: { 
           createdAt: { gte: today },
           statusPembayaran: 'berhasil',
         },
+        _sum: { totalHarga: true },
       }),
     ])
     const [mejaStats, pesananMenunggu] = await Promise.all([
       prisma.meja.findMany({
         select: { statusMeja: true },
       }),
-      prisma.pesanan.findMany({
+      prisma.pesanan.count({
         where: { statusPesanan: 'menunggu' },
       }),
     ])
@@ -36,7 +37,7 @@ export async function getDashboardStats() {
   const mejaKosong = mejaStats.filter(m => m.statusMeja === 'kosong').length
   const mejaTerpakai = mejaStats.filter(m => m.statusMeja === 'terpakai').length
 
-  const itemTerjualHariIni = await prisma.detailPesanan.findMany({
+  const itemTerjualHariIni = await prisma.detailPesanan.aggregate({
     where: {
       pesanan: {
         createdAt: { gte: today },
@@ -44,16 +45,16 @@ export async function getDashboardStats() {
         deletedAt: null,
       },
     },
-    select: { jumlah: true },
+    _sum: { jumlah: true },
   })
 
   const stats = {
-    pesananHariIni: pesananHariIni.length,
-    totalPendapatan: totalPendapatan.reduce((sum, p) => sum + Number(p.totalHarga), 0),
+    pesananHariIni,
+    totalPendapatan: Number(totalPendapatan._sum.totalHarga || 0),
     mejaKosong,
     mejaTerpakai,
-    pesananMenunggu: pesananMenunggu.length,
-    itemTerjual: itemTerjualHariIni.reduce((s, d) => s + d.jumlah, 0),
+    pesananMenunggu,
+    itemTerjual: Number(itemTerjualHariIni._sum.jumlah || 0),
   }
 
     if (role === 'cashier') {
@@ -64,14 +65,13 @@ export async function getDashboardStats() {
     }
 
     if (role === 'waiter') {
-      const pesananDiproses = await prisma.pesanan.findMany({
+      const pesananDiproses = await prisma.pesanan.count({
         where: { statusPesanan: 'diproses' },
-        select: { id: true },
       })
       return {
         pesananHariIni: stats.pesananHariIni,
         pesananMenunggu: stats.pesananMenunggu,
-        pesananDiproses: pesananDiproses.length,
+        pesananDiproses,
         showPendapatan: false,
         showMeja: false,
         showPesananDiproses: true,

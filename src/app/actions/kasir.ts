@@ -62,6 +62,7 @@ export async function getPesananBelumBayar() {
       },
     },
     orderBy: { createdAt: 'desc' },
+    take: 50,
   })
 
   return pesanan.map(p => ({
