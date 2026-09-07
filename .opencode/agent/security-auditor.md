@@ -2,6 +2,7 @@
 description: Security vulnerability auditor focusing on OWASP Top 10 and common attack vectors. Use PROACTIVELY for auth code, user input handling, or sensitive data operations.
 mode: subagent
 temperature: 0.1
+steps: 10
 tools:
   write: false
   edit: false

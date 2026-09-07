@@ -1,16 +1,31 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  // NOTE: Plugin auto-format dinonaktifkan (rename ke .disabled) karena
+  // menambah beban CPU pada laptop 2-core (i5-6300U) dan memperparah freeze TUI.
+  // Untuk mengaktifkan kembali: rename .opencode/plugin/auto-format.ts.disabled -> auto-format.ts
+  "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
   "instructions": ["AGENTS.md"],
   "default_agent": "orchestrator",
+  "autoupdate": false,
+  "subagent_depth": 1,
   "agent": {
     "orchestrator": {
-      "color": "success"
+      "color": "success",
+      "steps": 30
     },
     "build": {
-      "color": "#7C3AED"
+      "color": "#7C3AED",
+      "steps": 30
     },
     "plan": {
-      "color": "warning"
+      "color": "warning",
+      "steps": 10
+    },
+    "general": {
+      "steps": 10
+    },
+    "explore": {
+      "steps": 10
     }
   }
 }

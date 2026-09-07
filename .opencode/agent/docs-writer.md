@@ -2,6 +2,7 @@
 description: Technical documentation writer for README, API docs, and guides. Use PROACTIVELY when documentation is needed or outdated.
 mode: subagent
 temperature: 0.3
+steps: 10
 tools:
   write: true
   edit: true

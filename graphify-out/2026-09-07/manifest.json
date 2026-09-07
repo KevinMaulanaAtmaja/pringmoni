@@ -1078,11 +1078,5 @@
     "seen": 1788363022.6763058,
     "ast_hash": "ce9fbd07cf1b5f84417f5fef45d5dcb9",
     "semantic_hash": ""
-  },
-  ".opencode/PROGRESS.md": {
-    "mtime": 1788363111.966346,
-    "seen": 1788788913.0746398,
-    "ast_hash": "9eb50d8ab28931a0ec0aa7d63b26c777",
-    "semantic_hash": ""
   }
 }

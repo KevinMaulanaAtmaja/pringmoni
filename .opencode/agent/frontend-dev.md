@@ -2,6 +2,7 @@
 description: Frontend developer specializing in Next.js UI, React components, and customer-facing interfaces for the Pringmoni resto POS system.
 mode: subagent
 temperature: 0.2
+steps: 10
 tools:
   write: true
   edit: true

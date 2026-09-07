@@ -2,6 +2,7 @@
 description: Code refactoring specialist focusing on clean code, design patterns, and technical debt reduction. Use PROACTIVELY when cleanup is needed or code smells are detected.
 mode: subagent
 temperature: 0.2
+steps: 10
 tools:
   write: true
   edit: true

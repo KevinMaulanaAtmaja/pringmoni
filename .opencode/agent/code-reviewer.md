@@ -2,6 +2,7 @@
 description: Adversarial code reviewer focusing on quality, maintainability, and best practices. Use PROACTIVELY after code changes, before commits, or when "review" is mentioned.
 mode: subagent
 temperature: 0.1
+steps: 10
 tools:
   write: false
   edit: false

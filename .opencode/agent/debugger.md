@@ -2,6 +2,7 @@
 description: Systematic bug investigator with bash access for debugging. Use PROACTIVELY when errors occur, tests fail, or crashes happen.
 mode: subagent
 temperature: 0.1
+steps: 10
 tools:
   write: false
   edit: false

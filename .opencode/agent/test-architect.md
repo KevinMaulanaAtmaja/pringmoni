@@ -2,6 +2,7 @@
 description: Test strategy designer focusing on coverage, test design, and testing best practices. Use PROACTIVELY when adding tests, reviewing test coverage, or designing test approaches.
 mode: subagent
 temperature: 0.2
+steps: 10
 tools:
   write: true
   edit: true

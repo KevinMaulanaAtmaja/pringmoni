@@ -2,6 +2,7 @@
 description: Backend developer specializing in Prisma database, Server Actions, NextAuth, and API logic for the Pringmoni resto POS system.
 mode: subagent
 temperature: 0.2
+steps: 10
 tools:
   write: true
   edit: true

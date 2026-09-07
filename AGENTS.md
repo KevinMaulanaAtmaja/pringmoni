@@ -162,6 +162,19 @@ Project ini menggunakan **OpenCode Workflow** dengan konfigurasi di folder `.ope
 | Install dependencies baru | Hanya BE yang boleh |
 | Mengosongkan database | **HANYA atas perintah eksplisit user** |
 
+## Kompatibilitas Shell (PowerShell & Git Bash)
+
+Project ini dijalankan baik di **PowerShell** maupun **Git Bash** (Windows). Semua agent, command, dan plugin WAJIB menulis perintah yang aman di kedua shell. Gunakan panduan ini selalu:
+
+- **Separator:** `npm`/`npx`/`git` command dijalankan sendiri-sendiri. Jangan rantai dengan `&&` (PowerShell 5.1 menolak `&&`). Kalau harus berantai, pakai `;` atau jalankan terpisah.
+- **Pindah direktori:** JANGAN `cd` lalu eksekusi. Jalankan perintah dari direktori kerja saat ini, atau set `workdir` — sama di kedua shell.
+- **Path:** Hindari path `bash-style` (`/c/Users/...`). Gunakan path gabungan atau absolut yang dikenali Windows. Jika perlu path bertanda kutip (mengandung spasi), kritik dengan tanda kutip ganda `"..."`.
+- **Env variable:** Jangan bergantung pada sintaks env khusus shell. `npm`, `npx`, `git`, `node` adalah executable yang sama di kedua shell — perintah dasarnya identik.
+- **Mencari file/exe:** Bila perlu cek keberadaan tool, gunakan cara yang netral (mis. `Get-Command` di PS / `command -v` di bash) — atau lebih baik, andalkan `npm run`/`npx` yang sudah terpasang di project.
+- **Output besar:** Hindari perintah yang mencetak puluhan ribu baris ke terminal (memperlambat TUI). Gunakan `Select-Object -First`/`head` bijak.
+
+**Intinya:** setiap perintah harus bisa dieksekusi tanpa perubahan sintaks di PowerShell DAN Git Bash. Nama program (`npm`, `npx`, `git`, `node`) selalu sama; yang membedakan hanyalah separator dan quoting — bina agar kompatibel keduanya.
+
 ## Referensi
 
 - **PRD**: `.opencode/PRD.md`

@@ -2,6 +2,7 @@
 description: Test specialist for writing and running tests (Vitest, React Testing Library) for the Pringmoni resto POS system.
 mode: subagent
 temperature: 0.2
+steps: 10
 tools:
   write: true
   edit: true
