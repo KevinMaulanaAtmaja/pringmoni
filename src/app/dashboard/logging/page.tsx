@@ -199,7 +199,13 @@ export default function LoggingPage() {
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-12 text-gray-500">
-                  Memuat data log...
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="relative h-5 w-5">
+                      <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                      <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-primary" />
+                    </div>
+                    <span className="text-sm">Memuat data log...</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : paginatedLogs.length === 0 ? (

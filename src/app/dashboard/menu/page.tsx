@@ -498,7 +498,13 @@ export default function MenuPage() {
             {loading ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-4">
-                  Memuat...
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="relative h-5 w-5">
+                      <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                      <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-primary" />
+                    </div>
+                    <span className="text-sm text-muted-foreground">Memuat...</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : paginatedMenus.length === 0 ? (

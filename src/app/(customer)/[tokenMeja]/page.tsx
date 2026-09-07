@@ -347,7 +347,11 @@ return (
             {/* Main Content */}
             <main className="max-w-2xl mx-auto px-4 py-6">
                 {loading && (
-                    <div className="flex justify-center items-center py-20">
+                    <div className="flex flex-col items-center justify-center py-20 gap-3">
+                        <div className="relative h-10 w-10">
+                            <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
+                        </div>
                         <p className="text-muted-foreground">Memuat menu...</p>
                     </div>
                 )}
@@ -499,7 +503,7 @@ return (
                         </div>
 
                         {/* Menu Grid */}
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             {displayedMenu.map((menu) => {
                                 const itemKeranjang = keranjang.find((k) => k.id === menu.id);
                                 const jumlahDipesan = itemKeranjang?.jumlah || 0;

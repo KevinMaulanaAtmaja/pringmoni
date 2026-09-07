@@ -29,7 +29,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 md:p-8 overflow-y-auto">
-      <Card className="w-full max-w-2xl lg:max-w-3xl shadow-lg border-slate-200 my-auto">
+      <Card className="w-full max-w-md sm:max-w-2xl lg:max-w-3xl shadow-lg border-slate-200 my-auto">
         <CardHeader className="space-y-1 text-center px-4 md:px-8 pb-4">
           <CardTitle className="text-xl md:text-2xl font-bold text-slate-900">Welcome Back</CardTitle>
           <CardDescription className="text-slate-500 text-sm">
