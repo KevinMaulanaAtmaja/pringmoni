@@ -14,6 +14,7 @@ import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, pr
 import { checkMidtransStatusReadOnly } from "@/app/actions/pesanan"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
+import { useNotification } from "@/hooks/use-notification"
 
 const BANK_OPTIONS = [
   { id: 'bca', label: 'BCA', icon: '🏦' },
@@ -118,46 +119,7 @@ export default function KasirPage() {
   const prevBelumIdsRef = useRef<Set<number>>(new Set())
   const initializedRef = useRef(false)
   const [newOrderAlert, setNewOrderAlert] = useState<{ meja: string; nama: string | null } | null>(null)
-
-  function playNotification(nomorMeja: string, namaPelanggan?: string | null) {
-    try {
-      const ctx = new AudioContext()
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = "sine"
-      osc.frequency.value = 880
-      gain.gain.value = 0.3
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.start()
-      osc.stop(ctx.currentTime + 0.25)
-
-      // Double beep
-      setTimeout(() => {
-        const osc2 = ctx.createOscillator()
-        const gain2 = ctx.createGain()
-        osc2.type = "sine"
-        osc2.frequency.value = 660
-        gain2.gain.value = 0.3
-        osc2.connect(gain2)
-        gain2.connect(ctx.destination)
-        osc2.start()
-        osc2.stop(ctx.currentTime + 0.25)
-      }, 300)
-    } catch {}
-
-    try {
-      if ("speechSynthesis" in window) {
-        const text = namaPelanggan
-          ? `Pesanan baru dari meja ${nomorMeja}, atas nama ${namaPelanggan}`
-          : `Pesanan baru dari meja ${nomorMeja}`
-        const utterance = new SpeechSynthesisUtterance(text)
-        utterance.lang = "id-ID"
-        utterance.rate = 1
-        speechSynthesis.speak(utterance)
-      }
-    } catch {}
-  }
+  const { notifyNewOrder, notifyOrderPaid } = useNotification()
 
   const pesananBelumFiltered = pesananBelum.filter(p => {
     if (filterText) {
@@ -277,7 +239,7 @@ export default function KasirPage() {
 
     if (initializedRef.current && newOrders.length > 0) {
       for (const order of newOrders) {
-        playNotification(order.nomorMeja, order.namaPelanggan)
+        notifyNewOrder(order.nomorMeja, order.namaPelanggan)
       }
       const latest = newOrders[newOrders.length - 1]
       setNewOrderAlert({ meja: latest.nomorMeja, nama: latest.namaPelanggan ?? null })
@@ -289,6 +251,17 @@ export default function KasirPage() {
     }
     prevBelumIdsRef.current = currentIds
   }, [pesananBelum])
+
+  // Notifikasi suara saat pembayaran berhasil
+  useEffect(() => {
+    if (paymentSuccess && selectedPesanan) {
+      notifyOrderPaid(
+        selectedPesanan.nomorMeja,
+        selectedPesanan.namaPelanggan,
+        selectedPesanan.totalHarga + (selectedPesanan.biayaAdmin || 0) + (selectedPesanan.ppn || 0)
+      )
+    }
+  }, [paymentSuccess, selectedPesanan, notifyOrderPaid])
 
   // Midtrans polling when payment info dialog is open
   useEffect(() => {

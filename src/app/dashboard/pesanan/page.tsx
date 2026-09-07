@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Table,
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { getPesananForDashboard, updateStatusPesanan, markPesananSelesai, getPesananById, markItemDiantar } from "@/app/actions/pesanan"
 import { StatusPesanan } from "@prisma/client"
 import { Eye, Printer, CheckCircle, SearchX, Inbox, XCircle, ChevronLeft, ChevronRight, Clock, ArrowRightLeft } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import {
   Dialog,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/dialog"
 import { useUserRole } from "@/lib/user-context"
 import { printStruk } from "@/lib/print-struk"
+import { useNotification } from "@/hooks/use-notification"
 
 const statusColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
@@ -90,6 +92,10 @@ interface PesananDetail {
 export default function PesananPage() {
   const userRole = useUserRole()
   const router = useRouter()
+  const { notifyNewOrder, notifyOrderPaid } = useNotification()
+  const prevIdsRef = useRef<Set<number>>(new Set())
+  const prevPaidIdsRef = useRef<Set<number>>(new Set())
+  const initializedRef = useRef(false)
 
   const [activeTab, setActiveTab] = useState<"aktif" | "riwayat">("aktif")
 
@@ -108,23 +114,26 @@ export default function PesananPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
   const [debugError, setDebugError] = useState<string | null>(null)
-  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>(() => {
-    if (typeof window !== "undefined") {
-      const saved = sessionStorage.getItem("checkedMap")
-      return saved ? JSON.parse(saved) : {}
-    }
-    return {}
-  })
+  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({})
 
   const toggleItemCheck = useCallback(async (pesananId: number, itemId: number) => {
+    const key = `${pesananId}-${itemId}`
+    // Get the current state before optimistic update
+    const currentState = checkedMap[key] ?? false
+    const newState = !currentState
+
+    // Optimistic update — toggle visually immediately
+    setCheckedMap(prev => ({ ...prev, [key]: newState }))
+
     const result = await markItemDiantar(itemId)
-    if (!result.error) {
-      setCheckedMap(prev => {
-        const next = { ...prev, [`${pesananId}-${itemId}`]: result.statusAntar === 'diantar' }
-        return next
-      })
+    if (result.error) {
+      // Revert on error
+      setCheckedMap(prev => ({ ...prev, [key]: currentState }))
+    } else {
+      // Ensure sync with server state (should match our optimistic state)
+      setCheckedMap(prev => ({ ...prev, [key]: result.statusAntar === 'diantar' }))
     }
-  }, [])
+  }, [checkedMap])
   
   const pesananAktif = pesanan.filter(p => p.status === 'menunggu' || p.status === 'diproses')
   const pesananRiwayat = pesanan.filter(p => p.status !== 'menunggu' && p.status !== 'diproses')
@@ -261,6 +270,36 @@ export default function PesananPage() {
     const interval = setInterval(pollDataAktif, 5000)
     return () => clearInterval(interval)
   }, [pollDataAktif])
+
+  // Deteksi pesanan baru & pesanan dibayar untuk notifikasi suara
+  useEffect(() => {
+    const currentIds = new Set(pesanan.map(p => p.id))
+    const newOrders = pesanan.filter(p => !prevIdsRef.current.has(p.id))
+
+    if (initializedRef.current && newOrders.length > 0) {
+      for (const order of newOrders) {
+        notifyNewOrder(order.meja, order.namaPelanggan)
+      }
+    }
+
+    // Deteksi pesanan yang baru dibayar
+    const paidOrders = pesanan.filter(
+      p => p.statusBayar === 'berhasil' && !prevPaidIdsRef.current.has(p.id)
+    )
+    if (initializedRef.current && paidOrders.length > 0) {
+      for (const order of paidOrders) {
+        notifyOrderPaid(order.meja, order.namaPelanggan, order.total)
+      }
+    }
+
+    if (pesanan.length > 0) {
+      initializedRef.current = true
+    }
+    prevIdsRef.current = currentIds
+    prevPaidIdsRef.current = new Set(
+      pesanan.filter(p => p.statusBayar === 'berhasil').map(p => p.id)
+    )
+  }, [pesanan, notifyNewOrder, notifyOrderPaid])
   
   const resetFilter = () => {
     setFilterSearchAktif("")
@@ -333,7 +372,15 @@ export default function PesananPage() {
     fetchData()
   }
 
-  if (loading) return <div className="p-8 text-center">Memuat...</div>
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-3">
+      <div className="relative h-10 w-10">
+        <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+        <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
+      </div>
+      <p className="text-sm text-muted-foreground">Memuat...</p>
+    </div>
+  )
   if (debugError) {
     return (
       <div className="max-w-6xl mx-auto space-y-6 p-4">
@@ -460,10 +507,10 @@ export default function PesananPage() {
 <div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {paginatedAktif.map((p) => (
-               <div key={p.id} className="bg-white rounded-xl border-2 border-l-chart-5 p-5 hover:shadow-lg transition-shadow flex flex-col">
+               <div key={p.id} className="bg-white rounded-xl border-2 border-l-chart-5 p-3 sm:p-5 hover:shadow-lg transition-shadow flex flex-col">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="text-2xl font-bold">Meja {p.meja}</h3>
+                      <h3 className="text-xl sm:text-2xl font-bold">Meja {p.meja}</h3>
                       <p className="text-sm text-gray-500">#{p.id} · {new Date(p.waktu).toLocaleString("id-ID", { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</p>
                     </div>
                     <div className="flex gap-1 items-start">
@@ -541,14 +588,14 @@ export default function PesananPage() {
       ) : (
         <>
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">Total Riwayat</p>
-                <p className="text-3xl font-bold text-gray-800">{filteredRiwayat.length}</p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+              <div className="bg-white rounded-xl border p-3 sm:p-4 text-center">
+                <p className="text-xs sm:text-sm text-gray-500">Total Riwayat</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800">{filteredRiwayat.length}</p>
               </div>
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">Total Pendapatan</p>
-                <p className="text-3xl font-bold text-green-700">
+              <div className="bg-white rounded-xl border p-3 sm:p-4 text-center">
+                <p className="text-xs sm:text-sm text-gray-500">Total Pendapatan</p>
+                <p className="text-2xl sm:text-3xl font-bold text-green-700">
                   {totalPendapatan >= 1000
                     ? totalPendapatan >= 1000000
                       ? `${(totalPendapatan / 1000000).toFixed(1).replace(/\.0$/, "")} jt`
@@ -556,39 +603,39 @@ export default function PesananPage() {
                     : String(totalPendapatan)}
                 </p>
               </div>
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">Selesai</p>
-                <p className="text-3xl font-bold text-chart-5">{jumlahSelesai}</p>
+              <div className="bg-white rounded-xl border p-3 sm:p-4 text-center">
+                <p className="text-xs sm:text-sm text-gray-500">Selesai</p>
+                <p className="text-2xl sm:text-3xl font-bold text-chart-5">{jumlahSelesai}</p>
               </div>
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">Dibatalkan</p>
-                <p className="text-3xl font-bold text-red-600">{jumlahDibatalkan}</p>
+              <div className="bg-white rounded-xl border p-3 sm:p-4 text-center">
+                <p className="text-xs sm:text-sm text-gray-500">Dibatalkan</p>
+                <p className="text-2xl sm:text-3xl font-bold text-red-600">{jumlahDibatalkan}</p>
               </div>
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">Meja Terfavorit</p>
-                <p className="text-2xl font-bold text-purple-600 truncate">
+              <div className="bg-white rounded-xl border p-3 sm:p-4 text-center col-span-2 md:col-span-1">
+                <p className="text-xs sm:text-sm text-gray-500">Meja Terfavorit</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600 truncate">
                   {mejaFavorit ? `Meja ${mejaFavorit.meja}` : "-"}
                 </p>
                 {mejaFavorit && (
-                  <p className="text-sm text-gray-400 mt-1">{mejaFavorit.count} pesanan</p>
+                  <p className="text-xs sm:text-sm text-gray-400 mt-1">{mejaFavorit.count} pesanan</p>
                 )}
               </div>
             </div>
 
           {/* Table Riwayat */}
           <div>
-          <div className="bg-white rounded-lg border">
+          <div className="bg-white rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Meja</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Pelanggan</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Waktu</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead className="text-xs">#</TableHead>
+                  <TableHead className="text-xs">Meja</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="text-xs hidden md:table-cell">Pelanggan</TableHead>
+                  <TableHead className="text-xs">Total</TableHead>
+                  <TableHead className="text-xs hidden sm:table-cell">Items</TableHead>
+                  <TableHead className="text-xs hidden lg:table-cell">Waktu</TableHead>
+                  <TableHead className="text-xs text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -601,19 +648,19 @@ export default function PesananPage() {
                 ) : (
                   paginatedRiwayat.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-medium">#{p.id}</TableCell>
-                      <TableCell>{p.meja}</TableCell>
+                      <TableCell className="font-medium text-xs">#{p.id}</TableCell>
+                      <TableCell className="text-xs">{p.meja}</TableCell>
                       <TableCell>
-                        <Badge className={statusColors[p.status]}>
+                        <Badge className={`${statusColors[p.status]} text-xs`}>
                           {p.status === 'menunggu' ? 'Menunggu' : 
                            p.status === 'diproses' ? 'Diproses' :
                            p.status === 'selesai' ? 'Selesai' : 'Dibatalkan'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm">{p.namaPelanggan || '-'}</TableCell>
-                      <TableCell>Rp {p.total.toLocaleString("id-ID")}</TableCell>
-                      <TableCell>{p.items} item</TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="text-sm hidden md:table-cell">{p.namaPelanggan || '-'}</TableCell>
+                      <TableCell className="text-xs">Rp {p.total.toLocaleString("id-ID")}</TableCell>
+                      <TableCell className="text-xs hidden sm:table-cell">{p.items} item</TableCell>
+                      <TableCell className="text-xs hidden lg:table-cell">
                         Dibuat {new Date(p.waktu).toLocaleString("id-ID", {
                           day: '2-digit',
                           month: 'short',
@@ -704,12 +751,18 @@ export default function PesananPage() {
 
         {/* Detail Modal - View Only */}
         <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden grid-rows-[auto_1fr_auto]">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-hidden grid-rows-[auto_1fr_auto]">
             <DialogHeader>
               <DialogTitle>Detail Pesanan #{selectedPesanan?.id}</DialogTitle>
             </DialogHeader>
               {detailLoading ? (
-               <div className="py-8 text-center">Memuat detail pesanan...</div>
+               <div className="py-8 flex flex-col items-center justify-center gap-3">
+                 <div className="relative h-8 w-8">
+                   <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                   <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
+                 </div>
+                 <p className="text-sm text-muted-foreground">Memuat detail pesanan...</p>
+               </div>
              ) : selectedPesanan ? (
                <div className="flex flex-col min-h-0 overflow-hidden">
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -852,12 +905,18 @@ export default function PesananPage() {
 
         {/* Complete Modal - With Checkboxes */}
         <Dialog open={showCompleteModal} onOpenChange={setShowCompleteModal}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden grid-rows-[auto_1fr_auto]">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-hidden grid-rows-[auto_1fr_auto]">
             <DialogHeader>
-              <DialogTitle>Coret Item - Pesanan #{selectedPesananForComplete?.id}</DialogTitle>
+              <DialogTitle>Tandai Item - Pesanan #{selectedPesananForComplete?.id}</DialogTitle>
             </DialogHeader>
              {detailLoadingComplete ? (
-              <div className="py-8 text-center">Memuat detail pesanan...</div>
+              <div className="py-8 flex flex-col items-center justify-center gap-3">
+                <div className="relative h-8 w-8">
+                  <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                  <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
+                </div>
+                <p className="text-sm text-muted-foreground">Memuat detail pesanan...</p>
+              </div>
             ) : selectedPesananForComplete ? (
               <div className="flex flex-col min-h-0 overflow-hidden">
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -881,17 +940,15 @@ export default function PesananPage() {
                       return (
                         <div 
                           key={item.id} 
-                          className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
+                          className={`p-3 flex items-center justify-between cursor-pointer transition-colors rounded-lg ${
                             isChecked ? 'bg-chart-5/10' : 'hover:bg-gray-50'
                           }`}
-                          onClick={() => toggleItemCheck(selectedPesananForComplete.id, item.id)}
                         >
                           <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={isChecked}
-                              onChange={() => toggleItemCheck(selectedPesananForComplete.id, item.id)}
-                               className="w-5 h-5 rounded accent-chart-5"
+                              onCheckedChange={() => toggleItemCheck(selectedPesananForComplete.id, item.id)}
+                              className="h-5 w-5 data-[state=checked]:bg-chart-5 data-[state=checked]:border-chart-5"
                             />
                             <div>
                               <p className={`font-medium ${isChecked ? 'line-through text-gray-400' : ''}`}>
