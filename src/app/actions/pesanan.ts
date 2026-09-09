@@ -3,10 +3,12 @@
 import crypto from "crypto"
 import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { cache } from "react"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { hitungAdminFee, hitungExpiryMenit } from "@/lib/fee"
+import { getKategoriMenus } from "./menu"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()
@@ -88,6 +90,20 @@ export async function getMenusForCustomer() {
     menuFoto: menu.menuFoto.map(f => ({ id: f.id, fotoUrl: f.fotoUrl })),
   }))
 }
+
+export const getCustomerMenuData = cache(async (tokenMeja: string) => {
+  const meja = await getMejaByToken(tokenMeja)
+  if (!meja) {
+    return { meja: null, menus: [], kategoris: [] }
+  }
+
+  const [menus, kategoris] = await Promise.all([
+    getMenusForCustomer(),
+    getKategoriMenus(),
+  ])
+
+  return { meja, menus, kategoris }
+})
 
 export async function createPesanan(data: CreatePesananData) {
   const { tokenMeja, items, namaPelanggan, catatan, metodePembayaran } = data
@@ -209,6 +225,7 @@ export async function getPesananForDashboard(filters?: {
     tipeMeja: p.meja.nomorMeja.startsWith('L') ? 'lesehan' as const : 'kursi' as const,
     status: p.statusPesanan,
     statusBayar: p.statusPembayaran,
+    metodePembayaran: p.metodePembayaran,
     total: Number(p.totalHarga),
     waktu: p.createdAt.toISOString(),
     updatedAt: p.updatedAt?.toISOString() || p.createdAt.toISOString(),
@@ -943,7 +960,7 @@ export async function getPesananByTokenAndId(tokenMeja: string, publicId: string
       deletedAt: null,
     },
     include: {
-      detailPesanan: { include: { menu: { include: { menuFoto: true } } } },
+      detailPesanan: { include: { menu: true } },
       meja: true,
     },
   })
@@ -967,7 +984,7 @@ export async function getPesananByTokenAndId(tokenMeja: string, publicId: string
       jumlah: item.jumlah,
       catatan: item.catatanItem,
       statusAntar: item.statusAntar,
-      fotoUrl: item.menu.menuFoto[0]?.fotoUrl || null,
+      fotoUrl: null,
     })),
     subtotal,
     adminFee,

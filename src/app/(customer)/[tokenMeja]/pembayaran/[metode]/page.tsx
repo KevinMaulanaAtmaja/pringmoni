@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import {
 import {
   getPesananForCheckout, konfirmasiPembayaranCustomer,
   createMidtransPayment, checkMidtransPaymentStatus,
-  getCustomerPaymentStatus, cancelExpiredOrders
+  getCustomerPaymentStatus
 } from "@/app/actions/pesanan";
 import { BankIcon, getBankLabel } from "@/components/ui/BankIcon";
 import { hitungAdminFee } from "@/lib/fee";
@@ -50,6 +51,7 @@ export default function PembayaranMetodePage() {
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [waktuKadaluarsa, setWaktuKadaluarsa] = useState<string | null>(null);
   const [expired, setExpired] = useState(false);
+  const midtransCheckRef = useRef(0);
 
   useEffect(() => {
     if (!metode || !orderId) {
@@ -146,12 +148,14 @@ export default function PembayaranMetodePage() {
   useEffect(() => {
     if (paid || expired || !orderId || metode === "tunai") return
     const interval = setInterval(async () => {
-      await cancelExpiredOrders()
       const status = await getCustomerPaymentStatus(orderId)
       if (status && status.statusPembayaran === "berhasil") {
         setPaid(true)
         return
       }
+      // Cek Midtrans (API eksternal) hanya setiap ~30 detik, bukan tiap 5 detik
+      midtransCheckRef.current += 1
+      if (midtransCheckRef.current % 6 !== 0) return
       const midtransStatus = await checkMidtransPaymentStatus(orderId)
       if (!("error" in midtransStatus) && midtransStatus.transaction_status) {
         if (midtransStatus.transaction_status === "expire" || midtransStatus.transaction_status === "deny" || midtransStatus.transaction_status === "cancel" || midtransStatus.transaction_status === "failure") {
@@ -302,12 +306,12 @@ export default function PembayaranMetodePage() {
   return (
     <div className="bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
+        <div className="max-w-2xl md:max-w-3xl mx-auto flex h-14 items-center px-4">
           <h1 className="flex-1 text-center font-bold">Pembayaran</h1>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <main className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6 space-y-4">
         <Card>
           <CardContent className="p-4">
             <h3 className="font-bold mb-1">Detail Pembayaran</h3>
@@ -504,9 +508,11 @@ export default function PembayaranMetodePage() {
               <div className="bg-white rounded-xl p-4 flex flex-col items-center border">
                 {qrUrl ? (
                   <>
-                    <img
+                    <Image
                       src={qrUrl || ""}
                       alt="QR Code Pembayaran"
+                      width={224}
+                      height={224}
                       className="w-56 h-56 object-contain"
                     />
                     <a

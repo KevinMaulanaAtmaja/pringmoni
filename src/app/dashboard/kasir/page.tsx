@@ -116,7 +116,7 @@ export default function KasirPage() {
   const [midtransAutoPaid, setMidtransAutoPaid] = useState(false)
   const midtransAutoPaidRef = useRef(false)
   const pendingMethodAction = useRef<"tunai-step" | null>(null)
-  const prevBelumIdsRef = useRef<Set<number>>(new Set())
+  const prevNotifiedIdsRef = useRef<Set<number>>(new Set())
   const initializedRef = useRef(false)
   const [newOrderAlert, setNewOrderAlert] = useState<{ meja: string; nama: string | null } | null>(null)
   const { notifyNewOrder, notifyOrderPaid } = useNotification()
@@ -232,10 +232,11 @@ export default function KasirPage() {
     return () => clearInterval(interval)
   }, [pollData])
 
-  // Deteksi pesanan baru
+  // Deteksi pesanan baru (suara + alert hanya saat customer sudah di halaman pembayaran)
   useEffect(() => {
-    const currentIds = new Set(pesananBelum.map(p => p.id))
-    const newOrders = pesananBelum.filter(p => !prevBelumIdsRef.current.has(p.id))
+    const newOrders = pesananBelum.filter(
+      p => p.metodePembayaran && !prevNotifiedIdsRef.current.has(p.id)
+    )
 
     if (initializedRef.current && newOrders.length > 0) {
       for (const order of newOrders) {
@@ -249,7 +250,9 @@ export default function KasirPage() {
     if (pesananBelum.length > 0) {
       initializedRef.current = true
     }
-    prevBelumIdsRef.current = currentIds
+    for (const order of newOrders) {
+      prevNotifiedIdsRef.current.add(order.id)
+    }
   }, [pesananBelum])
 
   // Notifikasi suara saat pembayaran berhasil

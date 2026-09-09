@@ -49,6 +49,7 @@ interface PesananItem {
   tipeMeja: string
   status: string
   statusBayar: string
+  metodePembayaran?: string | null
   total: number
   items: number
   itemNames: string[]
@@ -93,7 +94,7 @@ export default function PesananPage() {
   const userRole = useUserRole()
   const router = useRouter()
   const { notifyNewOrder, notifyOrderPaid } = useNotification()
-  const prevIdsRef = useRef<Set<number>>(new Set())
+  const prevNotifiedOrderIdsRef = useRef<Set<number>>(new Set())
   const prevPaidIdsRef = useRef<Set<number>>(new Set())
   const initializedRef = useRef(false)
 
@@ -273,8 +274,9 @@ export default function PesananPage() {
 
   // Deteksi pesanan baru & pesanan dibayar untuk notifikasi suara
   useEffect(() => {
-    const currentIds = new Set(pesanan.map(p => p.id))
-    const newOrders = pesanan.filter(p => !prevIdsRef.current.has(p.id))
+    const newOrders = pesanan.filter(
+      p => p.metodePembayaran && !prevNotifiedOrderIdsRef.current.has(p.id)
+    )
 
     if (initializedRef.current && newOrders.length > 0) {
       for (const order of newOrders) {
@@ -295,7 +297,9 @@ export default function PesananPage() {
     if (pesanan.length > 0) {
       initializedRef.current = true
     }
-    prevIdsRef.current = currentIds
+    for (const order of newOrders) {
+      prevNotifiedOrderIdsRef.current.add(order.id)
+    }
     prevPaidIdsRef.current = new Set(
       pesanan.filter(p => p.statusBayar === 'berhasil').map(p => p.id)
     )

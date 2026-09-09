@@ -9,9 +9,7 @@ import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
 import { Search, ShoppingCart, Camera, X, AlertTriangle } from "lucide-react";
-import jsQR from "jsqr";
-import { getMenusForCustomer, getMejaByToken, createPesanan } from "@/app/actions/pesanan";
-import { getKategoriMenus } from "@/app/actions/menu";
+import { getCustomerMenuData, getMejaByToken, createPesanan } from "@/app/actions/pesanan";
 import type { CustomerMenu } from "@/types";
 import type { KeranjangItem } from "@/components/customer/cart-sheet";
 
@@ -64,15 +62,15 @@ const [error, setError] = useState<string | null>(null);
             try {
                 setLoading(true);
                 setError(null);
-                
-                // Validasi token meja
-                 const meja = await getMejaByToken(tokenMeja);
-                 if (!meja) {
-                     setError("Token meja salah. Silahkan scan QR code meja lagi.");
-                     setLoading(false);
-                     return;
-                 }
-                if (meja.statusMeja === 'terpakai') {
+
+                const data = await getCustomerMenuData(tokenMeja);
+
+                if (!data.meja) {
+                    setError("Token meja salah. Silahkan scan QR code meja lagi.");
+                    setLoading(false);
+                    return;
+                }
+                if (data.meja.statusMeja === 'terpakai') {
                     const isReorder = sessionStorage.getItem(`reorder_${tokenMeja}`);
                     sessionStorage.removeItem(`reorder_${tokenMeja}`);
                     if (!isReorder) {
@@ -82,16 +80,12 @@ const [error, setError] = useState<string | null>(null);
                     }
                     setMejaTerpakaiWarning(true);
                 }
-                setMejaData(meja);
-                
-                const [menuData, kategoriData] = await Promise.all([
-                    getMenusForCustomer(),
-                    getKategoriMenus()
-                ]);
-                setMenus(menuData);
+                setMejaData(data.meja);
+
+                setMenus(data.menus);
                 setKategoris([
                     { id: 0, nama: "Semua" },
-                    ...kategoriData.map((kat) => ({ id: kat.id, nama: kat.namaKategori }))
+                    ...data.kategoris.map((kat) => ({ id: kat.id, nama: kat.namaKategori }))
                 ]);
                 setLoading(false);
             } catch {
@@ -234,6 +228,7 @@ const [error, setError] = useState<string | null>(null);
 
         ctx.drawImage(video, 0, 0);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const { default: jsQR } = await import("jsqr");
         const code = jsQR(imageData.data, imageData.width, imageData.height);
 
         if (!code) {
@@ -309,7 +304,7 @@ return (
         <div className="bg-background">
             {/* Header */}
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <div className="max-w-2xl mx-auto flex h-16 items-center justify-between px-4">
+                <div className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto flex h-16 items-center justify-between px-4">
                     <div className="flex items-center gap-2">
                         <h1 className="font-heading text-xl font-bold">Pringmoni</h1>
                         {!error && !loading && (
@@ -345,7 +340,7 @@ return (
             </header>
 
             {/* Main Content */}
-            <main className="max-w-2xl mx-auto px-4 py-6">
+            <main className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto px-4 py-6">
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-20 gap-3">
                         <div className="relative h-10 w-10">
@@ -503,7 +498,7 @@ return (
                         </div>
 
                         {/* Menu Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                             {displayedMenu.map((menu) => {
                                 const itemKeranjang = keranjang.find((k) => k.id === menu.id);
                                 const jumlahDipesan = itemKeranjang?.jumlah || 0;
@@ -544,8 +539,8 @@ return (
 
             {/* Bottom Cart Bar (Mobile) */}
             {!loading && !error && keranjang.length > 0 && !sudahPesan && (
-                <div className="fixed bottom-0 left-0 right-0 border-t bg-background p-4 md:hidden">
-                    <div className="max-w-2xl mx-auto flex items-center justify-between">
+                <div className="fixed bottom-0 left-0 right-0 border-t bg-background p-4 lg:hidden">
+                    <div className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">
                                 {totalItem} item{voucher && <span className="text-green-600"> + Voucher</span>}
@@ -566,8 +561,8 @@ return (
 
             {/* Bottom Pesanan Berhasil */}
             {!loading && !error && sudahPesan && (
-                <div className="fixed bottom-0 left-0 right-0 border-t bg-primary text-primary-foreground p-4 md:hidden">
-                    <div className="max-w-2xl mx-auto flex items-center justify-between">
+                <div className="fixed bottom-0 left-0 right-0 border-t bg-primary text-primary-foreground p-4 lg:hidden">
+                    <div className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto flex items-center justify-between">
                         <div>
                             <p className="text-sm opacity-90">Pesanan Diproses</p>
                             <p className="text-lg font-bold">Rp {totalCheckout.toLocaleString("id-ID")}</p>
