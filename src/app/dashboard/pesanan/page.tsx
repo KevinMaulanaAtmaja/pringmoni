@@ -92,8 +92,7 @@ interface PesananDetail {
 export default function PesananPage() {
   const userRole = useUserRole()
   const router = useRouter()
-  const { notifyNewOrder, notifyOrderPaid } = useNotification()
-  const prevIdsRef = useRef<Set<number>>(new Set())
+  const { notifyOrderPaid } = useNotification()
   const prevPaidIdsRef = useRef<Set<number>>(new Set())
   const initializedRef = useRef(false)
 
@@ -271,18 +270,8 @@ export default function PesananPage() {
     return () => clearInterval(interval)
   }, [pollDataAktif])
 
-  // Deteksi pesanan baru & pesanan dibayar untuk notifikasi suara
+  // Deteksi pesanan yang baru dibayar untuk notifikasi suara
   useEffect(() => {
-    const currentIds = new Set(pesanan.map(p => p.id))
-    const newOrders = pesanan.filter(p => !prevIdsRef.current.has(p.id))
-
-    if (initializedRef.current && newOrders.length > 0) {
-      for (const order of newOrders) {
-        notifyNewOrder(order.meja, order.namaPelanggan)
-      }
-    }
-
-    // Deteksi pesanan yang baru dibayar
     const paidOrders = pesanan.filter(
       p => p.statusBayar === 'berhasil' && !prevPaidIdsRef.current.has(p.id)
     )
@@ -295,11 +284,10 @@ export default function PesananPage() {
     if (pesanan.length > 0) {
       initializedRef.current = true
     }
-    prevIdsRef.current = currentIds
     prevPaidIdsRef.current = new Set(
       pesanan.filter(p => p.statusBayar === 'berhasil').map(p => p.id)
     )
-  }, [pesanan, notifyNewOrder, notifyOrderPaid])
+  }, [pesanan, notifyOrderPaid])
   
   const resetFilter = () => {
     setFilterSearchAktif("")

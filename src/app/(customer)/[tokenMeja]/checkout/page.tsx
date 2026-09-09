@@ -292,7 +292,7 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
             {submitting ? (
               <><Loader2 className="size-5 animate-spin mr-2" /> Memproses...</>
             ) : (
-              "Lanjut ke Pembayaran"
+              "Konfirmasi Pembayaran"
             )}
           </Button>
         </div>

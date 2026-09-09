@@ -8,13 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight, Bell } from "lucide-react"
+import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
 import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, prosesPembayaranTransfer, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
 import { checkMidtransStatusReadOnly } from "@/app/actions/pesanan"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
-import { useNotification } from "@/hooks/use-notification"
 
 const BANK_OPTIONS = [
   { id: 'bca', label: 'BCA', icon: '🏦' },
@@ -116,10 +115,6 @@ export default function KasirPage() {
   const [midtransAutoPaid, setMidtransAutoPaid] = useState(false)
   const midtransAutoPaidRef = useRef(false)
   const pendingMethodAction = useRef<"tunai-step" | null>(null)
-  const prevBelumIdsRef = useRef<Set<number>>(new Set())
-  const initializedRef = useRef(false)
-  const [newOrderAlert, setNewOrderAlert] = useState<{ meja: string; nama: string | null } | null>(null)
-  const { notifyNewOrder, notifyOrderPaid } = useNotification()
 
   const pesananBelumFiltered = pesananBelum.filter(p => {
     if (filterText) {
@@ -231,37 +226,6 @@ export default function KasirPage() {
     const interval = setInterval(pollData, 5000)
     return () => clearInterval(interval)
   }, [pollData])
-
-  // Deteksi pesanan baru
-  useEffect(() => {
-    const currentIds = new Set(pesananBelum.map(p => p.id))
-    const newOrders = pesananBelum.filter(p => !prevBelumIdsRef.current.has(p.id))
-
-    if (initializedRef.current && newOrders.length > 0) {
-      for (const order of newOrders) {
-        notifyNewOrder(order.nomorMeja, order.namaPelanggan)
-      }
-      const latest = newOrders[newOrders.length - 1]
-      setNewOrderAlert({ meja: latest.nomorMeja, nama: latest.namaPelanggan ?? null })
-      setTimeout(() => setNewOrderAlert(null), 5000)
-    }
-
-    if (pesananBelum.length > 0) {
-      initializedRef.current = true
-    }
-    prevBelumIdsRef.current = currentIds
-  }, [pesananBelum])
-
-  // Notifikasi suara saat pembayaran berhasil
-  useEffect(() => {
-    if (paymentSuccess && selectedPesanan) {
-      notifyOrderPaid(
-        selectedPesanan.nomorMeja,
-        selectedPesanan.namaPelanggan,
-        selectedPesanan.totalHarga + (selectedPesanan.biayaAdmin || 0) + (selectedPesanan.ppn || 0)
-      )
-    }
-  }, [paymentSuccess, selectedPesanan, notifyOrderPaid])
 
   // Midtrans polling when payment info dialog is open
   useEffect(() => {
@@ -557,21 +521,6 @@ export default function KasirPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {newOrderAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="bg-white border-2 border-green-400 rounded-2xl px-8 py-6 shadow-2xl pointer-events-auto animate-in fade-in zoom-in duration-200 max-w-sm text-center">
-            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Bell className="size-7 text-green-600" />
-            </div>
-            <p className="font-bold text-green-800 text-lg">Pesanan Baru!</p>
-            <p className="text-green-700 mt-1">
-              Meja {newOrderAlert.meja}
-              {newOrderAlert.nama && <span> - {newOrderAlert.nama}</span>}
-            </p>
-          </div>
-        </div>
-      )}
-
       <h1 className="text-2xl font-bold text-gray-800">Kelola Kasir</h1>
       {/* Header Tabs */}
       <div className="flex flex-wrap gap-2 items-center justify-between">

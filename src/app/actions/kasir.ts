@@ -92,6 +92,38 @@ export async function getPesananBelumBayar() {
   }))
 }
 
+/**
+ * Pesanan yang baru saja dibayar (dipakai notifier kasir untuk notif suara + toast).
+ */
+export async function getPaidOrdersForNotification() {
+  const session = await auth()
+  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+    return { error: "Unauthorized" }
+  }
+
+  const windowStart = new Date(Date.now() - 10 * 60 * 1000)
+
+  const pesanan = await prisma.pesanan.findMany({
+    where: {
+      deletedAt: null,
+      statusPembayaran: 'berhasil',
+      updatedAt: { gte: windowStart },
+    },
+    include: { meja: true },
+    orderBy: { updatedAt: 'desc' },
+    take: 20,
+  })
+
+  return pesanan.map(p => ({
+    id: p.id,
+    nomorMeja: p.meja.nomorMeja,
+    namaPelanggan: p.namaPelanggan || null,
+    totalHarga: Number(p.totalHarga),
+    biayaAdmin: p.biayaAdmin ? Number(p.biayaAdmin) : null,
+    ppn: p.ppn ? Number(p.ppn) : null,
+  }))
+}
+
 export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week' | 'month' | 'all' }) {
   const session = await auth()
   if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
