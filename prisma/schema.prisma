@@ -224,13 +224,8 @@ enum JenisAksiLog {
 }
 
 enum KategoriBahan {
-  sayuran
-  daging
+  bahan_utama
   bumbu
-  tepung
-  minyak
-  susu
-  lainnya
 }
 
 enum SatuanStok {
