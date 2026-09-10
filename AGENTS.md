@@ -13,7 +13,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 1. `.opencode/PRD.md` — Product Requirements Document, backlog PBI, status pengerjaan
 2. `.opencode/DESIGN.md` — Design system (warna, tipografi, spacing, komponen)
 3. `.opencode/ARCHITECTURE.md` — Arsitektur teknis (database schema, routes, auth flow)
-4. `.opencode/CONVENTIONS.md` — Code conventions (naming, folder structure, commit format)
+4. `.opencode/CONVENTIONS.md` — Code conventions (naming, folder structure, commit format)     
 5. `.opencode/SECURITY.md` — Security rules (critical rules, best practices, audit checklist)
 
 **Gunakan tools `read` untuk membaca file-file di atas sebelum memulai tugas apapun.**

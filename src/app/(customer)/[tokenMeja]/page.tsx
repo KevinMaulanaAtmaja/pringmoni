@@ -167,6 +167,8 @@ const [error, setError] = useState<string | null>(null);
                 router.push(`/${tokenMeja}/checkout?orderId=${result.orderId}`);
             } else {
                 alert("Pesanan berhasil dibuat!");
+                setTotalCheckout(totalHarga);
+                setSudahPesan(true);
                 setKeranjang([]);
                 setSubmitting(false);
             }
@@ -295,7 +297,7 @@ const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (showScanner) {
-            startScanner();
+            (async () => { await startScanner(); })();
         }
         return () => stopCamera();
     }, [showScanner]);

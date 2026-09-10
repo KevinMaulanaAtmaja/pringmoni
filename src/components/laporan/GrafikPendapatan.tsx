@@ -57,7 +57,7 @@ export function GrafikPendapatan({ data, loading }: { data: GrafikPoint[]; loadi
       <CardContent className="pt-4">
         <h3 className="text-sm font-semibold mb-4">Tren Pendapatan</h3>
         <div className="h-64" style={{ minWidth: 0, minHeight: 0 }}>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <BarChart data={data} margin={{ top: 4, right: 8, left: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis

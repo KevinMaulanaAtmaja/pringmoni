@@ -75,7 +75,25 @@ export async function getMejaByToken(tokenMeja: string) {
 export async function getMenusForCustomer() {
   const menus = await prisma.menu.findMany({
     where: { statusMenu: 'tersedia', deletedAt: null },
-    include: { kategori: true, menuFoto: true },
+    select: {
+      id: true,
+      namaMenu: true,
+      deskripsi: true,
+      harga: true,
+      statusMenu: true,
+      kategori: {
+        select: {
+          namaKategori: true,
+        },
+      },
+      menuFoto: {
+        select: {
+          id: true,
+          fotoUrl: true,
+        },
+        orderBy: { urutan: 'asc' },
+      },
+    },
     orderBy: { namaMenu: 'asc' },
   })
   
@@ -1059,11 +1077,11 @@ export async function markItemDiantar(detailId: number) {
     return { error: "Item tidak ditemukan" }
   }
 
-  const newStatus = detail.statusAntar === 'diantar' ? 'belum' : 'diantar'
+  const newStatus: StatusAntar = detail.statusAntar === 'diantar' ? 'belum' : 'diantar'
 
   await prisma.detailPesanan.update({
     where: { id: detailId },
-    data: { statusAntar: newStatus as any },
+    data: { statusAntar: newStatus },
   })
 
   revalidatePath("/dashboard/pesanan")

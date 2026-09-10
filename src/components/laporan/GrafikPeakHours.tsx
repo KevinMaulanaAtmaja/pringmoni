@@ -71,7 +71,7 @@ export function GrafikPeakHours({ data, loading }: { data: GrafikPoint[]; loadin
           </div>
         </div>
         <div className="h-64" style={{ minWidth: 0, minHeight: 0 }}>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <BarChart data={data} margin={{ top: 4, right: 8, left: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis

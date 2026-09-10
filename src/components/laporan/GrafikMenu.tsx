@@ -56,7 +56,7 @@ export function GrafikMenu({ data, loading }: { data: MenuTerlaris[]; loading: b
         <h3 className="text-sm font-semibold mb-1">Grafik Menu Terlaris</h3>
         <p className="text-[11px] text-gray-400 mb-4">Top {Math.min(10, data.length)} menu berdasarkan jumlah terjual</p>
         <div className="h-80" style={{ minWidth: 0, minHeight: 0 }}>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <BarChart
               data={chartData}
               layout="vertical"
