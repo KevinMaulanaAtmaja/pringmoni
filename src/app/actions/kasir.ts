@@ -7,7 +7,6 @@ import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { hitungAdminFee } from "@/lib/fee"
 import { MetodePembayaran } from "@/types"
-import { StatusPesanan, Prisma } from "@prisma/client"
 
 export interface KasirPesananItem {
   id: number
@@ -46,8 +45,8 @@ export async function getPesananBelumBayar() {
   const pesanan = await prisma.pesanan.findMany({
     where: {
       OR: [
-        { statusPembayaran: 'menunggu', statusPesanan: { in: ['selesai', 'menunggu'] as StatusPesanan[] } },
-        { statusPembayaran: 'berhasil', statusPesanan: 'menunggu' as StatusPesanan },
+        { statusPembayaran: 'menunggu', statusPesanan: { in: ['selesai', 'menunggu'] as any } },
+        { statusPembayaran: 'berhasil', statusPesanan: 'menunggu' as any },
       ],
       deletedAt: null,
       // Include all payment methods that are pending
@@ -101,7 +100,7 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
 
   const isOwner = session.user.role === 'owner'
   
-  const whereClause: Prisma.PesananWhereInput = {
+  const whereClause: any = {
     statusPembayaran: { in: ['berhasil', 'dibatalkan'] },
     deletedAt: null,
   }
@@ -276,7 +275,7 @@ export async function prosesPembayaranQRIS(pesananId: number) {
       biayaAdmin: adminFee,
       ppn: 0,
       statusPembayaran: 'berhasil',
-      statusPesanan: 'diproses' as StatusPesanan,
+      statusPesanan: 'diproses' as any,
       kasirId: parseInt(session.user.id),
       updatedAt: new Date(),
     },
@@ -324,7 +323,7 @@ export async function prosesPembayaranTransfer(pesananId: number, bank?: string)
       biayaAdmin: adminFee,
       ppn: 0,
       statusPembayaran: 'berhasil',
-      statusPesanan: 'diproses' as StatusPesanan,
+      statusPesanan: 'diproses' as any,
       kasirId: parseInt(session.user.id),
       catatan: `Bank:${selectedBank}|VA:${vaNumber}`,
       updatedAt: new Date(),
@@ -428,7 +427,7 @@ export async function selesaikanPesananKasir(pesananId: number) {
     await tx.pesanan.update({
       where: { id: pesananId },
       data: {
-        statusPesanan: 'selesai' as StatusPesanan,
+        statusPesanan: 'selesai' as any,
         updatedAt: new Date(),
       },
     })

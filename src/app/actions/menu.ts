@@ -35,26 +35,7 @@ export type UpdateMenuInput = Partial<CreateMenuInput> & { id: number };
 export async function getMenus(): Promise<MenuWithKategori[]> {
   const menus = await prisma.menu.findMany({
     where: { deletedAt: null },
-    select: {
-      id: true,
-      namaMenu: true,
-      deskripsi: true,
-      harga: true,
-      kategoriId: true,
-      statusMenu: true,
-      createdAt: true,
-      updatedAt: true,
-      deletedAt: true,
-      kategori: true,
-      menuFoto: {
-        select: {
-          id: true,
-          fotoUrl: true,
-          urutan: true,
-        },
-        orderBy: { urutan: 'asc' },
-      },
-    },
+    include: { kategori: true, menuFoto: true },
     orderBy: { createdAt: 'desc' },
   });
   return menus.map((m) => ({

@@ -1,7 +1,6 @@
 "use server"
 
 import prisma from "@/lib/prisma"
-import { Prisma } from "@prisma/client"
 import { auth } from "@/lib/auth"
 
 export interface LogItem {
@@ -24,7 +23,7 @@ export async function getLogs(filters?: {
     return { error: "Unauthorized", data: [] }
   }
 
-  const where: Prisma.LogsWhereInput = {}
+  const where: Record<string, unknown> = {}
 
   if (filters?.aksi && filters.aksi !== 'Semua') {
     const kategoriMap: Record<string, string[]> = {
@@ -35,7 +34,7 @@ export async function getLogs(filters?: {
     }
     const selected = kategoriMap[filters.aksi]
     if (selected?.length === 1) {
-      where.aksi = selected[0] as Prisma.EnumJenisAksiLogFilter
+      where.aksi = selected[0]
     }
   }
 
@@ -44,7 +43,7 @@ export async function getLogs(filters?: {
   }
 
   const logs = await prisma.logs.findMany({
-    where,
+    where: where as any,
     include: { user: { select: { username: true } } },
     orderBy: { createdAt: 'desc' },
     take: filters?.limit || 200,

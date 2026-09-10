@@ -85,8 +85,6 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
               <img
                 src={menu.fotoUrl}
                 alt={menu.namaMenu}
-                loading="lazy"
-                decoding="async"
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -125,8 +123,6 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
               <img
                 src={allImages[currentImageIndex]}
                 alt={`${menu.namaMenu} ${currentImageIndex + 1}`}
-                loading="lazy"
-                decoding="async"
                 className="w-full h-full object-cover"
               />
               {hasMultiple && (
