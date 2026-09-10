@@ -65,13 +65,19 @@ const [error, setError] = useState<string | null>(null);
                 setLoading(true);
                 setError(null);
                 
+                // Fetch meja, menu, dan kategori secara paralel untuk mengeliminasi network waterfall
+                const [meja, menuData, kategoriData] = await Promise.all([
+                    getMejaByToken(tokenMeja),
+                    getMenusForCustomer(),
+                    getKategoriMenus()
+                ]);
+
                 // Validasi token meja
-                 const meja = await getMejaByToken(tokenMeja);
-                 if (!meja) {
-                     setError("Token meja salah. Silahkan scan QR code meja lagi.");
-                     setLoading(false);
-                     return;
-                 }
+                if (!meja) {
+                    setError("Token meja salah. Silahkan scan QR code meja lagi.");
+                    setLoading(false);
+                    return;
+                }
                 if (meja.statusMeja === 'terpakai') {
                     const isReorder = sessionStorage.getItem(`reorder_${tokenMeja}`);
                     sessionStorage.removeItem(`reorder_${tokenMeja}`);
@@ -83,11 +89,6 @@ const [error, setError] = useState<string | null>(null);
                     setMejaTerpakaiWarning(true);
                 }
                 setMejaData(meja);
-                
-                const [menuData, kategoriData] = await Promise.all([
-                    getMenusForCustomer(),
-                    getKategoriMenus()
-                ]);
                 setMenus(menuData);
                 setKategoris([
                     { id: 0, nama: "Semua" },
@@ -173,6 +174,8 @@ const [error, setError] = useState<string | null>(null);
                 router.push(`/${tokenMeja}/checkout?orderId=${result.orderId}`);
             } else {
                 alert("Pesanan berhasil dibuat!");
+                setTotalCheckout(totalHarga);
+                setSudahPesan(true);
                 setKeranjang([]);
                 setSubmitting(false);
             }
@@ -300,7 +303,7 @@ const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (showScanner) {
-            startScanner();
+            (async () => { await startScanner(); })();
         }
         return () => stopCamera();
     }, [showScanner]);

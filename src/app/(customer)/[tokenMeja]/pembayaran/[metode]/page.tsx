@@ -455,7 +455,7 @@ export default function PembayaranMetodePage() {
                 {paymentBank === "mandiri" ? (
                   <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
                     <li>Catat atau salin <strong>Biller Code</strong> dan <strong>Bill Key</strong> di atas</li>
-                    <li>Buka ATM Mandiri atau aplikasi Livin' by Mandiri</li>
+                    <li>Buka ATM Mandiri atau aplikasi Livin&apos; by Mandiri</li>
                     <li>Pilih menu <strong>Bayar</strong> → <strong>Lainnya</strong> → <strong>Multipayment</strong></li>
                     <li>Masukkan <strong>Biller Code</strong> (70012) lalu tekan Benar</li>
                     <li>Masukkan <strong>Bill Key</strong> (nomor di atas) lalu tekan Benar</li>

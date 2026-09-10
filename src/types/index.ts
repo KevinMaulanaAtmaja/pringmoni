@@ -238,3 +238,57 @@ export interface BandingData {
   topMenu: MenuTerlaris[]
   grafik: GrafikPoint[]
 }
+
+// Stok Bahan types
+export type KategoriBahan = 'bahan_utama' | 'bumbu'
+export type SatuanStok = 'kg' | 'pcs' | 'pack'
+export type StatusStok = 'tersedia' | 'menipis' | 'habis'
+export type JenisPerubahanStok = 'restock' | 'penggunaan' | 'koreksi' | 'limbah'
+
+export interface StokBahan {
+  id: number
+  namaBahan: string
+  kategori: KategoriBahan
+  stokQty: number
+  satuan: SatuanStok
+  stokMinimum: number
+  hargaPerSatuan: number
+  statusStok: StatusStok
+  keterangan: string | null
+  createdAt: Date
+}
+
+export interface RiwayatStok {
+  id: number
+  stokBahanId: number
+  namaBahan: string
+  stokSebelum: number
+  stokSesudah: number
+  jumlahPerubahan: number
+  jenisPerubahan: JenisPerubahanStok
+  keterangan: string | null
+  userName: string | null
+  createdAt: string
+}
+
+export interface CreateStokBahanInput {
+  namaBahan: string
+  kategori: KategoriBahan
+  stokQty: number
+  satuan: SatuanStok
+  stokMinimum: number
+  hargaPerSatuan: number
+  keterangan?: string
+}
+
+export interface UpdateStokBahanInput {
+  id: number
+  namaBahan: string
+  kategori: KategoriBahan
+  stokQty: number
+  satuan: SatuanStok
+  stokMinimum: number
+  hargaPerSatuan: number
+  statusStok: StatusStok
+  keterangan?: string
+}

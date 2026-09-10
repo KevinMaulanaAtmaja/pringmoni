@@ -1,8 +1,18 @@
 "use server"
 
 import prisma from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import type { ItemLaporanPesanan, MenuTerlaris, GrafikPoint, PerbandinganData, KategoriAnalisis, AnalisisTambahan, BandingData } from "@/types"
+
+type PesananWithRelations = Prisma.PesananGetPayload<{
+  include: {
+    meja: true
+    kasir: true
+    waiter: true
+    detailPesanan: { include: { menu: true } }
+  }
+}>
 
 function getDateRange(periode: string, dateStr: string): { startDate: Date; endDate: Date; label: string } {
   const date = new Date(dateStr)
@@ -49,7 +59,7 @@ function getDateRange(periode: string, dateStr: string): { startDate: Date; endD
   return { startDate, endDate, label }
 }
 
-function mapPesananToItem(p: any): ItemLaporanPesanan {
+function mapPesananToItem(p: PesananWithRelations): ItemLaporanPesanan {
   return {
     id: p.id,
     nomorMeja: p.meja?.nomorMeja || "-",
@@ -61,7 +71,7 @@ function mapPesananToItem(p: any): ItemLaporanPesanan {
     createdAt: p.createdAt,
     kasirUsername: p.kasir?.username || null,
     waiterUsername: p.waiter?.username || null,
-    items: p.detailPesanan?.map((d: any) => ({
+    items: p.detailPesanan?.map((d) => ({
       namaMenu: d.menu?.namaMenu || "Unknown",
       jumlah: d.jumlah,
       hargaSaatPesan: Number(d.hargaSaatPesan),

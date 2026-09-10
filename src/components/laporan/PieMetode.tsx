@@ -51,7 +51,7 @@ export function PieMetode({ tunai, qris, transfer }: PieMetodeProps) {
   return (
     <div className="flex items-center gap-4">
       <div className="w-24 h-24 shrink-0" style={{ minWidth: 0, minHeight: 0 }}>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
           <PieChart>
             <Pie
               data={data}

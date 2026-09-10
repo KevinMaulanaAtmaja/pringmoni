@@ -98,7 +98,7 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
               <h3 className="text-sm font-semibold text-gray-700">Pendapatan 7 Hari</h3>
             </div>
             <div className="h-48" style={{ minWidth: 0, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <LineChart data={ensureData(charts.pendapatan7Hari)} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#888" }} axisLine={{ stroke: "#e5e7eb" }} tickLine={false} />
@@ -143,7 +143,7 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
               <h3 className="text-sm font-semibold text-gray-700">Menu Terlaris Hari Ini</h3>
             </div>
             <div className="h-48" style={{ minWidth: 0, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={ensureData(charts.topMenu)} layout="vertical" margin={{ top: 4, right: 8, left: 4, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10, fill: "#888" }} axisLine={{ stroke: "#e5e7eb" }} tickLine={false} />
@@ -173,7 +173,7 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
             ) : (
               <div className="flex items-center gap-6">
                 <div className="w-24 h-24 shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <PieChart>
                       <Pie data={charts.metodePembayaran} dataKey="value" nameKey="label" innerRadius={22} outerRadius={40} paddingAngle={2}>
                         {charts.metodePembayaran.map((m) => (
@@ -211,7 +211,7 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
               <h3 className="text-sm font-semibold text-gray-700">Pesanan Per Jam</h3>
             </div>
             <div className="h-48" style={{ minWidth: 0, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <LineChart data={ensureData(charts.pesananPerJam)} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#888" }} axisLine={{ stroke: "#e5e7eb" }} tickLine={false} interval={2} />
@@ -264,7 +264,7 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
             ) : (
               <div className="flex items-center gap-6">
                 <div className="w-24 h-24 shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <PieChart>
                       <Pie data={charts.statusPembayaran} dataKey="value" nameKey="label" innerRadius={22} outerRadius={40} paddingAngle={2}>
                         {charts.statusPembayaran.map((m) => {
@@ -307,7 +307,7 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
               <p className="text-xs text-gray-400 italic py-8 text-center">Belum ada data transaksi hari ini</p>
             ) : (
             <div className="h-48" style={{ minWidth: 0, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={ensureMetode(charts.perbandinganMetode)} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#888" }} axisLine={{ stroke: "#e5e7eb" }} tickLine={false} interval={2} />
@@ -336,7 +336,7 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
             ) : (
               <div className="flex items-center gap-6">
                 <div className="w-24 h-24 shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <PieChart>
                       <Pie data={charts.statusAntarItem} dataKey="value" nameKey="label" innerRadius={22} outerRadius={40} paddingAngle={2}>
                         {charts.statusAntarItem.map((m) => {

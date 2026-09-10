@@ -9,19 +9,20 @@ datasource db {
 }
 
 model Users {
-  id               Int       @id @default(autoincrement())
-  email            String?   @unique @map("email")
-  username         String    @unique @map("username")
-  password         String    @map("password")
-  role             RoleUser  @map("role")
-  status           Boolean   @default(true) @map("status")
-  resetToken       String?   @unique @map("reset_token")
-  resetTokenExpiry DateTime? @map("reset_token_expiry")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime? @map("updated_at")
+  id               Int           @id @default(autoincrement())
+  email            String?       @unique @map("email")
+  username         String        @unique @map("username")
+  password         String        @map("password")
+  role             RoleUser      @map("role")
+  status           Boolean       @default(true) @map("status")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime?     @map("updated_at")
+  resetToken       String?       @unique @map("reset_token")
+  resetTokenExpiry DateTime?     @map("reset_token_expiry")
   logs             Logs[]
-  kasirPesanan     Pesanan[] @relation("KasirPesanan")
-  waiterPesanan    Pesanan[] @relation("WaiterPesanan")
+  kasirPesanan     Pesanan[]     @relation("KasirPesanan")
+  waiterPesanan    Pesanan[]     @relation("WaiterPesanan")
+  riwayatStok      RiwayatStok[]
 
   @@map("users")
 }
@@ -71,54 +72,54 @@ model MenuFoto {
   id        Int       @id @default(autoincrement())
   menuId    Int       @map("menu_id")
   fotoUrl   String    @map("foto_url")
-  fileKey   String?   @map("file_key")
   urutan    Int       @default(1) @map("urutan")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @map("updated_at")
+  fileKey   String?   @map("file_key")
   menu      Menu      @relation(fields: [menuId], references: [id])
 
   @@map("menu_foto")
 }
 
 model Pesanan {
-  id               Int               @id @default(autoincrement())
-  mejaId           Int               @map("meja_id")
-  waiterId         Int?              @map("waiter_id")
-  kasirId          Int?              @map("kasir_id")
-  statusPesanan    StatusPesanan     @default(menunggu) @map("status_pesanan")
-  catatan          String?           @map("catatan")
-  namaPelanggan    String?           @map("nama_pelanggan")
-  totalHarga       Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
-  biayaAdmin       Decimal?          @map("biaya_admin") @db.Decimal(10, 2)
-  ppn              Decimal?          @map("ppn") @db.Decimal(10, 2)
-  metodePembayaran MetodePembayaran? @map("metode_pembayaran")
-  midtransOrderId      String?           @unique @map("midtrans_order_id")
-  midtransTransactionId String?          @map("midtrans_transaction_id")
-  jumlahBayar          Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
-  kembalian        Decimal           @default(0) @map("kembalian") @db.Decimal(10, 2)
-  statusPembayaran StatusBayar       @default(menunggu) @map("status_pembayaran")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime?         @map("updated_at")
-  deletedAt        DateTime?         @map("deleted_at")
-  detailPesanan    DetailPesanan[]
-  kasir            Users?            @relation("KasirPesanan", fields: [kasirId], references: [id])
-  meja             Meja              @relation(fields: [mejaId], references: [id])
-  waiter           Users?            @relation("WaiterPesanan", fields: [waiterId], references: [id])
+  id                    Int               @id @default(autoincrement())
+  mejaId                Int               @map("meja_id")
+  waiterId              Int?              @map("waiter_id")
+  kasirId               Int?              @map("kasir_id")
+  statusPesanan         StatusPesanan     @default(menunggu) @map("status_pesanan")
+  catatan               String?           @map("catatan")
+  totalHarga            Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
+  metodePembayaran      MetodePembayaran? @map("metode_pembayaran")
+  jumlahBayar           Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
+  kembalian             Decimal           @default(0) @map("kembalian") @db.Decimal(10, 2)
+  statusPembayaran      StatusBayar       @default(menunggu) @map("status_pembayaran")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime?         @map("updated_at")
+  deletedAt             DateTime?         @map("deleted_at")
+  namaPelanggan         String?           @map("nama_pelanggan")
+  midtransOrderId       String?           @unique @map("midtrans_order_id")
+  midtransTransactionId String?           @map("midtrans_transaction_id")
+  biayaAdmin            Decimal?          @map("biaya_admin") @db.Decimal(10, 2)
+  ppn                   Decimal?          @map("ppn") @db.Decimal(10, 2)
+  detailPesanan         DetailPesanan[]
+  kasir                 Users?            @relation("KasirPesanan", fields: [kasirId], references: [id])
+  meja                  Meja              @relation(fields: [mejaId], references: [id])
+  waiter                Users?            @relation("WaiterPesanan", fields: [waiterId], references: [id])
 
   @@map("pesanan")
 }
 
 model DetailPesanan {
-  id             Int          @id @default(autoincrement())
-  menuId         Int          @map("menu_id")
-  pesananId      Int          @map("pesanan_id")
-  jumlah         Int          @map("jumlah")
-  hargaSaatPesan Decimal      @map("harga_saat_pesan") @db.Decimal(10, 2)
-  catatanItem    String?      @map("catatan_item")
-  statusAntar    StatusAntar  @default(belum) @map("status_antar")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  menu           Menu         @relation(fields: [menuId], references: [id])
-  pesanan        Pesanan      @relation(fields: [pesananId], references: [id])
+  id             Int         @id @default(autoincrement())
+  menuId         Int         @map("menu_id")
+  pesananId      Int         @map("pesanan_id")
+  jumlah         Int         @map("jumlah")
+  hargaSaatPesan Decimal     @map("harga_saat_pesan") @db.Decimal(10, 2)
+  catatanItem    String?     @map("catatan_item")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  statusAntar    StatusAntar @default(belum) @map("status_antar")
+  menu           Menu        @relation(fields: [menuId], references: [id])
+  pesanan        Pesanan     @relation(fields: [pesananId], references: [id])
 
   @@map("detail_pesanan")
 }
@@ -133,6 +134,40 @@ model Logs {
   user       Users?       @relation(fields: [userId], references: [id])
 
   @@map("logs")
+}
+
+model StokBahan {
+  id             Int           @id @default(autoincrement())
+  namaBahan      String        @unique @map("nama_bahan")
+  kategori       KategoriBahan @map("kategori")
+  stokQty        Decimal       @map("stok_qty") @db.Decimal(10, 2)
+  satuan         SatuanStok    @map("satuan")
+  stokMinimum    Decimal       @map("stok_minimum") @db.Decimal(10, 2)
+  hargaPerSatuan Decimal       @map("harga_per_satuan") @db.Decimal(10, 2)
+  statusStok     StatusStok    @default(tersedia) @map("status_stok")
+  keterangan     String?       @map("keterangan")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime?     @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+  riwayatStok    RiwayatStok[]
+
+  @@map("stok_bahan")
+}
+
+model RiwayatStok {
+  id              Int                @id @default(autoincrement())
+  stokBahanId     Int                @map("stok_bahan_id")
+  stokSebelum     Decimal            @map("stok_sebelum") @db.Decimal(10, 2)
+  stokSesudah     Decimal            @map("stok_sesudah") @db.Decimal(10, 2)
+  jumlahPerubahan Decimal            @map("jumlah_perubahan") @db.Decimal(10, 2)
+  jenisPerubahan  JenisPerubahanStok @map("jenis_perubahan")
+  keterangan      String?            @map("keterangan")
+  userId          Int?               @map("user_id")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  stokBahan       StokBahan          @relation(fields: [stokBahanId], references: [id])
+  user            Users?             @relation(fields: [userId], references: [id])
+
+  @@map("riwayat_stok")
 }
 
 enum RoleUser {
@@ -154,9 +189,9 @@ enum StatusMenu {
 
 enum StatusPesanan {
   menunggu
-  diproses
   selesai
   dibatalkan
+  diproses
 }
 
 enum MetodePembayaran {
@@ -186,4 +221,33 @@ enum JenisAksiLog {
   CANCEL_ORDER_EXPIRED
   CANCEL_ORDER_STALE
   PROCESS_PAYMENT
+}
+
+enum KategoriBahan {
+  sayuran
+  daging
+  bumbu
+  tepung
+  minyak
+  susu
+  lainnya
+}
+
+enum SatuanStok {
+  kg
+  pcs
+  pack
+}
+
+enum StatusStok {
+  tersedia
+  menipis
+  habis
+}
+
+enum JenisPerubahanStok {
+  restock
+  penggunaan
+  koreksi
+  limbah
 }
