@@ -20,10 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Plus, Pencil, Trash2, QrCode, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Pencil, Trash2, QrCode, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { QRCodeSVG } from "qrcode.react"
-import { getMeja, getNextNomorMeja, createMeja, updateMeja, deleteMeja } from "@/app/actions/meja"
+import { getMeja, getNextNomorMeja, createMeja, updateMeja, deleteMeja, kosongkanMeja } from "@/app/actions/meja"
 import type { Meja } from "@/types"
 import { TipeMeja } from "@/types"
 
@@ -59,6 +59,10 @@ export default function MejaPage() {
 
   // Delete confirmation states
   const [deleteId, setDeleteId] = useState<number | null>(null)
+
+  // Empty (kosongkan) confirmation states
+  const [emptyMeja, setEmptyMeja] = useState<Meja | null>(null)
+  const [emptying, setEmptying] = useState(false)
 
   // Filter states
   const [search, setSearch] = useState("")
@@ -208,6 +212,32 @@ export default function MejaPage() {
     setDeleteId(null)
   }
 
+  function handleKosongkanClick(meja: Meja) {
+    setEmptyMeja(meja)
+  }
+
+  async function handleKosongkanConfirm() {
+    if (!emptyMeja) return
+    setEmptying(true)
+    try {
+      const result = await kosongkanMeja(emptyMeja.id)
+      if ('error' in result && result.error) {
+        alert(result.error)
+        return
+      }
+      setEmptyMeja(null)
+      loadData()
+    } catch {
+      alert("Terjadi kesalahan saat mengosongkan meja")
+    } finally {
+      setEmptying(false)
+    }
+  }
+
+  function handleKosongkanCancel() {
+    setEmptyMeja(null)
+  }
+
   const openQR = (meja: Meja) => {
     setSelectedMeja(meja)
     setIsQROpen(true)
@@ -349,6 +379,17 @@ export default function MejaPage() {
                   </TableCell>
                   <TableCell className="py-2 text-right">
                     <div className="flex justify-end gap-1">
+                      {meja.statusMeja === 'terpakai' && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Kosongkan meja"
+                          onClick={() => handleKosongkanClick(meja)}
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </Button>
+                      )}
                       <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(meja)}>
                         <Pencil className="w-3 h-3" />
                       </Button>
@@ -522,6 +563,33 @@ export default function MejaPage() {
               className="h-7 text-xs"
             >
               Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Kosongkan Meja Confirmation Dialog */}
+      <Dialog open={emptyMeja !== null} onOpenChange={() => handleKosongkanCancel()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konfirmasi Kosongkan Meja</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              Apakah Anda yakin ingin mengosongkan meja <strong>{emptyMeja?.nomorMeja}</strong>?
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleKosongkanCancel} className="h-7 text-xs" disabled={emptying}>
+              Batal
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleKosongkanConfirm}
+              className="h-7 text-xs"
+              disabled={emptying}
+            >
+              {emptying ? "Mengosongkan..." : "Kosongkan"}
             </Button>
           </DialogFooter>
         </DialogContent>

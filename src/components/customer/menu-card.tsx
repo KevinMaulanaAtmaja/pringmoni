@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import {
   Dialog,
   DialogContent,
@@ -82,10 +83,13 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
           {/* Image */}
           <div className="aspect-square w-full bg-muted flex items-center justify-center relative">
             {menu.fotoUrl ? (
-              <img
+              <Image
                 src={menu.fotoUrl}
                 alt={menu.namaMenu}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover"
+                loading="lazy"
               />
             ) : (
               <span className="text-4xl">🍽️</span>
@@ -106,7 +110,7 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
           </div>
 
           <div className="p-2.5">
-            <h3 className="font-medium text-xs line-clamp-2">{menu.namaMenu}</h3>
+            <h3 className="font-medium text-sm line-clamp-2">{menu.namaMenu}</h3>
             <p className="text-primary font-bold text-sm mt-1">
               Rp {menu.harga.toLocaleString("id-ID")}
             </p>
@@ -120,10 +124,13 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
         <div className="aspect-video w-full bg-muted flex items-center justify-center rounded-t-3xl relative">
           {allImages.length > 0 ? (
             <>
-              <img
+              <Image
                 src={allImages[currentImageIndex]}
                 alt={`${menu.namaMenu} ${currentImageIndex + 1}`}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 640px) 90vw, 448px"
+                className="object-cover"
+                loading="lazy"
               />
               {hasMultiple && (
                 <>

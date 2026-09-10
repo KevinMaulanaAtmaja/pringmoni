@@ -143,7 +143,7 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
   return (
     <div className="bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
+        <div className="max-w-2xl md:max-w-3xl mx-auto flex h-14 items-center px-4">
           <button onClick={() => router.back()} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-5" />
           </button>
@@ -152,7 +152,7 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <main className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6 space-y-4">
         <Card>
           <CardContent className="p-4">
             <h3 className="font-bold mb-3">Ringkasan Pesanan</h3>

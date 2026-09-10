@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
+import { createLog } from "@/lib/log"
 import { TipeMeja } from "@/types"
 
 export type MejaResult = {
@@ -165,6 +166,34 @@ export async function deleteMeja(id: number) {
   await prisma.$executeRaw`
     UPDATE meja SET deleted_at = NOW() WHERE id = ${id}
   `
+
+  revalidatePath("/dashboard/meja")
+  return { success: true }
+}
+
+export async function kosongkanMeja(id: number) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== 'owner') {
+    return { error: "Unauthorized" }
+  }
+
+  const meja = await prisma.$queryRaw<Array<{ nomor_meja: string; status_meja: string }>>`
+    SELECT nomor_meja, status_meja FROM meja WHERE id = ${id} AND deleted_at IS NULL
+  `
+
+  if (meja.length === 0) {
+    return { error: "Meja tidak ditemukan" }
+  }
+
+  if (meja[0].status_meja === 'kosong') {
+    return { error: "Meja sudah kosong" }
+  }
+
+  await prisma.$executeRaw`
+    UPDATE meja SET status_meja = 'kosong', updated_at = NOW() WHERE id = ${id}
+  `
+
+  await createLog('EMPTY_TABLE', `Meja ${meja[0].nomor_meja} dikosongkan oleh ${session.user.username || 'owner'} (${session.user.role})`)
 
   revalidatePath("/dashboard/meja")
   return { success: true }

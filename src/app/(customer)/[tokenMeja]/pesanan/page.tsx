@@ -156,7 +156,7 @@ export default function DetailPesananPage() {
   return (
     <div className="bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="max-w-2xl mx-auto flex h-14 items-center px-4">
+        <div className="max-w-2xl md:max-w-3xl mx-auto flex h-14 items-center px-4">
           <button onClick={handleKembali} className="text-muted-foreground hover:text-foreground">
             Pesan Lagi
           </button>
@@ -165,7 +165,7 @@ export default function DetailPesananPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6">
         {status === "menunggu" && (
           <Card className="mb-6 bg-green-50 border-green-200">
             <CardContent className="flex items-center gap-3 py-4">
