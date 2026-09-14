@@ -7,7 +7,6 @@ import { cache } from "react"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
-import { hitungAdminFee, hitungExpiryMenit } from "@/lib/fee"
 import { getKategoriMenus } from "./menu"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
@@ -160,7 +159,6 @@ export async function createPesanan(data: CreatePesananData) {
   }
 
   const publicId = crypto.randomUUID()
-  const transactionId = metodePembayaran && metodePembayaran !== "tunai" ? `SIM-${crypto.randomUUID()}` : null
 
   const pesanan = await prisma.pesanan.create({
     data: {
@@ -174,7 +172,6 @@ export async function createPesanan(data: CreatePesananData) {
       biayaAdmin: 0,
       ppn: 0,
       midtransOrderId: publicId,
-      midtransTransactionId: transactionId,
       detailPesanan: {
         create: items.map(item => ({
           menuId: item.menuId,
@@ -380,401 +377,7 @@ export async function getPesananForCheckout(publicId: string) {
     ppn: pesanan.ppn ? Number(pesanan.ppn) : null,
     waktu: pesanan.createdAt.toISOString(),
     namaPelanggan: pesanan.namaPelanggan,
-  }
-}
-
-export async function createMidtransPayment(publicId: string, tokenMeja: string, metode: 'qris' | 'transfer', bank: string = 'bca') {
-  const meja = await getMejaByToken(tokenMeja)
-  if (!meja) return { error: "Token meja tidak valid" }
-
-  const pesanan = await prisma.pesanan.findFirst({
-    where: { midtransOrderId: publicId, mejaId: meja.id, deletedAt: null },
-    include: {
-      detailPesanan: { include: { menu: true } },
-    },
-  })
-
-  if (!pesanan) return { error: "Pesanan tidak ditemukan" }
-  if (pesanan.statusPembayaran !== StatusBayar.menunggu) return { error: "Pesanan sudah dibayar" }
-
-  const totalHarga = Number(pesanan.totalHarga)
-  const adminFee = hitungAdminFee(metode, totalHarga)
-  const grossAmount = totalHarga + adminFee
-  const expiryMenit = hitungExpiryMenit(metode)
-  const midtransOrderId = `PRING-${publicId}`
-
-  // Kalo udah pernah generate, skip Midtrans API
-  if (pesanan.midtransTransactionId) {
-    // SIM transaction — kembalikan data simulasi tanpa Midtrans API
-    if (pesanan.midtransTransactionId.startsWith("SIM-")) {
-      const simAdminFee = Number(pesanan.biayaAdmin) || hitungAdminFee(metode, totalHarga)
-      const simTotalBayar = totalHarga + simAdminFee
-      const simExpiry = hitungExpiryMenit(metode)
-
-      if (metode === "qris") {
-        const simQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SIMULASI-QRIS-${publicId}`
-        return {
-          success: true,
-          payment_type: "gopay" as const,
-          qr_url: simQrUrl,
-          transaction_id: pesanan.midtransTransactionId,
-          adminFee: simAdminFee,
-          totalBayar: simTotalBayar,
-          expiryMenit: simExpiry,
-        }
-      }
-
-      if (metode === "transfer") {
-        const simBank = bank || "bca"
-        return {
-          success: true,
-          payment_type: "bank_transfer" as const,
-          bank: simBank,
-          va_number: "SIM-" + publicId.replace(/-/g, "").slice(0, 12),
-          biller_code: simBank === "mandiri" ? "70012" : null,
-          transaction_id: pesanan.midtransTransactionId,
-          adminFee: simAdminFee,
-          totalBayar: simTotalBayar,
-          expiryMenit: simExpiry,
-        }
-      }
-    }
-
-    const { checkMidtransTransaction } = await import("@/lib/midtrans")
-    const result = await checkMidtransTransaction(midtransOrderId)
-
-    if (!result.success) {
-      return { error: "Transaksi tidak ditemukan" }
-    }
-
-    const data = result.data as Record<string, unknown>
-
-    if (metode === "transfer") {
-      const vaNumbers = data.va_numbers as Array<{ bank: string; va_number: string }> | undefined
-      const permataVa = data.permata_va_number as string | undefined
-      const billKey = data.bill_key as string | undefined
-      const billerCode = data.biller_code as string | undefined
-      const actualPaymentType = data.payment_type as string | undefined
-
-      let vaNumber: string | null = null
-      let actualBank = "bca"
-
-      if (actualPaymentType === "echannel" && billKey) {
-        vaNumber = billKey
-        actualBank = "mandiri"
-      } else if (permataVa) {
-        vaNumber = permataVa
-        actualBank = "permata"
-      } else if (vaNumbers?.[0]) {
-        vaNumber = vaNumbers[0].va_number || null
-        actualBank = vaNumbers[0].bank || "bca"
-      }
-
-      return {
-        success: true,
-        payment_type: "bank_transfer" as const,
-        bank: actualBank,
-        va_number: vaNumber,
-        biller_code: billerCode || null,
-        transaction_id: data.transaction_id as string || pesanan.midtransTransactionId,
-        adminFee,
-        totalBayar: grossAmount,
-        expiryMenit,
-      }
-    }
-
-    if (metode === "qris") {
-      const actions = data.actions as Array<{ name: string; method: string; url: string }> | undefined
-      const qrV2 = actions?.find(a => a.name === "generate-qr-code-v2")
-      const qrV1 = actions?.find(a => a.name === "generate-qr-code")
-      const qrAction = qrV2 || qrV1
-      const transactionId = (data.transaction_id as string) || pesanan.midtransTransactionId || ''
-      let qrUrl: string | null = qrAction?.url || null
-
-      if (!qrUrl && transactionId) {
-        const baseUrl = process.env.NODE_ENV === "production"
-          ? "https://api.midtrans.com"
-          : "https://api.sandbox.midtrans.com"
-        qrUrl = `${baseUrl}/v2/gopay/${transactionId}/qr-code`
-      }
-
-      return {
-        success: true,
-        payment_type: "gopay" as const,
-        qr_url: qrUrl,
-        transaction_id: transactionId,
-        adminFee,
-        totalBayar: grossAmount,
-        expiryMenit,
-      }
-    }
-
-    return { error: "Metode pembayaran tidak didukung" }
-  }
-
-  // First time: call Midtrans API
-  const paymentType = metode === "transfer"
-    ? (bank === "mandiri" ? "echannel" as const : "bank_transfer" as const)
-    : "gopay" as const
-  const { createCorePayment } = await import("@/lib/midtrans")
-  const result = await createCorePayment({
-    order_id: midtransOrderId,
-    gross_amount: grossAmount,
-    payment_type: paymentType,
-    bank: metode === "transfer" ? bank : undefined,
-    customer_details: {
-      first_name: pesanan.namaPelanggan || "Customer",
-    },
-    item_details: [
-      ...pesanan.detailPesanan.map(item => ({
-        id: String(item.menuId),
-        price: Number(item.hargaSaatPesan),
-        quantity: item.jumlah,
-        name: item.menu.namaMenu,
-      })),
-      {
-        id: "admin-fee",
-        price: adminFee,
-        quantity: 1,
-        name: metode === "transfer" ? "Biaya Admin Transfer" : "Biaya Admin QRIS",
-      },
-    ],
-    expiry: { duration: expiryMenit, unit: "minute" },
-  })
-
-  if (!result.success) {
-    // Coba ambil transaksi yg udah ada di Midtrans (406 conflict)
-    const { checkMidtransTransaction } = await import("@/lib/midtrans")
-    const existing = await checkMidtransTransaction(midtransOrderId)
-
-    if (existing.success) {
-      const data = existing.data as Record<string, unknown>
-      await prisma.pesanan.update({
-        where: { id: pesanan.id },
-        data: {
-          metodePembayaran: metode as MetodePembayaran,
-          midtransTransactionId: data.transaction_id as string,
-          biayaAdmin: adminFee,
-          ppn: 0,
-          updatedAt: new Date(),
-        },
-      })
-      return buildPaymentResult(metode, data, adminFee, grossAmount, data.transaction_id as string, expiryMenit)
-    }
-
-    // Simulation fallback for sandbox/development (Midtrans not active)
-    if (process.env.NODE_ENV !== "production") {
-      const simTransactionId = `SIM-${crypto.randomUUID()}`
-
-      if (metode === "qris") {
-        const simQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SIMULASI-QRIS-${publicId}`
-
-        await prisma.pesanan.update({
-          where: { id: pesanan.id },
-          data: {
-            metodePembayaran: metode as MetodePembayaran,
-            midtransTransactionId: simTransactionId,
-            biayaAdmin: adminFee,
-            ppn: 0,
-            updatedAt: new Date(),
-          },
-        })
-
-        return {
-          success: true,
-          payment_type: "gopay" as const,
-          qr_url: simQrUrl,
-          transaction_id: simTransactionId,
-          adminFee,
-          totalBayar: grossAmount,
-          expiryMenit,
-        }
-      }
-
-      if (metode === "transfer") {
-        const simBank = bank || "bca"
-        await prisma.pesanan.update({
-          where: { id: pesanan.id },
-          data: {
-            metodePembayaran: metode as MetodePembayaran,
-            midtransTransactionId: simTransactionId,
-            biayaAdmin: adminFee,
-            ppn: 0,
-            updatedAt: new Date(),
-          },
-        })
-
-        return {
-          success: true,
-          payment_type: "bank_transfer" as const,
-          bank: simBank,
-          va_number: "SIM-" + publicId.replace(/-/g, "").slice(0, 12),
-          biller_code: simBank === "mandiri" ? "70012" : null,
-          transaction_id: simTransactionId,
-          adminFee,
-          totalBayar: grossAmount,
-          expiryMenit,
-        }
-      }
-    }
-
-    return { error: result.error || "Gagal membuat transaksi pembayaran" }
-  }
-
-  const data = result.data as Record<string, unknown>
-
-  // Simpan transactionId + metode setelah Midtrans berhasil
-  await prisma.pesanan.update({
-    where: { id: pesanan.id },
-    data: {
-      metodePembayaran: metode as MetodePembayaran,
-      midtransTransactionId: data.transaction_id as string,
-      biayaAdmin: adminFee,
-      ppn: 0,
-      updatedAt: new Date(),
-    },
-  })
-
-  return buildPaymentResult(metode, data, adminFee, grossAmount, data.transaction_id as string, expiryMenit)
-}
-
-function buildPaymentResult(
-  metode: 'qris' | 'transfer',
-  data: Record<string, unknown>,
-  adminFee: number,
-  totalBayar: number,
-  transactionId: string | null,
-  expiryMenit: number,
-) {
-  if (metode === "transfer") {
-    const vaNumbers = data.va_numbers as Array<{ bank: string; va_number: string }> | undefined
-    const permataVa = data.permata_va_number as string | undefined
-    const billKey = data.bill_key as string | undefined
-    const billerCode = data.biller_code as string | undefined
-    const actualPaymentType = data.payment_type as string | undefined
-
-    let vaNumber: string | null = null
-    let actualBank = "bca"
-
-    if (actualPaymentType === "echannel" && billKey) {
-      vaNumber = billKey
-      actualBank = "mandiri"
-    } else if (permataVa) {
-      vaNumber = permataVa
-      actualBank = "permata"
-    } else if (vaNumbers?.[0]) {
-      vaNumber = vaNumbers[0].va_number || null
-      actualBank = vaNumbers[0].bank || "bca"
-    }
-
-    return {
-      success: true,
-      payment_type: "bank_transfer" as const,
-      bank: actualBank,
-      va_number: vaNumber,
-      biller_code: billerCode || null,
-      transaction_id: transactionId,
-      adminFee,
-      totalBayar,
-      expiryMenit,
-    }
-  }
-
-  if (metode === "qris") {
-    const actions = data.actions as Array<{ name: string; method: string; url: string }> | undefined
-    const qrV2 = actions?.find(a => a.name === "generate-qr-code-v2")
-    const qrV1 = actions?.find(a => a.name === "generate-qr-code")
-    const qrAction = qrV2 || qrV1
-    let qrUrl: string | null = qrAction?.url || null
-
-    if (!qrUrl && transactionId) {
-      const baseUrl = process.env.NODE_ENV === "production"
-        ? "https://api.midtrans.com"
-        : "https://api.sandbox.midtrans.com"
-      qrUrl = `${baseUrl}/v2/gopay/${transactionId}/qr-code`
-    }
-
-    return {
-      success: true,
-      payment_type: "gopay" as const,
-      qr_url: qrUrl,
-      transaction_id: transactionId,
-      adminFee,
-      totalBayar,
-      expiryMenit,
-    }
-  }
-
-  return { error: "Metode pembayaran tidak didukung" }
-}
-
-export async function checkMidtransPaymentStatus(publicId: string) {
-  const pesanan = await prisma.pesanan.findFirst({
-    where: { midtransOrderId: publicId, deletedAt: null },
-    select: { id: true, midtransOrderId: true, midtransTransactionId: true, statusPembayaran: true, totalHarga: true },
-  })
-
-  if (!pesanan) {
-    return { error: "Pesanan tidak ditemukan" }
-  }
-
-  // If already paid offline (e.g. cashier processed Tunai), return success immediately
-  if (pesanan.statusPembayaran === StatusBayar.berhasil) {
-    return { success: true, transaction_status: "settlement", isSuccess: true }
-  }
-
-  // Simulated QRIS transaction (sandbox/development)
-  if (pesanan.midtransTransactionId?.startsWith("SIM-")) {
-    await prisma.pesanan.update({
-      where: { id: pesanan.id },
-      data: {
-        statusPembayaran: StatusBayar.berhasil,
-      },
-    })
-    await createLog('PROCESS_PAYMENT', `Pembayaran SIM-QRIS pesanan #${pesanan.id} terkonfirmasi otomatis: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')}`)
-    revalidatePath("/dashboard/kasir")
-    revalidatePath("/dashboard/pesanan")
-    return { success: true, transaction_status: "settlement", isSuccess: true }
-  }
-
-  if (!pesanan.midtransOrderId) {
-    return { error: "Belum ada transaksi Midtrans" }
-  }
-
-  const midtransOrderId = `PRING-${pesanan.midtransOrderId}`
-
-  try {
-    const { checkMidtransTransaction } = await import("@/lib/midtrans")
-    const result = await checkMidtransTransaction(midtransOrderId)
-
-    if (!result.success) {
-      return { error: result.error || "Gagal mengecek status pembayaran" }
-    }
-
-    const status = result.data.transaction_status as string
-    const isSuccess = status === "capture" || status === "settlement"
-
-    if (isSuccess) {
-      await prisma.pesanan.update({
-        where: { id: pesanan.id },
-        data: {
-          statusPembayaran: StatusBayar.berhasil,
-          jumlahBayar: Number(result.data.gross_amount),
-          kembalian: 0,
-        },
-      })
-      await createLog('PROCESS_PAYMENT', `Pembayaran Midtrans pesanan #${pesanan.id}: Rp${Number(result.data.gross_amount).toLocaleString('id-ID')}`)
-      revalidatePath("/dashboard/kasir")
-      revalidatePath("/dashboard/pesanan")
-    }
-
-    return {
-      success: true,
-      transaction_status: status,
-      isSuccess,
-    }
-  } catch {
-    return { error: "Gagal mengecek status pembayaran" }
+    statusPembayaran: pesanan.statusPembayaran,
   }
 }
 
@@ -791,53 +394,6 @@ export async function getCustomerPaymentStatus(publicId: string) {
   return {
     statusPembayaran: pesanan.statusPembayaran,
     metodePembayaran: pesanan.metodePembayaran,
-  }
-}
-
-export async function checkMidtransStatusReadOnly(publicId: string) {
-  const pesanan = await prisma.pesanan.findFirst({
-    where: { midtransOrderId: publicId, deletedAt: null },
-    select: { id: true, midtransOrderId: true, midtransTransactionId: true },
-  })
-
-  if (!pesanan?.midtransOrderId) {
-    return { error: "Belum ada transaksi Midtrans" }
-  }
-
-  // Simulated QRIS transaction (sandbox/development)
-  if (pesanan.midtransTransactionId?.startsWith("SIM-")) {
-    return {
-      success: true,
-      transaction_status: "settlement",
-      isSuccess: true,
-      isExpired: false,
-      gross_amount: 0,
-    }
-  }
-
-  const midtransOrderId = `PRING-${pesanan.midtransOrderId}`
-
-  try {
-    const { checkMidtransTransaction } = await import("@/lib/midtrans")
-    const result = await checkMidtransTransaction(midtransOrderId)
-
-    if (!result.success) {
-      return { error: result.error || "Gagal mengecek status pembayaran" }
-    }
-
-    const status = result.data.transaction_status as string
-    const isSuccess = status === "capture" || status === "settlement"
-    const isExpired = status === "expire" || status === "cancel" || status === "deny" || status === "failure"
-
-    return {
-      success: true,
-      transaction_status: status,
-      isSuccess,
-      isExpired,
-      gross_amount: Number(result.data.gross_amount),
-    }
-  } catch {
-    return { error: "Gagal mengecek status pembayaran" }
   }
 }
 
@@ -986,9 +542,7 @@ export async function getPesananByTokenAndId(tokenMeja: string, publicId: string
   if (!pesanan) return null
 
   const subtotal = Number(pesanan.totalHarga)
-  const adminFee = pesanan.metodePembayaran === 'tunai' || !pesanan.metodePembayaran
-    ? 0
-    : hitungAdminFee(pesanan.metodePembayaran as 'transfer' | 'qris', subtotal)
+  const adminFee = 0
   const ppn = 0
 
   return {
@@ -1033,7 +587,7 @@ export async function konfirmasiPembayaranCustomer(
   if (pesanan.statusPembayaran !== StatusBayar.menunggu) {
     return { error: "Pesanan sudah dikonfirmasi" }
   }
-  if (!['tunai', 'transfer', 'qris'].includes(metode)) {
+  if (!['tunai', 'qris'].includes(metode)) {
     return { error: "Metode pembayaran tidak valid" }
   }
 
@@ -1103,7 +657,7 @@ export async function cancelExpiredOrders() {
   })
 
   for (const p of expiredWithMethod) {
-    const expiryMenit = p.metodePembayaran === 'qris' ? 15 : 60
+    const expiryMenit = 60
     const startTime = p.updatedAt || p.createdAt
     const expiredAt = new Date(startTime.getTime() + expiryMenit * 60000)
     if (now >= expiredAt) {
@@ -1122,12 +676,6 @@ export async function cancelExpiredOrders() {
         })
       }
       await createLog('CANCEL_ORDER_EXPIRED', `Pesanan #${p.id} expired (${p.metodePembayaran}, ${expiryMenit} menit)`)
-      if (p.midtransTransactionId && !p.midtransTransactionId.startsWith('SIM-')) {
-        try {
-          const { voidMidtransTransaction } = await import("@/lib/midtrans")
-          await voidMidtransTransaction(p.midtransTransactionId)
-        } catch {}
-      }
     }
   }
 

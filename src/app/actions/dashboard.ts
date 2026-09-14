@@ -325,11 +325,11 @@ export async function autoCancelStaleUnpaid() {
         },
         select: { id: true, mejaId: true },
       }),
-      // Pilih qris/transfer → 23 jam
+      // Pilih qris → 23 jam
       prisma.pesanan.findMany({
         where: {
           statusPembayaran: 'menunggu',
-          metodePembayaran: { in: ['qris', 'transfer'] },
+          metodePembayaran: { in: ['qris'] },
           statusPesanan: { notIn: ['dibatalkan', 'selesai'] },
           createdAt: { lte: duaPuluhTigaJam },
           deletedAt: null,
@@ -355,7 +355,7 @@ export async function autoCancelStaleUnpaid() {
     ])
 
     if (stale.length > 0) {
-      await createLog('CANCEL_ORDER_STALE', `Auto-cancel ${stale.length} pesanan stale (tanpa metode: ${tanpaMetode.length}, tunai: ${pilihTunai.length}, qris/transfer: ${pilihLain.length})`)
+      await createLog('CANCEL_ORDER_STALE', `Auto-cancel ${stale.length} pesanan stale (tanpa metode: ${tanpaMetode.length}, tunai: ${pilihTunai.length}, qris: ${pilihLain.length})`)
     }
 
     return {

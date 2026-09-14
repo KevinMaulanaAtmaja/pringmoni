@@ -10,18 +10,10 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
-import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, prosesPembayaranTransfer, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
-import { checkMidtransStatusReadOnly } from "@/app/actions/pesanan"
+import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
 import { useNotification } from "@/hooks/use-notification"
-
-const BANK_OPTIONS = [
-  { id: 'bca', label: 'BCA', icon: '🏦' },
-  { id: 'bni', label: 'BNI', icon: '🏦' },
-  { id: 'bri', label: 'BRI', icon: '🏦' },
-  { id: 'mandiri', label: 'Mandiri', icon: '🏦' },
-]
 
 const metodeLabels: Record<MetodePembayaran, string> = {
   qris: "QRIS",
@@ -106,15 +98,8 @@ export default function KasirPage() {
   const [isConfirmCancelDialogOpen, setIsConfirmCancelDialogOpen] = useState(false)
   const [cancelConfirmInput, setCancelConfirmInput] = useState("")
   const [isBayarTunaiFinal, setIsBayarTunaiFinal] = useState(false)
-  const [selectedBank, setSelectedBank] = useState<string>("bca")
-  const [showBankSelection, setShowBankSelection] = useState(false)
   const [showConfirmProcess, setShowConfirmProcess] = useState(false)
   const [showMethodWarning, setShowMethodWarning] = useState(false)
-  const [midtransStatus, setMidtransStatus] = useState<string | null>(null)
-  const [qrisQrUrl, setQrisQrUrl] = useState<string | null>(null)
-  const [qrisTotalBayar, setQrisTotalBayar] = useState(0)
-  const [midtransAutoPaid, setMidtransAutoPaid] = useState(false)
-  const midtransAutoPaidRef = useRef(false)
   const pendingMethodAction = useRef<"tunai-step" | null>(null)
   const prevNotifiedIdsRef = useRef<Set<number>>(new Set())
   const initializedRef = useRef(false)
@@ -163,7 +148,6 @@ export default function KasirPage() {
   const totalPendapatan = pesananRiwayatFiltered.reduce((sum, p) => sum + (p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0)), 0)
   const jumlahQRIS = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'qris').length
   const jumlahTunai = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'tunai').length
-  const jumlahTransfer = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'transfer').length
 
   const [riwayatPage, setRiwayatPage] = useState(1)
   const riwayatPerPage = 10
@@ -266,34 +250,6 @@ export default function KasirPage() {
     }
   }, [paymentSuccess, selectedPesanan, notifyOrderPaid])
 
-  // Midtrans polling when payment info dialog is open
-  useEffect(() => {
-    if (!selectedPesanan?.midtransOrderId || !showPaymentInfo || selectedMetode === "tunai" || paymentSuccess || midtransAutoPaid) return
-
-    midtransAutoPaidRef.current = false
-
-    const checkMidtrans = async () => {
-      if (midtransAutoPaidRef.current) return
-      const result = await checkMidtransStatusReadOnly(selectedPesanan.midtransOrderId!)
-      if ('transaction_status' in result) {
-        setMidtransStatus(result.transaction_status as string)
-        if (result.isSuccess) {
-          midtransAutoPaidRef.current = true
-          setMidtransAutoPaid(true)
-        } else if (result.isExpired) {
-          midtransAutoPaidRef.current = true
-          setMidtransAutoPaid(true)
-          handlePaymentExpired()
-        }
-      }
-    }
-
-    checkMidtrans()
-    const timer = setInterval(checkMidtrans, 5000)
-
-    return () => clearInterval(timer)
-  }, [selectedPesanan?.midtransOrderId, showPaymentInfo, selectedMetode, paymentSuccess, midtransAutoPaid])
-
   const fetchRiwayatOnly = useCallback(async () => {
     setError(null)
     try {
@@ -319,18 +275,11 @@ export default function KasirPage() {
     setSelectedPesanan(pesanan)
     setShowConfirmProcess(false)
     setSelectedMetode((pesanan.metodePembayaran as MetodePembayaran) || "qris")
-    setSelectedBank("bca")
-    setShowBankSelection(false)
     setJumlahBayar("")
     setInputRibuan("")
     setShowPaymentInfo(pesanan.statusPembayaran === 'berhasil')
     setPaymentSuccess(false)
     setIsBayarTunaiFinal(false)
-    setMidtransStatus(null)
-    setMidtransAutoPaid(false)
-    setQrisQrUrl(null)
-    setQrisTotalBayar(0)
-    midtransAutoPaidRef.current = false
     setSubmitting(false)
     setIsPaymentOpen(true)
   }
@@ -368,24 +317,9 @@ export default function KasirPage() {
           setSubmitting(false)
           return
         }
-        setQrisQrUrl(result.qrUrl)
-        setQrisTotalBayar(result.totalBayar)
-        // Redirect to confirmation page
+        // Redirect to QRIS confirmation page
         setIsPaymentOpen(false)
         router.push(`/dashboard/kasir/pesanan-baru/${selectedPesanan.id}?metode=qris&meja=${selectedPesanan.nomorMeja}&nama=${encodeURIComponent(selectedPesanan.namaPelanggan || '')}`)
-        setSubmitting(false)
-        return
-      } else {
-        // Transfer: process with selected bank
-        const result = await prosesPembayaranTransfer(selectedPesanan.id, selectedBank)
-        if ('error' in result) {
-          alert(result.error)
-          setSubmitting(false)
-          return
-        }
-        // Redirect to confirmation page
-        setIsPaymentOpen(false)
-        router.push(`/dashboard/kasir/pesanan-baru/${selectedPesanan.id}?metode=transfer&bank=${selectedBank}&meja=${selectedPesanan.nomorMeja}&nama=${encodeURIComponent(selectedPesanan.namaPelanggan || '')}`)
         setSubmitting(false)
         return
       }
@@ -395,13 +329,6 @@ export default function KasirPage() {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  async function handlePaymentExpired() {
-    if (!selectedPesanan) return
-    setMidtransStatus("expired")
-    await batalkanPesananKasir(selectedPesanan.id)
-    fetchData()
   }
 
   function openCancelDialog(id: number) {
@@ -442,7 +369,7 @@ export default function KasirPage() {
       } else if (selectedMetode === "qris") {
         result = await confirmQrisPayment(selectedPesanan.id)
       } else {
-        result = await prosesPembayaranTransfer(selectedPesanan.id)
+        return
       }
       if ('error' in result) {
         alert(result.error)
@@ -842,7 +769,7 @@ export default function KasirPage() {
         /* Tab Riwayat */
         <>
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-white rounded-xl border p-4 text-center">
                 <p className="text-sm text-gray-500">Total Pesanan</p>
                 <p className="text-3xl font-bold text-gray-800">{pesananRiwayatFiltered.length}</p>
@@ -863,12 +790,6 @@ export default function KasirPage() {
                 <p className="text-sm text-gray-500">Tunai</p>
                 <p className="text-3xl font-bold text-green-600">
                   {jumlahTunai}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">Transfer</p>
-                <p className="text-3xl font-bold text-purple-600">
-                  {jumlahTransfer}
                 </p>
               </div>
             </div>
@@ -991,7 +912,7 @@ export default function KasirPage() {
       )}
       
       {/* Payment Dialog */}
-      <Dialog open={isPaymentOpen} onOpenChange={(open) => { if (!open) { setShowPaymentInfo(false); setPaymentSuccess(false); setShowBankSelection(false); setIsPaymentOpen(false) } }}>
+      <Dialog open={isPaymentOpen} onOpenChange={(open) => { if (!open) { setShowPaymentInfo(false); setPaymentSuccess(false); setIsPaymentOpen(false) } }}>
         <DialogContent className="max-w-lg gap-3" onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
@@ -1058,35 +979,17 @@ export default function KasirPage() {
               </DialogHeader>
               <div className="space-y-2">
                 <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3 text-center">
-                  <div className="w-8 h-8 mx-auto mb-1">
-                    {selectedMetode === "qris" ? (
-                      <CreditCard className="w-full h-full text-blue-600" />
-                    ) : (
-                      <Landmark className="w-full h-full text-blue-600" />
-                    )}
-                  </div>
+                  {selectedMetode === "qris" ? (
+                    <CreditCard className="w-8 h-8 mx-auto text-blue-600 mb-1" />
+                  ) : (
+                    <Landmark className="w-8 h-8 mx-auto text-blue-600 mb-1" />
+                  )}
                   <p className="text-xl font-bold text-blue-800">
                     {selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}
                   </p>
                   <p className="text-blue-600 text-xs">Total Tagihan</p>
                 </div>
-                {selectedMetode === "qris" && qrisQrUrl && (
-                  <div className="bg-white rounded-xl p-4 flex flex-col items-center border">
-                    <img
-                      src={qrisQrUrl}
-                      alt="QR Code Pembayaran"
-                      className="w-56 h-56 object-contain"
-                    />
-                    <p className="text-[10px] text-gray-400 mt-2">Scan QR dengan aplikasi pembayaran</p>
-                  </div>
-                )}
                 <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-xs">Transaction ID</span>
-                    <span className="font-mono text-xs font-bold">
-                      TRX-{new Date().getFullYear()}{String(new Date().getMonth()+1).padStart(2,'0')}{String(new Date().getDate()).padStart(2,'0')}-{String(selectedPesanan?.id).padStart(6,'0')}
-                    </span>
-                  </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500 text-xs">Order ID</span>
                     <span className="font-mono text-xs font-bold">
@@ -1104,39 +1007,12 @@ export default function KasirPage() {
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-xs">Transaction Time</span>
-                    <span className="text-xs">{formatWaktu(new Date())}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-xs">Transaction Status</span>
-                    <Badge className={`text-xs ${
-                      midtransStatus === "capture" || midtransStatus === "settlement"
-                        ? "bg-green-100 text-green-800 border-green-300"
-                        : midtransStatus === "expire" || midtransStatus === "cancel" || midtransStatus === "deny" || midtransStatus === "failure" || midtransStatus === "expired"
-                        ? "bg-red-100 text-red-800 border-red-300"
-                        : "bg-yellow-100 text-yellow-800 border-yellow-300"
-                    }`}>
-                      {!midtransStatus ? "Memeriksa..." : 
-                       midtransStatus === "capture" || midtransStatus === "settlement" ? "Berhasil" :
-                       midtransStatus === "pending" ? "Menunggu" :
-                       midtransStatus === "expire" || midtransStatus === "expired" ? "Kadaluarsa" :
-                       midtransStatus === "cancel" ? "Dibatalkan" :
-                       midtransStatus === "deny" || midtransStatus === "failure" ? "Gagal" :
-                       midtransStatus}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
                     <span className="text-gray-500 text-xs">Meja</span>
                     <span className="font-bold text-sm">{selectedPesanan?.nomorMeja}</span>
                   </div>
                 </div>
                 <p className="text-[10px] text-gray-400 text-center">
-                  Sistem otomatis mengecek status pembayaran setiap 5 detik.
-                  {midtransStatus === "capture" || midtransStatus === "settlement"
-                    ? " Pembayaran terdeteksi! Klik Konfirmasi untuk menyelesaikan."
-                    : midtransStatus === "expire" || midtransStatus === "expired" || midtransStatus === "cancel" || midtransStatus === "deny" || midtransStatus === "failure"
-                    ? " Pembayaran gagal/kadaluarsa. Silakan tutup dialog."
-                    : " Tunggu pelanggan menyelesaikan pembayaran..."}
+                  Pelanggan mengklaim sudah membayar. Verifikasi pembayaran lalu klik Konfirmasi untuk menyelesaikan.
                 </p>
               </div>
               <DialogFooter className="gap-2">
@@ -1147,24 +1023,18 @@ export default function KasirPage() {
                 >
                   Tutup
                 </Button>
-                {(midtransStatus === "expire" || midtransStatus === "expired" || midtransStatus === "cancel" || midtransStatus === "deny" || midtransStatus === "failure") ? null : (
                 <Button
                   onClick={() => handlePaymentConfirm()}
-                  disabled={submitting || !(midtransStatus === "capture" || midtransStatus === "settlement")}
+                  disabled={submitting}
                   className="text-sm flex-1 bg-green-600 hover:bg-green-700"
                 >
                   {submitting ? (
                     <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                  ) : midtransStatus === "capture" || midtransStatus === "settlement" ? (
-                    <CheckCircle className="w-4 h-4 mr-1" />
                   ) : (
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    <CheckCircle className="w-4 h-4 mr-1" />
                   )}
-                  {!midtransStatus ? "Memeriksa..." :
-                   midtransStatus === "capture" || midtransStatus === "settlement" ? "Konfirmasi Pembayaran" :
-                   "Menunggu Pembayaran..."}
+                  Konfirmasi Pembayaran
                 </Button>
-                )}
               </DialogFooter>
             </>
           ) : (
@@ -1191,8 +1061,8 @@ export default function KasirPage() {
                     Customer memilih: <strong>{metodeLabels[selectedPesanan.metodePembayaran as MetodePembayaran]}</strong>
                   </p>
                 )}
-                <div className="grid grid-cols-3 gap-2">
-                  {(["qris", "tunai", "transfer"] as MetodePembayaran[]).map((metode) => {
+                <div className="grid grid-cols-2 gap-2">
+                  {(["qris", "tunai"] as MetodePembayaran[]).map((metode) => {
       const current = selectedPesanan?.metodePembayaran
       const isDisabled = current && current !== metode && (
         current === "tunai" || metode !== "tunai"
@@ -1224,59 +1094,12 @@ export default function KasirPage() {
                     </p>
                   ) : selectedPesanan.metodePembayaran === "tunai" && selectedMetode !== "tunai" ? (
                     <p className="text-xs text-red-600">
-                      Hanya bisa ganti dari QRIS/Transfer ke Tunai
+                      Hanya bisa ganti dari QRIS ke Tunai
                     </p>
                   ) : null
                 )}
               </div>
               </>
-              )}
-
-              {/* Bank Selection for Transfer */}
-              {selectedMetode === "transfer" && !showBankSelection && (
-                <div className="space-y-3 bg-white rounded-xl border p-4">
-                  <p className="text-sm font-semibold text-center">Pilih Bank Tujuan</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {BANK_OPTIONS.map((bank) => (
-                      <button
-                        key={bank.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedBank(bank.id)
-                          setShowBankSelection(true)
-                        }}
-                        className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                          selectedBank === bank.id
-                            ? "border-green-500 bg-green-50"
-                            : "border-gray-200 hover:border-gray-300 bg-white"
-                        }`}
-                      >
-                        <span className="text-2xl">{bank.icon}</span>
-                        <div className="text-left">
-                          <p className="font-semibold text-sm">{bank.label}</p>
-                          <p className="text-xs text-gray-400">Transfer {bank.label}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedMetode === "transfer" && showBankSelection && (
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-center space-y-2">
-                  <Landmark className="w-10 h-10 mx-auto text-blue-600" />
-                  <p className="text-base font-bold">Transfer {BANK_OPTIONS.find(b => b.id === selectedBank)?.label}</p>
-                  <p className="text-sm text-blue-700">
-                    Total tagihan akan diproses dengan transfer via {BANK_OPTIONS.find(b => b.id === selectedBank)?.label}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowBankSelection(false)}
-                    className="text-xs text-blue-500 underline"
-                  >
-                    Ganti Bank
-                  </button>
-                </div>
               )}
 
               {/* Tunai Input */}
@@ -1370,27 +1193,11 @@ export default function KasirPage() {
                       Bayar Tunai
                     </Button>
                   </>
-                ) : selectedMetode === "transfer" && !showBankSelection ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsPaymentOpen(false)}
-                      className="text-sm flex-1"
-                    >
-                      Batal
-                    </Button>
-                    <Button
-                      disabled={true}
-                      className="text-sm flex-1 opacity-60"
-                    >
-                      Pilih Bank Dahulu
-                    </Button>
-                  </>
                 ) : (
                   <>
                     <Button
                       variant="outline"
-                      onClick={() => { setIsPaymentOpen(false); setShowBankSelection(false) }}
+                      onClick={() => setIsPaymentOpen(false)}
                       className="text-sm flex-1"
                     >
                       Batal
@@ -1405,7 +1212,7 @@ export default function KasirPage() {
                       ) : (
                         <CheckCircle className="w-4 h-4 mr-1" />
                       )}
-                      {selectedMetode === "tunai" ? "Bayar Tunai" : selectedMetode === "transfer" ? "Proses Transfer" : "Bayar QRIS"}
+                      {selectedMetode === "tunai" ? "Bayar Tunai" : "Bayar QRIS"}
                     </Button>
                   </>
                 )}

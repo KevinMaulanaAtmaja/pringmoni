@@ -6,8 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { CheckCircle, Clock, ChefHat, PackageCheck, Banknote, CreditCard, Smartphone, Loader2, AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { getPesananByTokenAndId, checkMidtransPaymentStatus } from "@/app/actions/pesanan";
+import { CheckCircle, Clock, ChefHat, PackageCheck, Banknote, CreditCard, Loader2, AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { getPesananByTokenAndId } from "@/app/actions/pesanan";
 
 import type { LucideIcon } from "lucide-react";
 
@@ -31,8 +31,7 @@ interface PesananData {
 
 const metodeConfig: Record<string, { label: string; icon: LucideIcon }> = {
   tunai: { label: "Tunai", icon: Banknote },
-  transfer: { label: "Transfer", icon: CreditCard },
-  qris: { label: "QRIS", icon: Smartphone },
+  qris: { label: "QRIS", icon: CreditCard },
 };
 
 export default function DetailPesananPage() {
@@ -77,22 +76,6 @@ export default function DetailPesananPage() {
     const interval = setInterval(fetchPesanan, 5000);
     return () => clearInterval(interval);
   }, [pesanan, fetchPesanan]);
-
-  useEffect(() => {
-    if (!pesanan || pesanan.statusPembayaran !== "menunggu") return;
-    const metodeParam = pesanan.metodePembayaran;
-    if (metodeParam !== "qris" && metodeParam !== "transfer") return;
-
-    const check = async () => {
-      if (!pesanan.midtransOrderId) return;
-      const result = await checkMidtransPaymentStatus(pesanan.midtransOrderId);
-      if (result.isSuccess) {
-        fetchPesanan();
-      }
-    };
-    const timer = setTimeout(check, 2000);
-    return () => clearTimeout(timer);
-  }, [pesanan?.id, pesanan?.statusPembayaran, searchParams]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {

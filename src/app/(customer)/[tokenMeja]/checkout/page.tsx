@@ -4,10 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ArrowLeft, Banknote, CreditCard, Smartphone, Loader2, AlertCircle, Clock } from "lucide-react";
-import { getPesananForCheckout, updateNamaPelanggan, createMidtransPayment, konfirmasiPembayaranCustomer } from "@/app/actions/pesanan";
-import { hitungAdminFee } from "@/lib/fee";
-import { BankIcon, POPULAR_BANKS } from "@/components/ui/BankIcon";
+import { Wallet, ArrowLeft, Banknote, CreditCard, Loader2, AlertCircle, Clock } from "lucide-react";
+import { getPesananForCheckout, updateNamaPelanggan, konfirmasiPembayaranCustomer } from "@/app/actions/pesanan";
 
 const BATAS_KONFIRMASI_MENIT = 60
 
@@ -20,8 +18,7 @@ interface CheckoutData {
 
 const metodeOptions = [
   { value: "tunai", label: "Tunai", icon: <Banknote className="size-5" /> },
-  { value: "transfer", label: "Transfer", icon: <CreditCard className="size-5" /> },
-  { value: "qris", label: "QRIS", icon: <Smartphone className="size-5" /> },
+  { value: "qris", label: "QRIS", icon: <CreditCard className="size-5" /> },
 ];
 
 export default function CheckoutPage() {
@@ -38,7 +35,6 @@ export default function CheckoutPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nama, setNama] = useState("");
 const [metode, setMetode] = useState<string | null>(null);
-const [bank, setBank] = useState<string>("bca");
 const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
 
   useEffect(() => {
@@ -96,20 +92,15 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
       return;
     }
 
-    try {
-      const result = await createMidtransPayment(orderId, tokenMeja, metode as "qris" | "transfer", bank);
+    const result = await konfirmasiPembayaranCustomer(orderId, tokenMeja, metode);
 
-      if (result.error) {
-        setSubmitError(result.error);
-        setSubmitting(false);
-        return;
-      }
-
-      router.push(`/${tokenMeja}/pembayaran/${metode}?orderId=${orderId}`);
-    } catch {
-      setSubmitError("Terjadi kesalahan. Silakan coba lagi.");
+    if (result.error) {
+      setSubmitError(result.error);
       setSubmitting(false);
+      return;
     }
+
+    router.push(`/${tokenMeja}/pembayaran/${metode}?orderId=${orderId}`);
   };
 
   if (loading) {
@@ -214,7 +205,7 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
               <Wallet className="size-5" />
               Metode Pembayaran
             </h3>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {metodeOptions.map((opt) => (
                 <button
                   key={opt.value}
@@ -230,44 +221,11 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
                 </button>
               ))}
             </div>
-            {metode === "transfer" && (
-              <div className="mt-4 border-t pt-4 space-y-2">
-                <p className="text-sm font-semibold">Pilih Bank</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {POPULAR_BANKS.map((b) => (
-                    <button
-                      key={b}
-                      onClick={() => setBank(b)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors ${
-                        bank === b
-                          ? "border-primary bg-primary/5"
-                          : "border-muted hover:border-muted-foreground/50"
-                      }`}
-                    >
-                      <BankIcon bank={b} size={8} />
-                      <span className="text-sm font-medium">{b.toUpperCase()}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             {metode && (
               <div className="mt-4 border-t pt-4 space-y-1">
-                {metode !== "tunai" && (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span>Total Makanan</span>
-                      <span>Rp {data.total.toLocaleString("id-ID")}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Biaya Admin {metode === "transfer" ? "(flat)" : "(0.7%)"}</span>
-                      <span>Rp {hitungAdminFee(metode as "transfer" | "qris", data.total).toLocaleString("id-ID")}</span>
-                    </div>
-                  </>
-                )}
                 <div className="flex justify-between font-bold text-base">
                   <span>Total Bayar</span>
-                  <span className="text-primary">Rp {(data.total + (metode !== "tunai" ? hitungAdminFee(metode as "transfer" | "qris", data.total) : 0)).toLocaleString("id-ID")}</span>
+                  <span className="text-primary">Rp {data.total.toLocaleString("id-ID")}</span>
                 </div>
               </div>
             )}

@@ -1,7 +1,7 @@
 export const ADMIN_FEE_TRANSFER = 4000
-export const ADMIN_FEE_QRIS_PERSEN = 0.7
+export const ADMIN_FEE_QRIS_PERSEN = 0
 
-export const EXPIRY_QRIS_MENIT = 15
+export const EXPIRY_QRIS_MENIT = 60
 export const EXPIRY_TRANSFER_MENIT = 60
 
 export function hitungAdminFee(metode: 'transfer' | 'qris', totalHarga: number): number {

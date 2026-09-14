@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, Plus, Minus, Trash2, ShoppingCart, Check, ImageIcon, Banknote, CreditCard, Landmark, ChevronDown } from "lucide-react"
+import { Search, Plus, Minus, Trash2, ShoppingCart, Check, ImageIcon, Banknote, CreditCard, ChevronDown } from "lucide-react"
 import { getMenus, getKategoriMenus } from "@/app/actions/menu"
 import { getMeja } from "@/app/actions/meja"
 import { createPesanan } from "@/app/actions/pesanan"
@@ -39,18 +39,10 @@ export default function PesananBaruPage() {
   const [selectedMejaId, setSelectedMejaId] = useState<string>("")
   const [namaPelanggan, setNamaPelanggan] = useState("")
   const [metodePembayaran, setMetodePembayaran] = useState<string>("")
-  const [selectedBank, setSelectedBank] = useState("bca")
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [successMsg, setSuccessMsg] = useState("")
   const [visibleCount, setVisibleCount] = useState(8)
-
-const BANK_OPTIONS = [
-  { id: 'bca', label: 'BCA' },
-  { id: 'bni', label: 'BNI' },
-  { id: 'bri', label: 'BRI' },
-  { id: 'mandiri', label: 'Mandiri' },
-]
 
   useEffect(() => {
     Promise.all([
@@ -425,11 +417,10 @@ const BANK_OPTIONS = [
               <label className="text-sm font-medium mb-2 block">
                 Metode Pembayaran <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: "tunai", label: "Tunai", icon: Banknote },
                   { value: "qris", label: "QRIS", icon: CreditCard },
-                  { value: "transfer", label: "Transfer", icon: Landmark },
                 ].map((m) => {
                   const Icon = m.icon
                   const active = metodePembayaran === m.value
@@ -451,26 +442,6 @@ const BANK_OPTIONS = [
                 })}
               </div>
             </div>
-
-            {metodePembayaran === "transfer" && (
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  Pilih Bank Tujuan <span className="text-red-500">*</span>
-                </label>
-                <Select value={selectedBank} onValueChange={setSelectedBank}>
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Pilih bank" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BANK_OPTIONS.map((bank) => (
-                      <SelectItem key={bank.id} value={bank.id}>
-                        {bank.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Total item</span>
