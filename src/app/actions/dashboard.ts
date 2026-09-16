@@ -3,7 +3,11 @@
 import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
+import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import type { RoleUser } from "@/types"
+
+const AUTO_CANCEL_THROTTLE_MS = 60_000
+let lastAutoCancelRun = 0
 
 export async function getDashboardStats() {
   const session = await auth()
@@ -294,51 +298,19 @@ export async function getStaleOrders() {
 }
 
 export async function autoCancelStaleUnpaid() {
-  const session = await auth()
-  if (!session) return { cancelled: 0 }
-
-  const duaJam = new Date(Date.now() - 2 * 60 * 60 * 1000)
-  const empatJam = new Date(Date.now() - 4 * 60 * 60 * 1000)
-  const duaPuluhTigaJam = new Date(Date.now() - 23 * 60 * 60 * 1000)
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000)
 
   try {
-    const [tanpaMetode, pilihTunai, pilihLain] = await Promise.all([
-      // Pesan tanpa metode → 2 jam
-      prisma.pesanan.findMany({
-        where: {
-          statusPembayaran: 'menunggu',
-          metodePembayaran: null,
-          statusPesanan: { notIn: ['dibatalkan', 'selesai'] },
-          createdAt: { lte: duaJam },
-          deletedAt: null,
-        },
-        select: { id: true, mejaId: true },
-      }),
-      // Pilih tunai → 4 jam
-      prisma.pesanan.findMany({
-        where: {
-          statusPembayaran: 'menunggu',
-          metodePembayaran: 'tunai',
-          statusPesanan: { notIn: ['dibatalkan', 'selesai'] },
-          createdAt: { lte: empatJam },
-          deletedAt: null,
-        },
-        select: { id: true, mejaId: true },
-      }),
-      // Pilih qris → 23 jam
-      prisma.pesanan.findMany({
-        where: {
-          statusPembayaran: 'menunggu',
-          metodePembayaran: { in: ['qris'] },
-          statusPesanan: { notIn: ['dibatalkan', 'selesai'] },
-          createdAt: { lte: duaPuluhTigaJam },
-          deletedAt: null,
-        },
-        select: { id: true, mejaId: true },
-      }),
-    ])
+    const stale = await prisma.pesanan.findMany({
+      where: {
+        statusPembayaran: 'menunggu',
+        statusPesanan: { notIn: ['dibatalkan', 'selesai'] },
+        createdAt: { lte: cutoff },
+        deletedAt: null,
+      },
+      select: { id: true, mejaId: true, metodePembayaran: true },
+    })
 
-    const stale = [...tanpaMetode, ...pilihTunai, ...pilihLain]
     if (stale.length === 0) return { cancelled: 0 }
 
     const mejaIds = [...new Set(stale.map(p => p.mejaId))]
@@ -346,7 +318,12 @@ export async function autoCancelStaleUnpaid() {
     await prisma.$transaction([
       prisma.pesanan.updateMany({
         where: { id: { in: stale.map(p => p.id) }, statusPembayaran: 'menunggu' },
-        data: { statusPesanan: 'dibatalkan', statusPembayaran: 'dibatalkan' },
+        data: {
+          statusPesanan: 'dibatalkan',
+          statusPembayaran: 'dibatalkan',
+          catatan: 'Auto-cancel: tidak dibayar dalam 60 menit',
+          updatedAt: new Date(),
+        },
       }),
       prisma.meja.updateMany({
         where: { id: { in: mejaIds }, statusMeja: 'terpakai' },
@@ -354,22 +331,31 @@ export async function autoCancelStaleUnpaid() {
       }),
     ])
 
-    if (stale.length > 0) {
-      await createLog('CANCEL_ORDER_STALE', `Auto-cancel ${stale.length} pesanan stale (tanpa metode: ${tanpaMetode.length}, tunai: ${pilihTunai.length}, qris: ${pilihLain.length})`)
-    }
+    const byMethod = stale.reduce<Record<string, number>>((acc, p) => {
+      const key = p.metodePembayaran || 'tanpa_metode'
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
 
-    return {
-      cancelled: stale.length,
-      rincian: {
-        tanpaMetode: tanpaMetode.length,
-        pilihTunai: pilihTunai.length,
-        pilihLain: pilihLain.length,
-      },
-    }
+    const rincian = Object.entries(byMethod).map(([k, v]) => `${k}: ${v}`).join(', ')
+    await createLog('CANCEL_ORDER_EXPIRED', `Auto-cancel ${stale.length} pesanan tidak dibayar 60 menit (${rincian})`)
+
+    await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
+return { cancelled: stale.length }
   } catch (error) {
     console.error('Auto-cancel error:', error)
     return { cancelled: 0 }
   }
+}
+
+export async function cekAutoCancelOtomatis() {
+  const now = Date.now()
+  if (now - lastAutoCancelRun < AUTO_CANCEL_THROTTLE_MS) {
+    return { cancelled: 0, skipped: true }
+  }
+  lastAutoCancelRun = now
+  return await autoCancelStaleUnpaid()
 }
 
 export interface PaidStaleOrder {

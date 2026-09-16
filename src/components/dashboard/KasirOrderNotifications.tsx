@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { Bell } from "lucide-react"
 import { getPesananBelumBayar, getPaidOrdersForNotification } from "@/app/actions/kasir"
 import { useNotification } from "@/hooks/use-notification"
+import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 
 interface NotifOrder {
   id: number
@@ -44,62 +45,64 @@ export function KasirOrderNotifications() {
     toastTimerRef.current = setTimeout(() => setToast(null), 6000)
   }, [])
 
+  const run = useCallback(async () => {
+    const belumResult = await getPesananBelumBayar()
+    if ("error" in belumResult || !Array.isArray(belumResult)) return
+
+    const orders = belumResult as unknown as NotifOrder[]
+    const confirmed = orders.filter(o => o.metodePembayaran)
+
+    for (const order of confirmed) {
+      if (!initializedRef.current) {
+        seenConfirmedRef.current.add(order.id)
+        continue
+      }
+      if (!seenConfirmedRef.current.has(order.id)) {
+        seenConfirmedRef.current.add(order.id)
+        notifyNewOrder(order.nomorMeja, order.namaPelanggan)
+        showToast({ type: "new_order", meja: order.nomorMeja, nama: order.namaPelanggan })
+      }
+    }
+
+    const paidResult = await getPaidOrdersForNotification()
+    if ("error" in paidResult || !Array.isArray(paidResult)) return
+
+    const paidOrders = paidResult as unknown as PaidOrder[]
+
+    for (const order of paidOrders) {
+      if (!initializedRef.current) {
+        seenPaidRef.current.add(order.id)
+        continue
+      }
+      if (!seenPaidRef.current.has(order.id)) {
+        seenPaidRef.current.add(order.id)
+        const total = order.totalHarga + (order.biayaAdmin || 0) + (order.ppn || 0)
+        notifyOrderPaid(order.nomorMeja, order.namaPelanggan, total)
+        showToast({ type: "order_paid", meja: order.nomorMeja, nama: order.namaPelanggan })
+      }
+    }
+
+    if (!initializedRef.current) initializedRef.current = true
+  }, [notifyNewOrder, notifyOrderPaid, showToast])
+
   useEffect(() => {
-    let cancelled = false
+    const t = setTimeout(() => { void run() }, 0)
+    return () => clearTimeout(t)
+  }, [run])
 
-    const pollNewOrders = async () => {
-      const result = await getPesananBelumBayar()
-      if (cancelled || "error" in result || !Array.isArray(result)) return
+  // Fallback polling lambat + trigger realtime via Pusher
+  useEffect(() => {
+    const interval = setInterval(run, 30000)
+    return () => clearInterval(interval)
+  }, [run])
 
-      const orders = result as unknown as NotifOrder[]
-      const confirmed = orders.filter(o => o.metodePembayaran)
+  useOrdersRealtime(run)
 
-      for (const order of confirmed) {
-        if (!initializedRef.current) {
-          seenConfirmedRef.current.add(order.id)
-          continue
-        }
-        if (!seenConfirmedRef.current.has(order.id)) {
-          seenConfirmedRef.current.add(order.id)
-          notifyNewOrder(order.nomorMeja, order.namaPelanggan)
-          showToast({ type: "new_order", meja: order.nomorMeja, nama: order.namaPelanggan })
-        }
-      }
-    }
-
-    const pollPaid = async () => {
-      const result = await getPaidOrdersForNotification()
-      if (cancelled || "error" in result || !Array.isArray(result)) return
-
-      const orders = result as unknown as PaidOrder[]
-
-      for (const order of orders) {
-        if (!initializedRef.current) {
-          seenPaidRef.current.add(order.id)
-          continue
-        }
-        if (!seenPaidRef.current.has(order.id)) {
-          seenPaidRef.current.add(order.id)
-          const total = order.totalHarga + (order.biayaAdmin || 0) + (order.ppn || 0)
-          notifyOrderPaid(order.nomorMeja, order.namaPelanggan, total)
-          showToast({ type: "order_paid", meja: order.nomorMeja, nama: order.namaPelanggan })
-        }
-      }
-    }
-
-    const run = async () => {
-      await Promise.all([pollNewOrders(), pollPaid()])
-      if (!initializedRef.current) initializedRef.current = true
-    }
-
-    run()
-    const interval = setInterval(run, 5000)
+  useEffect(() => {
     return () => {
-      cancelled = true
-      clearInterval(interval)
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     }
-  }, [notifyNewOrder, notifyOrderPaid, showToast])
+  }, [])
 
   if (!toast) return null
 

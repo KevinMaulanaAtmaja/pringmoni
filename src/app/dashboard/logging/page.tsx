@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { getLogs, getUniqueUsers, getLogCount, type LogItem } from '@/app/actions/logs'
+import { useOrdersRealtime } from '@/hooks/use-orders-realtime'
 
 type JenisAksi =
   | 'LOGIN' | 'LOGOUT' | 'RESET_PASSWORD'
@@ -84,9 +85,11 @@ export default function LoggingPage() {
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 5000)
+    const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
   }, [fetchData])
+
+  useOrdersRealtime(fetchData)
 
   useEffect(() => {
     setCurrentPage(1)

@@ -22,6 +22,7 @@ import { PieMetode } from "@/components/laporan/PieMetode"
 import { GrafikPeakHours } from "@/components/laporan/GrafikPeakHours"
 import { PieKategori } from "@/components/laporan/PieKategori"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 
 interface LaporanKasirItem {
   username: string
@@ -167,6 +168,10 @@ export function LaporanClient() {
     const id = setInterval(() => fetchData(true), 60000)
     return () => clearInterval(id)
   }, [fetchData, activeTab])
+
+  useOrdersRealtime(() => {
+    if (activeTab !== "bandingkan") fetchData(true)
+  })
 
   const { pendapatan, menuTerlaris, laporanKasir, grafik, perbandingan, kategori, analisis } = data
 
