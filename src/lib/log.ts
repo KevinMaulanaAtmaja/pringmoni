@@ -12,7 +12,6 @@ type JenisAksiLog =
   | "CANCEL_ORDER_EXPIRED"
   | "CANCEL_ORDER_STALE"
   | "PROCESS_PAYMENT"
-  | "EMPTY_TABLE"
 
 async function getIp(): Promise<string | null> {
   try {
@@ -43,7 +42,7 @@ export async function createLog(
     await prisma.logs.create({
       data: {
         userId,
-        aksi: aksi as any,
+        aksi,
         keterangan,
         ipAddress: ip,
       },
@@ -63,7 +62,7 @@ export async function createLogNoSession(
     await prisma.logs.create({
       data: {
         userId,
-        aksi: aksi as any,
+        aksi,
         keterangan,
         ipAddress: ip || null,
       },

@@ -20,10 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Plus, Pencil, Trash2, QrCode, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
+import { Plus, Pencil, Trash2, QrCode, ChevronLeft, ChevronRight, RotateCcw, AlertTriangle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { QRCodeSVG } from "qrcode.react"
 import { getMeja, getNextNomorMeja, createMeja, updateMeja, deleteMeja, kosongkanMeja } from "@/app/actions/meja"
+import { useUserRole } from "@/lib/user-context"
 import type { Meja } from "@/types"
 import { TipeMeja } from "@/types"
 
@@ -45,6 +46,9 @@ const tipeMejaLabels: Record<string, string> = {
 const ITEMS_PER_PAGE = 5
 
 export default function MejaPage() {
+  const userRole = useUserRole()
+  const isOwner = userRole === 'owner'
+  const canKosongkan = userRole === 'owner' || userRole === 'cashier'
   const [mejas, setMejas] = useState<Meja[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isQROpen, setIsQROpen] = useState(false)
@@ -311,10 +315,12 @@ export default function MejaPage() {
             <SelectItem value="terpakai">Terpakai</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => openDialog()} className="h-8 ml-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Tambah
-        </Button>
+        {isOwner && (
+          <Button onClick={() => openDialog()} className="h-8 ml-auto">
+            <Plus className="w-4 h-4 mr-2" />
+            Tambah
+          </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg border">
@@ -379,7 +385,7 @@ export default function MejaPage() {
                   </TableCell>
                   <TableCell className="py-2 text-right">
                     <div className="flex justify-end gap-1">
-                      {meja.statusMeja === 'terpakai' && (
+                      {canKosongkan && meja.statusMeja === 'terpakai' && (
                         <Button
                           variant="outline"
                           size="icon"
@@ -390,12 +396,16 @@ export default function MejaPage() {
                           <RotateCcw className="w-3 h-3" />
                         </Button>
                       )}
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(meja)}>
-                        <Pencil className="w-3 h-3" />
-                      </Button>
-                      <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(meja.id)}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      {isOwner && (
+                        <>
+                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(meja)}>
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                          <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(meja.id)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -453,6 +463,11 @@ export default function MejaPage() {
             <p className="text-sm text-gray-500 mt-4">
               Scan QR ini untuk mengakses menu
             </p>
+            {selectedMeja?.tokenMeja && (
+              <p className="text-sm mt-2 font-mono bg-gray-100 rounded px-2 py-1 break-all">
+                Token: {selectedMeja.tokenMeja}
+              </p>
+            )}
           </div>
 
           <DialogFooter className="justify-center">
@@ -574,10 +589,17 @@ export default function MejaPage() {
           <DialogHeader>
             <DialogTitle>Konfirmasi Kosongkan Meja</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 space-y-3">
             <p className="text-sm text-gray-600">
               Apakah Anda yakin ingin mengosongkan meja <strong>{emptyMeja?.nomorMeja}</strong>?
             </p>
+            <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 p-3">
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-700">
+                Peringatan: pesanan yang belum dibayar di meja ini akan{" "}
+                <strong>dibatalkan permanen</strong> dan tidak dapat dikembalikan.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleKosongkanCancel} className="h-7 text-xs" disabled={emptying}>

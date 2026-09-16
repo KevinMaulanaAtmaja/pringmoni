@@ -31,6 +31,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
     ? [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
+        { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
       ]
     : (role === 'cashier')
     ? [
@@ -38,6 +39,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Buat Pesanan", icon: ShoppingCart, href: "/dashboard/kasir/pesanan-baru" },
         { name: "Kasir", icon: Receipt, href: "/dashboard/kasir" },
+        { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
       ]
     : [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },

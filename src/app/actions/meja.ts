@@ -173,7 +173,7 @@ export async function deleteMeja(id: number) {
 
 export async function kosongkanMeja(id: number) {
   const session = await auth()
-  if (!session?.user || session.user.role !== 'owner') {
+  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
     return { error: "Unauthorized" }
   }
 
@@ -189,11 +189,39 @@ export async function kosongkanMeja(id: number) {
     return { error: "Meja sudah kosong" }
   }
 
+  const pesananAktif = await prisma.$queryRaw<Array<{ id: number; statusPembayaran: string; totalHarga: number }>>`
+    SELECT id, status_pembayaran as "statusPembayaran", total_harga as "totalHarga"
+    FROM pesanan
+    WHERE meja_id = ${id} AND deleted_at IS NULL AND status_pesanan NOT IN ('dibatalkan', 'selesai')
+  `
+
+  const belumBayar = pesananAktif.filter(p => p.statusPembayaran === 'menunggu')
+  if (belumBayar.length > 0) {
+    await prisma.pesanan.updateMany({
+      where: { id: { in: belumBayar.map(p => p.id) } },
+      data: { statusPesanan: 'dibatalkan', statusPembayaran: 'dibatalkan', updatedAt: new Date() },
+    })
+  }
+
   await prisma.$executeRaw`
     UPDATE meja SET status_meja = 'kosong', updated_at = NOW() WHERE id = ${id}
   `
 
-  await createLog('EMPTY_TABLE', `Meja ${meja[0].nomor_meja} dikosongkan oleh ${session.user.username || 'owner'} (${session.user.role})`)
+  const byStatus = pesananAktif.reduce<Record<string, number>>((acc, p) => {
+    acc[p.statusPembayaran] = (acc[p.statusPembayaran] || 0) + 1
+    return acc
+  }, {})
+  const total = pesananAktif.reduce((sum, p) => sum + Number(p.totalHarga), 0)
+
+  let logMsg = `Meja ${meja[0].nomor_meja} dikosongkan oleh ${session.user.username || session.user.role}`
+  if (pesananAktif.length > 0) {
+    const ringkasan = Object.entries(byStatus).map(([s, n]) => `${s}: ${n}`).join(', ')
+    logMsg += ` — ${belumBayar.length} pesanan dibatalkan (total: ${ringkasan}), nominal Rp${total.toLocaleString('id-ID')}`
+  } else {
+    logMsg += ' — tidak ada pesanan aktif'
+  }
+
+  await createLog('UPDATE_ORDER_STATUS', logMsg)
 
   revalidatePath("/dashboard/meja")
   return { success: true }
