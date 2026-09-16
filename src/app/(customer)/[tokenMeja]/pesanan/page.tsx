@@ -8,10 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { CheckCircle, Clock, ChefHat, PackageCheck, Banknote, CreditCard, Loader2, AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { getPesananByTokenAndId } from "@/app/actions/pesanan";
+import { cekAutoCancelOtomatis } from "@/app/actions/dashboard";
+import { useOrdersRealtime } from "@/hooks/use-orders-realtime";
 
 import type { LucideIcon } from "lucide-react";
 
 type StatusPesanan = "menunggu" | "diproses" | "selesai" | "dibatalkan";
+
+const BATAS_KONFIRMASI_MENIT = 60
 
 interface PesananData {
   id: number;
@@ -45,6 +49,8 @@ export default function DetailPesananPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showKembaliDialog, setShowKembaliDialog] = useState(false);
+  const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
+  const [expired, setExpired] = useState(false);
 
   const fetchPesanan = useCallback(async () => {
     if (!orderIdParam) {
@@ -73,9 +79,33 @@ export default function DetailPesananPage() {
 
   useEffect(() => {
     if (!pesanan || pesanan.status === "selesai" || pesanan.status === "dibatalkan") return;
-    const interval = setInterval(fetchPesanan, 5000);
+    const interval = setInterval(fetchPesanan, 30000);
     return () => clearInterval(interval);
   }, [pesanan, fetchPesanan]);
+
+  useOrdersRealtime(fetchPesanan);
+
+  useEffect(() => {
+    if (!pesanan || pesanan.status === "selesai" || pesanan.status === "dibatalkan") return;
+    const interval = setInterval(() => {
+      cekAutoCancelOtomatis().catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [pesanan?.status, pesanan]);
+
+  useEffect(() => {
+    if (!pesanan || pesanan.statusPembayaran !== "menunggu") return;
+    const waktuDibuat = new Date(pesanan.waktu).getTime();
+    const hitungSisa = () => {
+      const sisa = BATAS_KONFIRMASI_MENIT - (Date.now() - waktuDibuat) / 1000 / 60;
+      const sisaBulat = Math.max(0, Math.round(sisa));
+      setSisaMenit(sisaBulat);
+      if (sisaBulat <= 0) setExpired(true);
+    };
+    hitungSisa();
+    const interval = setInterval(hitungSisa, 30000);
+    return () => clearInterval(interval);
+  }, [pesanan]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -134,6 +164,27 @@ export default function DetailPesananPage() {
     );
   }
 
+  if (expired) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center py-12">
+            <div className="w-14 h-14 rounded-full flex items-center justify-center bg-red-100 text-red-600">
+              <AlertCircle className="size-7" />
+            </div>
+            <h2 className="font-bold text-lg mb-2 text-center">Pembayaran telah dibatalkan</h2>
+            <p className="text-muted-foreground text-sm text-center mb-6">
+              Waktu konfirmasi pembayaran telah habis. Pesanan telah ditutup. Silakan lakukan pemesanan ulang.
+            </p>
+            <Button onClick={() => router.push(`/${tokenMeja}`)} className="rounded-full">
+              Kembali ke Menu
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const status = pesanan.status as StatusPesanan;
 
   return (
@@ -156,6 +207,24 @@ export default function DetailPesananPage() {
               <div>
                 <p className="font-semibold text-green-800">Pesanan Tercatat</p>
                 <p className="text-sm text-green-600">Pesananmu akan segera diproses</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {sisaMenit <= 15 && pesanan.statusPembayaran === "menunggu" && (
+          <Card className={`mb-6 border-2 ${sisaMenit <= 1 ? "border-red-500 bg-red-50" : "border-orange-300 bg-orange-50"}`}>
+            <CardContent className="flex items-center gap-2 p-3">
+              <Clock className={`size-5 shrink-0 ${sisaMenit <= 1 ? "text-destructive" : "text-orange-600"}`} />
+              <div>
+                <p className={`text-sm font-semibold ${sisaMenit <= 1 ? "text-destructive" : "text-orange-700"}`}>
+                  {sisaMenit <= 1
+                    ? `Peringatan: sisa waktu pembayaran ${sisaMenit} menit!`
+                    : `Sisa waktu pembayaran: ${sisaMenit} menit`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Pesanan dibatalkan otomatis jika pembayaran tidak dikonfirmasi dalam {BATAS_KONFIRMASI_MENIT} menit
+                </p>
               </div>
             </CardContent>
           </Card>

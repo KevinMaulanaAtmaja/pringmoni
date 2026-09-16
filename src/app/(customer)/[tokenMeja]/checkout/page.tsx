@@ -14,6 +14,7 @@ interface CheckoutData {
   subtotal: number;
   total: number;
   waktu: string;
+  statusPembayaran: string;
 }
 
 const metodeOptions = [
@@ -36,6 +37,7 @@ export default function CheckoutPage() {
   const [nama, setNama] = useState("");
 const [metode, setMetode] = useState<string | null>(null);
 const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
     if (!orderId) {
@@ -66,12 +68,27 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
     const waktuDibuat = new Date(data.waktu).getTime();
     const updateCountdown = () => {
       const sisa = BATAS_KONFIRMASI_MENIT - (Date.now() - waktuDibuat) / 1000 / 60;
-      setSisaMenit(Math.max(0, Math.round(sisa)));
+      const sisaBulat = Math.max(0, Math.round(sisa));
+      setSisaMenit(sisaBulat);
+      if (sisaBulat <= 0) setExpired(true);
     };
     updateCountdown();
-    const interval = setInterval(updateCountdown, 10000);
+    const interval = setInterval(updateCountdown, 30000);
     return () => clearInterval(interval);
   }, [data?.waktu]);
+
+  useEffect(() => {
+    if (!orderId || expired) return;
+    const interval = setInterval(async () => {
+      try {
+        const result = await getPesananForCheckout(orderId);
+        if (result && result.statusPembayaran === "dibatalkan") {
+          setExpired(true);
+        }
+      } catch {}
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [orderId, expired]);
 
   const handleLanjut = async () => {
     if (!nama.trim() || !metode || !orderId) return;
@@ -131,6 +148,27 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
     );
   }
 
+  if (expired) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center py-12">
+            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <AlertCircle className="size-8 text-destructive" />
+            </div>
+            <h2 className="font-bold text-lg mb-2 text-center">Pembayaran telah dibatalkan</h2>
+            <p className="text-muted-foreground text-sm text-center mb-6">
+              Waktu konfirmasi pembayaran telah habis. Pesanan telah ditutup. Silakan lakukan pemesanan ulang.
+            </p>
+            <Button onClick={() => router.push(`/${tokenMeja}`)} className="rounded-full">
+              Kembali ke Menu
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
@@ -181,14 +219,14 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
           </CardContent>
         </Card>
 
-          {sisaMenit <= 15 && (
-            <Card className={`border-2 ${sisaMenit <= 0 ? "border-destructive bg-destructive/5" : "border-orange-300 bg-orange-50"}`}>
+          {sisaMenit <= 15 && sisaMenit > 0 && (
+            <Card className={`border-2 ${sisaMenit <= 1 ? "border-red-500 bg-red-50" : "border-orange-300 bg-orange-50"}`}>
               <CardContent className="p-3 flex items-center gap-2">
-                <Clock className={`size-5 shrink-0 ${sisaMenit <= 0 ? "text-destructive" : "text-orange-600"}`} />
+                <Clock className={`size-5 shrink-0 ${sisaMenit <= 1 ? "text-destructive" : "text-orange-600"}`} />
                 <div>
-                  <p className={`text-sm font-semibold ${sisaMenit <= 0 ? "text-destructive" : "text-orange-700"}`}>
-                    {sisaMenit <= 0
-                      ? "Waktu konfirmasi habis! Silakan hubungi kasir."
+                  <p className={`text-sm font-semibold ${sisaMenit <= 1 ? "text-destructive" : "text-orange-700"}`}>
+                    {sisaMenit <= 1
+                      ? `Peringatan: sisa waktu ${sisaMenit} menit!`
                       : `Sisa waktu konfirmasi: ${sisaMenit} menit`}
                   </p>
                   <p className="text-xs text-muted-foreground">

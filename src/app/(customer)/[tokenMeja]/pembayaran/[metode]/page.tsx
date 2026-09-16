@@ -33,6 +33,8 @@ export default function PembayaranMetodePage() {
   const [expired, setExpired] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
+  const [waktuDibuat, setWaktuDibuat] = useState<string | null>(null);
 
   useEffect(() => {
     if (!metode || !orderId || !["tunai", "qris"].includes(metode)) {
@@ -53,6 +55,7 @@ export default function PembayaranMetodePage() {
 
         if (result.namaPelanggan) setNama(result.namaPelanggan);
         setTotal(result.total);
+        setWaktuDibuat(result.waktu);
 
         if (metode === "tunai") {
           if (confirmed) setPaid(true);
@@ -74,7 +77,21 @@ export default function PembayaranMetodePage() {
   }, [orderId, metode, confirmed]);
 
   useEffect(() => {
-    if (!orderId || metode === "tunai") return;
+    if (!waktuDibuat) return;
+    const tanggalDibuat = new Date(waktuDibuat).getTime();
+    const hitungSisa = () => {
+      const sisa = BATAS_KONFIRMASI_MENIT - (Date.now() - tanggalDibuat) / 1000 / 60;
+      const sisaBulat = Math.max(0, Math.round(sisa));
+      setSisaMenit(sisaBulat);
+      if (sisaBulat <= 0) setExpired(true);
+    };
+    hitungSisa();
+    const interval = setInterval(hitungSisa, 30000);
+    return () => clearInterval(interval);
+  }, [waktuDibuat]);
+
+  useEffect(() => {
+    if (!orderId || paid || expired) return;
     const interval = setInterval(async () => {
       const status = await getCustomerPaymentStatus(orderId);
       if (!status) return;
@@ -83,9 +100,9 @@ export default function PembayaranMetodePage() {
       } else if (status.statusPembayaran === "dibatalkan") {
         setExpired(true);
       }
-    }, 5000);
+    }, 30000);
     return () => clearInterval(interval);
-  }, [orderId, metode, paid, expired]);
+  }, [orderId, paid, expired]);
 
   const handleKonfirmasiTunai = async () => {
     if (!orderId) return;
@@ -195,6 +212,24 @@ export default function PembayaranMetodePage() {
       </header>
 
       <main className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6 space-y-4">
+        {sisaMenit <= 15 && sisaMenit > 0 && (
+          <Card className={`border-2 ${sisaMenit <= 1 ? "border-red-500 bg-red-50" : "border-orange-300 bg-orange-50"}`}>
+            <CardContent className="p-3 flex items-center gap-2">
+              <Clock className={`size-5 shrink-0 ${sisaMenit <= 1 ? "text-destructive" : "text-orange-600"}`} />
+              <div>
+                <p className={`text-sm font-semibold ${sisaMenit <= 1 ? "text-destructive" : "text-orange-700"}`}>
+                  {sisaMenit <= 1
+                    ? `Peringatan: sisa waktu ${sisaMenit} menit!`
+                    : `Sisa waktu konfirmasi: ${sisaMenit} menit`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Pesanan akan dibatalkan otomatis jika tidak dikonfirmasi dalam {BATAS_KONFIRMASI_MENIT} menit
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardContent className="p-4">
             <h3 className="font-bold mb-1">Detail Pembayaran</h3>
