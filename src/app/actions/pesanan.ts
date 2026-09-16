@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { cache } from "react"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
+import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
 
@@ -40,6 +41,8 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
     where: { id },
     data: { statusPesanan: status },
   })
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
 
   if (status === StatusPesanan.dibatalkan) {
     await createLog('CANCEL_ORDER_KASIR', `Pesanan #${id} dibatalkan oleh ${session.user.username || 'staff'} (${session.user.role}) — status sebelumnya: ${pesanan.statusPesanan}`)
@@ -191,6 +194,8 @@ export async function createPesanan(data: CreatePesananData) {
   const itemsSummary = items.map(i => `${i.jumlah}x menu #${i.menuId}`).join(', ')
   await createLog('CREATE_ORDER', `Pesanan baru #${pesanan.id} dari ${meja.nomorMeja}: ${itemsSummary} (Total: Rp${totalHarga.toLocaleString('id-ID')})`)
 
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.newOrder, {})
+
   revalidatePath("/dashboard/pesanan")
   revalidatePath(`/${tokenMeja}`)
 
@@ -280,6 +285,8 @@ export async function updatePembayaran(
       kasirId: parseInt(session.user.id),
     },
   })
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderPaid, {})
 
   await createLog('PROCESS_PAYMENT', `Pembayaran pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')} (${data.metodePembayaran}) oleh ${session.user.username || 'staff'} — bayar: Rp${Number(data.jumlahBayar).toLocaleString('id-ID')}, kembalian: Rp${Number(data.kembalian).toLocaleString('id-ID')}`)
 
@@ -436,6 +443,8 @@ export async function markPesananSelesai(id: number) {
     })
   })
 
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
   await createLog('UPDATE_ORDER_STATUS', `Pesanan #${id} ditandai selesai oleh ${session.user.username || 'waiter'} — meja ${pesanan.mejaId} dikosongkan`)
 
   revalidatePath("/dashboard/pesanan")
@@ -478,6 +487,8 @@ export async function cancelPesanan(id: number) {
     where: { id: pesanan.mejaId },
     data: { statusMeja: 'kosong' },
   })
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
 
   await createLog('CANCEL_ORDER_KASIR', `Pesanan #${id} dibatalkan oleh ${session.user.username || 'staff'} (${session.user.role}) via detail pesanan — status: ${pesanan.statusPesanan}, total: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')}`)
 
@@ -610,6 +621,8 @@ export async function konfirmasiPembayaranCustomer(
     }
   })
 
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
 
@@ -638,79 +651,11 @@ export async function markItemDiantar(detailId: number) {
     data: { statusAntar: newStatus },
   })
 
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
   revalidatePath("/dashboard/pesanan")
 
   return { success: true, statusAntar: newStatus }
-}
-
-export async function cancelExpiredOrders() {
-  const now = new Date()
-
-  // 1. Orders that chose method but didn't pay → expired after expiry time
-  const expiredWithMethod = await prisma.pesanan.findMany({
-    where: {
-      statusPembayaran: 'menunggu',
-      metodePembayaran: { not: null },
-      deletedAt: null,
-    },
-    select: { id: true, mejaId: true, createdAt: true, updatedAt: true, metodePembayaran: true, midtransTransactionId: true },
-  })
-
-  for (const p of expiredWithMethod) {
-    const expiryMenit = 60
-    const startTime = p.updatedAt || p.createdAt
-    const expiredAt = new Date(startTime.getTime() + expiryMenit * 60000)
-    if (now >= expiredAt) {
-      await prisma.pesanan.update({
-        where: { id: p.id, statusPembayaran: 'menunggu' },
-        data: {
-          statusPembayaran: 'dibatalkan',
-          statusPesanan: 'dibatalkan',
-          catatan: 'Expired',
-        },
-      })
-      if (p.mejaId) {
-        await prisma.meja.update({
-          where: { id: p.mejaId },
-          data: { statusMeja: 'kosong' },
-        })
-      }
-      await createLog('CANCEL_ORDER_EXPIRED', `Pesanan #${p.id} expired (${p.metodePembayaran}, ${expiryMenit} menit)`)
-    }
-  }
-
-  // 2. Orders with no method chosen → expired after 1 hour
-  const expiredNoMethod = await prisma.pesanan.findMany({
-    where: {
-      statusPembayaran: 'menunggu',
-      metodePembayaran: null,
-      deletedAt: null,
-    },
-    select: { id: true, mejaId: true, createdAt: true },
-  })
-
-  for (const p of expiredNoMethod) {
-    const expiredAt = new Date(p.createdAt.getTime() + 60 * 60000)
-    if (now >= expiredAt) {
-      await prisma.pesanan.update({
-        where: { id: p.id, statusPembayaran: 'menunggu' },
-        data: {
-          statusPembayaran: 'dibatalkan',
-          statusPesanan: 'dibatalkan',
-          catatan: 'Tidak memilih pembayaran',
-        },
-      })
-      if (p.mejaId) {
-        await prisma.meja.update({
-          where: { id: p.mejaId },
-          data: { statusMeja: 'kosong' },
-        })
-      }
-      await createLog('CANCEL_ORDER_EXPIRED', `Pesanan #${p.id} expired (tidak memilih pembayaran, 60 menit)`)
-    }
-  }
-
-  return { success: true }
 }
 
 export async function updateNamaPelanggan(publicId: string, tokenMeja: string, nama: string) {
