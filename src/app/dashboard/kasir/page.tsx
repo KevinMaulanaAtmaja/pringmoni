@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -892,45 +892,53 @@ export default function KasirPage() {
           }
         }}>
           {paymentSuccess ? (
-            <div className="text-center py-4">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+            <>
+              <DialogHeader>
+                <DialogTitle className="sr-only">Pembayaran Berhasil</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Pesanan #{selectedPesanan?.id} — Meja {selectedPesanan?.nomorMeja} telah dibayar
+                </DialogDescription>
+              </DialogHeader>
+              <div className="text-center py-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+                <h2 className="text-xl font-bold mb-2">Pembayaran Berhasil!</h2>
+                <p className="text-gray-500 text-sm mb-4">Pesanan #{selectedPesanan?.id} — Meja {selectedPesanan?.nomorMeja} telah dibayar</p>
+                <div className="flex flex-row gap-2 justify-center">
+                  <Button
+                    onClick={() => {
+                      if (!selectedPesanan) return
+                      printStruk({
+                        id: selectedPesanan.id,
+                        nomorMeja: selectedPesanan.nomorMeja,
+                        items: selectedPesanan.items.map(i => ({
+                          nama: i.namaMenu,
+                          jumlah: i.jumlah,
+                          harga: Number(i.hargaSaatPesan),
+                        })),
+                        totalHarga: Number(selectedPesanan.totalHarga),
+                        adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
+                        ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
+                        metodePembayaran: selectedPesanan.metodePembayaran,
+                        jumlahBayar: selectedPesanan.jumlahBayar ? Number(selectedPesanan.jumlahBayar) : undefined,
+                        kembalian: Number(selectedPesanan.kembalian),
+                        createdAt: selectedPesanan.createdAt,
+                        kasirUsername: session?.user?.name || selectedPesanan.kasirUsername,
+                        namaPelanggan: selectedPesanan.namaPelanggan,
+                      })
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Printer className="w-4 h-4 mr-1" />
+                    Cetak Struk
+                  </Button>
+                  <Button variant="outline" onClick={() => { setIsPaymentOpen(false); setPaymentSuccess(false); pollData() }} className="">
+                    Tutup
+                  </Button>
+                </div>
               </div>
-              <h2 className="text-xl font-bold mb-2">Pembayaran Berhasil!</h2>
-              <p className="text-gray-500 text-sm mb-4">Pesanan #{selectedPesanan?.id} — Meja {selectedPesanan?.nomorMeja} telah dibayar</p>
-              <div className="flex flex-row gap-2 justify-center">
-                <Button
-                  onClick={() => {
-                    if (!selectedPesanan) return
-                    printStruk({
-                      id: selectedPesanan.id,
-                      nomorMeja: selectedPesanan.nomorMeja,
-                      items: selectedPesanan.items.map(i => ({
-                        nama: i.namaMenu,
-                        jumlah: i.jumlah,
-                        harga: Number(i.hargaSaatPesan),
-                      })),
-                      totalHarga: Number(selectedPesanan.totalHarga),
-                      adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
-                      ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
-                      metodePembayaran: selectedPesanan.metodePembayaran,
-                      jumlahBayar: selectedPesanan.jumlahBayar ? Number(selectedPesanan.jumlahBayar) : undefined,
-                      kembalian: Number(selectedPesanan.kembalian),
-                      createdAt: selectedPesanan.createdAt,
-                      kasirUsername: session?.user?.name || selectedPesanan.kasirUsername,
-                      namaPelanggan: selectedPesanan.namaPelanggan,
-                    })
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Printer className="w-4 h-4 mr-1" />
-                  Cetak Struk
-                </Button>
-                <Button variant="outline" onClick={() => { setIsPaymentOpen(false); setPaymentSuccess(false); pollData() }} className="">
-                  Tutup
-                </Button>
-              </div>
-            </div>
+            </>
           ) : showPaymentInfo && selectedMetode !== "tunai" ? (
             <>
               <DialogHeader>
