@@ -48,8 +48,9 @@ export async function getPesananBelumBayar() {
         { statusPembayaran: 'menunggu', statusPesanan: { in: ['selesai', 'menunggu'] as StatusPesanan[] } },
         { statusPembayaran: 'berhasil', statusPesanan: 'menunggu' as StatusPesanan },
       ],
+      // Pesanan baru muncul setelah customer memilih/konfirmasi metode pembayaran
+      metodePembayaran: { not: null },
       deletedAt: null,
-      // Include all payment methods that are pending
     },
     include: {
       meja: true,

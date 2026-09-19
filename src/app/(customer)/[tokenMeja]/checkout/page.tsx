@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ArrowLeft, Banknote, CreditCard, Loader2, AlertCircle, Clock } from "lucide-react";
-import { getPesananForCheckout, updateNamaPelanggan, konfirmasiPembayaranCustomer } from "@/app/actions/pesanan";
-
-const BATAS_KONFIRMASI_MENIT = 60
+import { Wallet, ArrowLeft, Banknote, CreditCard, Loader2, AlertCircle } from "lucide-react";
+import { createPesanan } from "@/app/actions/pesanan";
+import { ambilKeranjangCheckout, hapusKeranjangCheckout } from "@/lib/checkout-storage";
 
 interface CheckoutData {
   items: { id: number; namaMenu: string; harga: number; jumlah: number; catatan: string | null }[];
   subtotal: number;
   total: number;
-  waktu: string;
+}
+
+interface CreatePesananResult {
+  success?: boolean;
+  orderId?: string | null;
+  id?: number;
+  error?: string;
 }
 
 const metodeOptions = [
@@ -24,83 +29,89 @@ const metodeOptions = [
 export default function CheckoutPage() {
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
   const tokenMeja = params.tokenMeja as string;
-  const orderId = searchParams.get("orderId");
 
   const [data, setData] = useState<CheckoutData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nama, setNama] = useState("");
-const [metode, setMetode] = useState<string | null>(null);
-const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
+  const [metode, setMetode] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orderId) {
-      setError("Order ID tidak ditemukan");
-      setLoading(false);
-      return;
-    }
-
-    const load = async () => {
-      try {
-        const result = await getPesananForCheckout(orderId);
-        if (!result) {
-          setError("Pesanan tidak ditemukan");
-        } else {
-          setData(result);
-        }
-      } catch {
-        setError("Gagal memuat data pesanan");
-      } finally {
+    const timer = setTimeout(() => {
+      const items = ambilKeranjangCheckout();
+      if (!items || items.length === 0) {
+        setData(null);
         setLoading(false);
+        return;
       }
-    };
-    load();
-  }, [orderId]);
+      const subtotal = items.reduce((sum, item) => sum + item.harga * item.jumlah, 0);
+      setData({ items, subtotal, total: subtotal });
+      setLoading(false);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const goToMenu = useCallback(() => {
+    router.replace(`/${tokenMeja}`);
+  }, [tokenMeja, router]);
 
   useEffect(() => {
-    if (!data?.waktu) return;
-    const waktuDibuat = new Date(data.waktu).getTime();
-    const updateCountdown = () => {
-      const sisa = BATAS_KONFIRMASI_MENIT - (Date.now() - waktuDibuat) / 1000 / 60;
-      setSisaMenit(Math.max(0, Math.round(sisa)));
+    const handlePopState = () => {
+      setTimeout(goToMenu, 0);
     };
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 10000);
-    return () => clearInterval(interval);
-  }, [data?.waktu]);
+    window.history.pushState({ checkoutGuard: true }, "");
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [goToMenu]);
 
-  const handleLanjut = async () => {
-    if (!nama.trim() || !metode || !orderId) return;
+  const handleKonfirmasi = async () => {
+    if (!nama.trim() || !metode || !data) return;
 
     setSubmitting(true);
     setSubmitError(null);
 
-    await updateNamaPelanggan(orderId, tokenMeja, nama);
+    const items = data.items.map((item) => ({
+      menuId: item.id,
+      jumlah: item.jumlah,
+      catatan: item.catatan,
+    }));
 
-    if (metode === "tunai") {
-      const result = await konfirmasiPembayaranCustomer(orderId, tokenMeja, metode);
-      if (result.error) {
-        setSubmitError(result.error);
+    try {
+      const result: CreatePesananResult = await createPesanan({
+        tokenMeja,
+        items,
+        namaPelanggan: nama.trim(),
+        metodePembayaran: metode,
+      });
+
+      if (result && 'error' in result) {
+        setSubmitError(result.error ?? "Gagal membuat pesanan. Silakan coba lagi.");
         setSubmitting(false);
         return;
       }
-      router.push(`/${tokenMeja}/pembayaran/${metode}?orderId=${orderId}&confirmed=1`);
-      return;
-    }
 
-    const result = await konfirmasiPembayaranCustomer(orderId, tokenMeja, metode);
+      if (!result?.orderId) {
+        setSubmitError("Gagal membuat pesanan. Silakan coba lagi.");
+        setSubmitting(false);
+        return;
+      }
 
-    if (result.error) {
-      setSubmitError(result.error);
+      hapusKeranjangCheckout();
       setSubmitting(false);
-      return;
-    }
 
-    router.push(`/${tokenMeja}/pembayaran/${metode}?orderId=${orderId}`);
+      if (metode === "tunai") {
+        router.push(`/${tokenMeja}/pembayaran/${metode}?orderId=${result.orderId}&confirmed=1`);
+      } else {
+        router.push(`/${tokenMeja}/pembayaran/${metode}?orderId=${result.orderId}`);
+      }
+    } catch {
+      setSubmitError("Terjadi kesalahan. Silakan coba lagi.");
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -114,15 +125,17 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
     );
   }
 
-  if (error || !data) {
+  if (!data) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center py-12">
             <AlertCircle className="size-12 text-destructive mb-4" />
-            <h2 className="font-bold text-lg mb-2">Gagal Memuat Pesanan</h2>
-            <p className="text-muted-foreground text-sm text-center mb-6">{error || "Pesanan tidak ditemukan"}</p>
-            <Button onClick={() => router.push(`/${tokenMeja}`)} variant="outline" className="rounded-full">
+            <h2 className="font-bold text-lg mb-2">Keranjang Kosong</h2>
+            <p className="text-muted-foreground text-sm text-center mb-6">
+              Tidak ada item yang dimuat untuk checkout. Silakan pilih menu terlebih dahulu.
+            </p>
+            <Button onClick={goToMenu} variant="outline" className="rounded-full">
               Kembali ke Menu
             </Button>
           </CardContent>
@@ -135,7 +148,7 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
     <div className="bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="max-w-2xl md:max-w-3xl mx-auto flex h-14 items-center px-4">
-          <button onClick={() => router.back()} className="text-muted-foreground hover:text-foreground">
+          <button onClick={goToMenu} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-5" />
           </button>
           <h1 className="flex-1 text-center font-bold">Checkout</h1>
@@ -181,25 +194,7 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
           </CardContent>
         </Card>
 
-          {sisaMenit <= 15 && (
-            <Card className={`border-2 ${sisaMenit <= 0 ? "border-destructive bg-destructive/5" : "border-orange-300 bg-orange-50"}`}>
-              <CardContent className="p-3 flex items-center gap-2">
-                <Clock className={`size-5 shrink-0 ${sisaMenit <= 0 ? "text-destructive" : "text-orange-600"}`} />
-                <div>
-                  <p className={`text-sm font-semibold ${sisaMenit <= 0 ? "text-destructive" : "text-orange-700"}`}>
-                    {sisaMenit <= 0
-                      ? "Waktu konfirmasi habis! Silakan hubungi kasir."
-                      : `Sisa waktu konfirmasi: ${sisaMenit} menit`}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Pesanan akan dibatalkan otomatis jika tidak dikonfirmasi dalam {BATAS_KONFIRMASI_MENIT} menit
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
+        <Card>
           <CardContent className="p-4">
             <h3 className="font-bold mb-3 flex items-center gap-2">
               <Wallet className="size-5" />
@@ -244,8 +239,8 @@ const [sisaMenit, setSisaMenit] = useState<number>(BATAS_KONFIRMASI_MENIT);
         <div className="pt-4 pb-8">
           <Button
             className="w-full h-14 rounded-full text-lg font-bold"
-            disabled={!nama.trim() || !metode || sisaMenit <= 0 || submitting}
-            onClick={handleLanjut}
+            disabled={!nama.trim() || !metode || submitting}
+            onClick={handleKonfirmasi}
           >
             {submitting ? (
               <><Loader2 className="size-5 animate-spin mr-2" /> Memproses...</>

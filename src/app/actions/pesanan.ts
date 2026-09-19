@@ -133,6 +133,20 @@ export async function createPesanan(data: CreatePesananData) {
     return { error: "Token meja tidak valid" }
   }
 
+  const pesananMenungguBayar = await prisma.pesanan.findFirst({
+    where: {
+      mejaId: meja.id,
+      statusPembayaran: StatusBayar.menunggu,
+      metodePembayaran: { not: null },
+      deletedAt: null,
+    },
+    select: { id: true },
+  })
+
+  if (pesananMenungguBayar) {
+    return { error: "Pesanan Anda masih menunggu pembayaran. Selesaikan pembayaran terlebih dahulu sebelum memesan lagi." }
+  }
+
   if (!items || items.length === 0) {
     return { error: "Item pesanan tidak boleh kosong" }
   }
@@ -641,6 +655,26 @@ export async function markItemDiantar(detailId: number) {
   revalidatePath("/dashboard/pesanan")
 
   return { success: true, statusAntar: newStatus }
+}
+
+export async function getStatusPesananAktifMeja(tokenMeja: string) {
+  const meja = await getMejaByToken(tokenMeja)
+  if (!meja) return null
+
+  const pesanan = await prisma.pesanan.findFirst({
+    where: {
+      mejaId: meja.id,
+      statusPembayaran: StatusBayar.menunggu,
+      deletedAt: null,
+    },
+    select: { id: true, metodePembayaran: true },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return {
+    adaPesananAktif: Boolean(pesanan),
+    sudahPilihMetode: Boolean(pesanan?.metodePembayaran),
+  }
 }
 
 export async function cancelExpiredOrders() {

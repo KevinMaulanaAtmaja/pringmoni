@@ -9,18 +9,12 @@ import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
 import { Search, ShoppingCart, Camera, X, AlertTriangle } from "lucide-react";
-import { getCustomerMenuData, getMejaByToken, createPesanan } from "@/app/actions/pesanan";
+import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
+import { simpanKeranjangCheckout } from "@/lib/checkout-storage";
 import type { CustomerMenu } from "@/types";
 import type { KeranjangItem } from "@/components/customer/cart-sheet";
 
 type Menu = CustomerMenu;
-
-interface CreatePesananResult {
-    success?: boolean;
-    orderId?: string | null;
-    id?: number;
-    error?: string;
-}
 
 export default function CustomerMenuPage() {
     const router = useRouter();
@@ -32,10 +26,7 @@ const [kategoris, setKategoris] = useState<{ id: number; nama: string }[]>([]);
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState<string | null>(null);
     const [keranjang, setKeranjang] = useState<KeranjangItem[]>([]);
-    const [submitting, setSubmitting] = useState(false);
     const [showToastBerhasil, setShowToastBerhasil] = useState(false);
-    const [sudahPesan, setSudahPesan] = useState(false);
-    const [totalCheckout, setTotalCheckout] = useState(0);
     const [activeKategori, setActiveKategori] = useState("Semua");
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -63,21 +54,22 @@ const [error, setError] = useState<string | null>(null);
                 setLoading(true);
                 setError(null);
 
-                const data = await getCustomerMenuData(tokenMeja);
+                const [data, statusAktif] = await Promise.all([
+                    getCustomerMenuData(tokenMeja),
+                    getStatusPesananAktifMeja(tokenMeja),
+                ]);
 
                 if (!data.meja) {
                     setError("Token meja salah. Silahkan scan QR code meja lagi.");
                     setLoading(false);
                     return;
                 }
+                if (statusAktif?.sudahPilihMetode) {
+                    setError("Masih ada pesanan yang menunggu pembayaran. Selesaikan pembayaran terlebih dahulu sebelum memesan lagi.");
+                    setLoading(false);
+                    return;
+                }
                 if (data.meja.statusMeja === 'terpakai') {
-                    const isReorder = sessionStorage.getItem(`reorder_${tokenMeja}`);
-                    sessionStorage.removeItem(`reorder_${tokenMeja}`);
-                    if (!isReorder) {
-                        setError("Meja sedang digunakan oleh pelanggan lain. Silahkan hubungi staff.");
-                        setLoading(false);
-                        return;
-                    }
                     setMejaTerpakaiWarning(true);
                 }
                 setMejaData(data.meja);
@@ -144,43 +136,10 @@ const [error, setError] = useState<string | null>(null);
         setKeranjang((prev) => prev.filter((item) => `${item.id}-${item.catatan || "no-note"}` !== key));
     };
 
-    const handleCheckout = async () => {
+    const handleCheckout = () => {
         if (keranjang.length === 0) return;
-        setSubmitting(true);
-
-        try {
-            const items = keranjang.map((item) => ({
-                menuId: item.id,
-                jumlah: item.jumlah,
-                catatan: item.catatan,
-            }));
-
-            const result: CreatePesananResult = await createPesanan({ tokenMeja, items });
-
-            if (result && 'error' in result) {
-                alert(result.error);
-                setSubmitting(false);
-                return;
-            }
-
-            if (result && 'orderId' in result && result.orderId) {
-                router.push(`/${tokenMeja}/checkout?orderId=${result.orderId}`);
-            } else {
-                alert("Pesanan berhasil dibuat!");
-                setTotalCheckout(totalHarga);
-                setSudahPesan(true);
-                setKeranjang([]);
-                setSubmitting(false);
-            }
-        } catch (error) {
-            console.error("Checkout error:", error);
-            alert("Terjadi kesalahan");
-            setSubmitting(false);
-        }
-    };
-
-    const handleLihatPesanan = () => {
-        router.push("pesanan");
+        simpanKeranjangCheckout(keranjang);
+        router.push(`/${tokenMeja}/checkout`);
     };
 
     const startScanner = async () => {
@@ -322,7 +281,6 @@ return (
                               onUpdateJumlah={updateJumlah}
                               onHapus={hapusDariKeranjang}
                               onCheckout={handleCheckout}
-                              submitting={submitting}
                               subtotal={subtotal}
                              totalHarga={totalHarga}
                              voucher={effectiveVoucher}
@@ -540,7 +498,7 @@ return (
             </main>
 
             {/* Bottom Cart Bar (Mobile) */}
-            {!loading && !error && keranjang.length > 0 && !sudahPesan && (
+            {!loading && !error && keranjang.length > 0 && (
                 <div className="fixed bottom-0 left-0 right-0 border-t bg-background p-4 lg:hidden">
                     <div className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto flex items-center justify-between">
                         <div>
@@ -556,21 +514,6 @@ return (
                             }}
                         >
                             Checkout
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* Bottom Pesanan Berhasil */}
-            {!loading && !error && sudahPesan && (
-                <div className="fixed bottom-0 left-0 right-0 border-t bg-primary text-primary-foreground p-4 lg:hidden">
-                    <div className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto flex items-center justify-between">
-                        <div>
-                            <p className="text-sm opacity-90">Pesanan Diproses</p>
-                            <p className="text-lg font-bold">Rp {totalCheckout.toLocaleString("id-ID")}</p>
-                        </div>
-                        <Button variant="secondary" className="rounded-full px-6" onClick={handleLihatPesanan}>
-                            Lihat Pesanan
                         </Button>
                     </div>
                 </div>
