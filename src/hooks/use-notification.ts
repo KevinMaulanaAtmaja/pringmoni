@@ -68,6 +68,8 @@ export function useNotification() {
     try {
       if (typeof window === 'undefined') return
       if (!('speechSynthesis' in window)) return
+      // Hentikan suara sebelumnya agar tidak menumpuk/bunyi berulang
+      window.speechSynthesis.cancel()
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = 'id-ID'
       utterance.rate = 1

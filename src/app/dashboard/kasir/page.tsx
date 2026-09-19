@@ -13,7 +13,6 @@ import { MetodePembayaran, StatusBayar } from "@/types"
 import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
-import { useNotification } from "@/hooks/use-notification"
 
 const metodeLabels: Record<MetodePembayaran, string> = {
   qris: "QRIS",
@@ -101,10 +100,6 @@ export default function KasirPage() {
   const [showConfirmProcess, setShowConfirmProcess] = useState(false)
   const [showMethodWarning, setShowMethodWarning] = useState(false)
   const pendingMethodAction = useRef<"tunai-step" | null>(null)
-  const prevNotifiedIdsRef = useRef<Set<number>>(new Set())
-  const initializedRef = useRef(false)
-  const [newOrderAlert, setNewOrderAlert] = useState<{ meja: string; nama: string | null } | null>(null)
-  const { notifyNewOrder, notifyOrderPaid } = useNotification()
 
   const pesananBelumFiltered = pesananBelum.filter(p => {
     if (filterText) {
@@ -215,40 +210,6 @@ export default function KasirPage() {
     const interval = setInterval(pollData, 5000)
     return () => clearInterval(interval)
   }, [pollData])
-
-  // Deteksi pesanan baru (suara + alert hanya saat customer sudah di halaman pembayaran)
-  useEffect(() => {
-    const newOrders = pesananBelum.filter(
-      p => p.metodePembayaran && !prevNotifiedIdsRef.current.has(p.id)
-    )
-
-    if (initializedRef.current && newOrders.length > 0) {
-      for (const order of newOrders) {
-        notifyNewOrder(order.nomorMeja, order.namaPelanggan)
-      }
-      const latest = newOrders[newOrders.length - 1]
-      setNewOrderAlert({ meja: latest.nomorMeja, nama: latest.namaPelanggan ?? null })
-      setTimeout(() => setNewOrderAlert(null), 5000)
-    }
-
-    if (pesananBelum.length > 0) {
-      initializedRef.current = true
-    }
-    for (const order of newOrders) {
-      prevNotifiedIdsRef.current.add(order.id)
-    }
-  }, [pesananBelum])
-
-  // Notifikasi suara saat pembayaran berhasil
-  useEffect(() => {
-    if (paymentSuccess && selectedPesanan) {
-      notifyOrderPaid(
-        selectedPesanan.nomorMeja,
-        selectedPesanan.namaPelanggan,
-        selectedPesanan.totalHarga + (selectedPesanan.biayaAdmin || 0) + (selectedPesanan.ppn || 0)
-      )
-    }
-  }, [paymentSuccess, selectedPesanan, notifyOrderPaid])
 
   const fetchRiwayatOnly = useCallback(async () => {
     setError(null)
@@ -611,7 +572,7 @@ export default function KasirPage() {
               <CheckCircle className="w-20 h-20 mx-auto mb-4 text-green-400" />
             )}
             <p className="text-xl font-medium">
-              {filterText ? `Tidak ditemukan "${filterText}"` : "Semua pesanan sudah dibayar"}
+              {filterText ? `Tidak ditemukan "${filterText}"` : "Belum ada pesanan menunggu pembayaran"}
             </p>
           </div>
         ) : (
