@@ -24,6 +24,7 @@ import { Plus, Pencil, Trash2, QrCode, ChevronLeft, ChevronRight } from "lucide-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { QRCodeSVG } from "qrcode.react"
 import { getMeja, getNextNomorMeja, createMeja, updateMeja, deleteMeja } from "@/app/actions/meja"
+import { useUserRole } from "@/lib/user-context"
 import type { Meja } from "@/types"
 import { TipeMeja } from "@/types"
 
@@ -45,6 +46,8 @@ const tipeMejaLabels: Record<string, string> = {
 const ITEMS_PER_PAGE = 5
 
 export default function MejaPage() {
+  const userRole = useUserRole()
+  const isOwner = userRole === 'owner'
   const [mejas, setMejas] = useState<Meja[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isQROpen, setIsQROpen] = useState(false)
@@ -281,10 +284,12 @@ export default function MejaPage() {
             <SelectItem value="terpakai">Terpakai</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => openDialog()} className="h-8 ml-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Tambah
-        </Button>
+        {isOwner && (
+          <Button onClick={() => openDialog()} className="h-8 ml-auto">
+            <Plus className="w-4 h-4 mr-2" />
+            Tambah
+          </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg border">
@@ -297,13 +302,13 @@ export default function MejaPage() {
               <TableHead className="h-9">Kapasitas</TableHead>
               <TableHead className="h-9">QR</TableHead>
               <TableHead className="h-9">Status</TableHead>
-              <TableHead className="h-9 text-right">Aksi</TableHead>
+              {isOwner && <TableHead className="h-9 text-right">Aksi</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
+                <TableCell colSpan={isOwner ? 7 : 6} className="text-center py-4">
                   <div className="flex items-center justify-center gap-2">
                     <div className="relative h-5 w-5">
                       <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
@@ -315,7 +320,7 @@ export default function MejaPage() {
               </TableRow>
             ) : paginatedMejas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
+                <TableCell colSpan={isOwner ? 7 : 6} className="text-center py-4">
                   {search || filterTipe !== "all" || filterStatus !== "all"
                     ? "Tidak ada meja yang sesuai filter"
                     : "Belum ada meja"}
@@ -347,16 +352,18 @@ export default function MejaPage() {
                       {statusLabels[meja.statusMeja]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="py-2 text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(meja)}>
-                        <Pencil className="w-3 h-3" />
-                      </Button>
-                      <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(meja.id)}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {isOwner && (
+                    <TableCell className="py-2 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(meja)}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                        <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(meja.id)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

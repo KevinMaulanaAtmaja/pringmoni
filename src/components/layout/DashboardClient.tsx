@@ -104,6 +104,7 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
     ? [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
+        { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
       ]
     : (role === 'cashier')
     ? [
