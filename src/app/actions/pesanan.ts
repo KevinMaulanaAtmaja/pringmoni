@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { hitungAdminFee, hitungExpiryMenit } from "@/lib/fee"
+import { potongStokDapur } from "@/lib/stok"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()

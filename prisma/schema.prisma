@@ -22,6 +22,7 @@ model Users {
   logs             Logs[]
   kasirPesanan     Pesanan[] @relation("KasirPesanan")
   waiterPesanan    Pesanan[] @relation("WaiterPesanan")
+  riwayatStok      RiwayatStok[]
 
   @@map("users")
 }
@@ -63,6 +64,7 @@ model Menu {
   detailPesanan DetailPesanan[]
   kategori      KategoriMenu    @relation(fields: [kategoriId], references: [id])
   menuFoto      MenuFoto[]
+  resep         ResepMenu[]
 
   @@map("menu")
 }
@@ -97,6 +99,7 @@ model Pesanan {
   jumlahBayar          Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
   kembalian        Decimal           @default(0) @map("kembalian") @db.Decimal(10, 2)
   statusPembayaran StatusBayar       @default(menunggu) @map("status_pembayaran")
+  stokDeducted     Boolean            @default(false) @map("stok_deducted")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime?         @map("updated_at")
   deletedAt        DateTime?         @map("deleted_at")
@@ -133,6 +136,56 @@ model Logs {
   user       Users?       @relation(fields: [userId], references: [id])
 
   @@map("logs")
+}
+
+model StokBahan {
+  id             Int             @id @default(autoincrement())
+  namaBahan      String          @map("nama_bahan")
+  tipe           LokasiStok      @map("tipe")
+  kategori       KategoriBahan   @map("kategori")
+  stokQty        Decimal         @map("stok_qty") @db.Decimal(10, 2)
+  satuan         SatuanStok      @map("satuan")
+  stokMinimum    Decimal         @map("stok_minimum") @db.Decimal(10, 2)
+  hargaPerSatuan Decimal         @map("harga_per_satuan") @db.Decimal(10, 2)
+  statusStok     StatusStok      @default(tersedia) @map("status_stok")
+  keterangan     String?         @map("keterangan")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime?       @map("updated_at")
+  deletedAt      DateTime?       @map("deleted_at")
+  riwayatStok    RiwayatStok[]
+  resep          ResepMenu[]
+
+  @@unique([namaBahan, tipe])
+  @@map("stok_bahan")
+}
+
+model RiwayatStok {
+  id              Int                @id @default(autoincrement())
+  stokBahanId     Int                @map("stok_bahan_id")
+  stokSebelum     Decimal            @map("stok_sebelum") @db.Decimal(10, 2)
+  stokSesudah     Decimal            @map("stok_sesudah") @db.Decimal(10, 2)
+  jumlahPerubahan Decimal            @map("jumlah_perubahan") @db.Decimal(10, 2)
+  jenisPerubahan  JenisPerubahanStok @map("jenis_perubahan")
+  keterangan      String?            @map("keterangan")
+  userId          Int?               @map("user_id")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  stokBahan       StokBahan          @relation(fields: [stokBahanId], references: [id])
+  user            Users?             @relation(fields: [userId], references: [id])
+
+  @@map("riwayat_stok")
+}
+
+model ResepMenu {
+  id          Int       @id @default(autoincrement())
+  menuId      Int       @map("menu_id")
+  stokBahanId Int       @map("stok_bahan_id")
+  jumlah      Decimal   @map("jumlah") @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  menu        Menu      @relation(fields: [menuId], references: [id])
+  stokBahan   StokBahan @relation(fields: [stokBahanId], references: [id])
+
+  @@unique([menuId, stokBahanId])
+  @@map("resep_menu")
 }
 
 enum RoleUser {
@@ -186,4 +239,52 @@ enum JenisAksiLog {
   CANCEL_ORDER_EXPIRED
   CANCEL_ORDER_STALE
   PROCESS_PAYMENT
+}
+
+enum LokasiStok {
+  gudang
+  dapur
+}
+
+enum KategoriBahan {
+  sayuran
+  daging
+  seafood
+  rempah
+  bumbu
+  tepung
+  minyak
+  susu
+  bahan_kering
+  minuman
+  kemasan
+  perlengkapan
+  lainnya
+}
+
+enum SatuanStok {
+  kg
+  gram
+  liter
+  ml
+  pcs
+  pack
+  butir
+  ikat
+  sachet
+  lembar
+}
+
+enum StatusStok {
+  tersedia
+  menipis
+  habis
+}
+
+enum JenisPerubahanStok {
+  restock
+  penggunaan
+  koreksi
+  limbah
+  otomatis
 }
