@@ -121,14 +121,12 @@ export default function DetailPesananPage() {
     if (pesanan && (pesanan.status === "menunggu" || pesanan.status === "diproses")) {
       setShowKembaliDialog(true);
     } else {
-      sessionStorage.setItem(`reorder_${tokenMeja}`, "true");
       router.push(`/${tokenMeja}`);
     }
   };
 
   const confirmKembali = () => {
     setShowKembaliDialog(false);
-    sessionStorage.setItem(`reorder_${tokenMeja}`, "true");
     router.push(`/${tokenMeja}`);
   };
 

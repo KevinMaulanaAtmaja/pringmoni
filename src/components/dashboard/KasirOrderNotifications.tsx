@@ -24,19 +24,21 @@ interface PaidOrder {
 
 type ToastData = { type: "new_order" | "order_paid"; meja: string; nama: string | null } | null
 
+// Daftar pesanan yang sudah pernah dibunyikan, disimpan di level module agar tetap
+// bertahan saat komponen di-mount ulang (keluar lalu masuk lagi ke halaman kasir).
+// Dengan begitu pesanan lama tidak dibunyikan dua kali saat kasir kembali ke halaman.
+const soundedConfirmedOrders = new Set<number>()
+const soundedPaidOrders = new Set<number>()
+
 /**
  * Global notification untuk area kasir.
- * 1) Pesanan baru di-trigger saat customer menekan tombol "Konfirmasi Pembayaran"
- *    di halaman checkout (metode pembayaran ter-set).
- * 2) Konfirmasi pembayaran oleh kasir → notif suara + toast.
- * Berlaku di halaman kasir manapun.
+ * Aturan: setiap pesanan hanya dibunyikan sekali (bertahan lintas navigasi). Saat ada
+ * beberapa pesanan baru dalam satu poll, hanya pesanan terbaru yang dibunyikan; yang
+ * sudah dibunyikan tidak akan berbunyi lagi. Berlaku di halaman kasir manapun.
  */
 export function KasirOrderNotifications() {
   const { notifyNewOrder, notifyOrderPaid } = useNotification()
   const [toast, setToast] = useState<ToastData>(null)
-  const seenConfirmedRef = useRef<Set<number>>(new Set())
-  const seenPaidRef = useRef<Set<number>>(new Set())
-  const initializedRef = useRef(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showToast = useCallback((data: Exclude<ToastData, null>) => {
@@ -53,15 +55,10 @@ export function KasirOrderNotifications() {
     const confirmed = orders.filter(o => o.metodePembayaran)
 
     for (const order of confirmed) {
-      if (!initializedRef.current) {
-        seenConfirmedRef.current.add(order.id)
-        continue
-      }
-      if (!seenConfirmedRef.current.has(order.id)) {
-        seenConfirmedRef.current.add(order.id)
-        notifyNewOrder(order.nomorMeja, order.namaPelanggan)
-        showToast({ type: "new_order", meja: order.nomorMeja, nama: order.namaPelanggan })
-      }
+      if (soundedConfirmedOrders.has(order.id)) continue
+      soundedConfirmedOrders.add(order.id)
+      notifyNewOrder(order.nomorMeja, order.namaPelanggan)
+      showToast({ type: "new_order", meja: order.nomorMeja, nama: order.namaPelanggan })
     }
 
     const paidResult = await getPaidOrdersForNotification()
@@ -70,19 +67,12 @@ export function KasirOrderNotifications() {
     const paidOrders = paidResult as unknown as PaidOrder[]
 
     for (const order of paidOrders) {
-      if (!initializedRef.current) {
-        seenPaidRef.current.add(order.id)
-        continue
-      }
-      if (!seenPaidRef.current.has(order.id)) {
-        seenPaidRef.current.add(order.id)
-        const total = order.totalHarga + (order.biayaAdmin || 0) + (order.ppn || 0)
-        notifyOrderPaid(order.nomorMeja, order.namaPelanggan, total)
-        showToast({ type: "order_paid", meja: order.nomorMeja, nama: order.namaPelanggan })
-      }
+      if (soundedPaidOrders.has(order.id)) continue
+      soundedPaidOrders.add(order.id)
+      const total = order.totalHarga + (order.biayaAdmin || 0) + (order.ppn || 0)
+      notifyOrderPaid(order.nomorMeja, order.namaPelanggan, total)
+      showToast({ type: "order_paid", meja: order.nomorMeja, nama: order.namaPelanggan })
     }
-
-    if (!initializedRef.current) initializedRef.current = true
   }, [notifyNewOrder, notifyOrderPaid, showToast])
 
   useEffect(() => {

@@ -136,6 +136,20 @@ export async function createPesanan(data: CreatePesananData) {
     return { error: "Token meja tidak valid" }
   }
 
+  const pesananMenungguBayar = await prisma.pesanan.findFirst({
+    where: {
+      mejaId: meja.id,
+      statusPembayaran: StatusBayar.menunggu,
+      metodePembayaran: { not: null },
+      deletedAt: null,
+    },
+    select: { id: true },
+  })
+
+  if (pesananMenungguBayar) {
+    return { error: "Pesanan Anda masih menunggu pembayaran. Selesaikan pembayaran terlebih dahulu sebelum memesan lagi." }
+  }
+
   if (!items || items.length === 0) {
     return { error: "Item pesanan tidak boleh kosong" }
   }
@@ -656,6 +670,96 @@ export async function markItemDiantar(detailId: number) {
   revalidatePath("/dashboard/pesanan")
 
   return { success: true, statusAntar: newStatus }
+}
+
+export async function getStatusPesananAktifMeja(tokenMeja: string) {
+  const meja = await getMejaByToken(tokenMeja)
+  if (!meja) return null
+
+  const pesanan = await prisma.pesanan.findFirst({
+    where: {
+      mejaId: meja.id,
+      statusPembayaran: StatusBayar.menunggu,
+      deletedAt: null,
+    },
+    select: { id: true, metodePembayaran: true },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return {
+    adaPesananAktif: Boolean(pesanan),
+    sudahPilihMetode: Boolean(pesanan?.metodePembayaran),
+  }
+}
+
+export async function cancelExpiredOrders() {
+  const now = new Date()
+
+  // 1. Orders that chose method but didn't pay → expired after expiry time
+  const expiredWithMethod = await prisma.pesanan.findMany({
+    where: {
+      statusPembayaran: 'menunggu',
+      metodePembayaran: { not: null },
+      deletedAt: null,
+    },
+    select: { id: true, mejaId: true, createdAt: true, updatedAt: true, metodePembayaran: true, midtransTransactionId: true },
+  })
+
+  for (const p of expiredWithMethod) {
+    const expiryMenit = 60
+    const startTime = p.updatedAt || p.createdAt
+    const expiredAt = new Date(startTime.getTime() + expiryMenit * 60000)
+    if (now >= expiredAt) {
+      await prisma.pesanan.update({
+        where: { id: p.id, statusPembayaran: 'menunggu' },
+        data: {
+          statusPembayaran: 'dibatalkan',
+          statusPesanan: 'dibatalkan',
+          catatan: 'Expired',
+        },
+      })
+      if (p.mejaId) {
+        await prisma.meja.update({
+          where: { id: p.mejaId },
+          data: { statusMeja: 'kosong' },
+        })
+      }
+      await createLog('CANCEL_ORDER_EXPIRED', `Pesanan #${p.id} expired (${p.metodePembayaran}, ${expiryMenit} menit)`)
+    }
+  }
+
+  // 2. Orders with no method chosen → expired after 1 hour
+  const expiredNoMethod = await prisma.pesanan.findMany({
+    where: {
+      statusPembayaran: 'menunggu',
+      metodePembayaran: null,
+      deletedAt: null,
+    },
+    select: { id: true, mejaId: true, createdAt: true },
+  })
+
+  for (const p of expiredNoMethod) {
+    const expiredAt = new Date(p.createdAt.getTime() + 60 * 60000)
+    if (now >= expiredAt) {
+      await prisma.pesanan.update({
+        where: { id: p.id, statusPembayaran: 'menunggu' },
+        data: {
+          statusPembayaran: 'dibatalkan',
+          statusPesanan: 'dibatalkan',
+          catatan: 'Tidak memilih pembayaran',
+        },
+      })
+      if (p.mejaId) {
+        await prisma.meja.update({
+          where: { id: p.mejaId },
+          data: { statusMeja: 'kosong' },
+        })
+      }
+      await createLog('CANCEL_ORDER_EXPIRED', `Pesanan #${p.id} expired (tidak memilih pembayaran, 60 menit)`)
+    }
+  }
+
+  return { success: true }
 }
 
 export async function updateNamaPelanggan(publicId: string, tokenMeja: string, nama: string) {
