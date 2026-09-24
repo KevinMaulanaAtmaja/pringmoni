@@ -49,6 +49,7 @@ export default function MejaPage() {
   const userRole = useUserRole()
   const isOwner = userRole === 'owner'
   const canKosongkan = userRole === 'owner' || userRole === 'cashier'
+  const showAksi = isOwner || canKosongkan
   const [mejas, setMejas] = useState<Meja[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isQROpen, setIsQROpen] = useState(false)
@@ -333,13 +334,13 @@ export default function MejaPage() {
               <TableHead className="h-9">Kapasitas</TableHead>
               <TableHead className="h-9">QR</TableHead>
               <TableHead className="h-9">Status</TableHead>
-              <TableHead className="h-9 text-right">Aksi</TableHead>
+              {showAksi && <TableHead className="h-9 text-right">Aksi</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
+                <TableCell colSpan={showAksi ? 7 : 6} className="text-center py-4">
                   <div className="flex items-center justify-center gap-2">
                     <div className="relative h-5 w-5">
                       <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
@@ -351,7 +352,7 @@ export default function MejaPage() {
               </TableRow>
             ) : paginatedMejas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
+                <TableCell colSpan={showAksi ? 7 : 6} className="text-center py-4">
                   {search || filterTipe !== "all" || filterStatus !== "all"
                     ? "Tidak ada meja yang sesuai filter"
                     : "Belum ada meja"}
@@ -383,31 +384,33 @@ export default function MejaPage() {
                       {statusLabels[meja.statusMeja]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="py-2 text-right">
-                    <div className="flex justify-end gap-1">
-                      {canKosongkan && meja.statusMeja === 'terpakai' && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          title="Kosongkan meja"
-                          onClick={() => handleKosongkanClick(meja)}
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                        </Button>
-                      )}
-                      {isOwner && (
-                        <>
-                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(meja)}>
-                            <Pencil className="w-3 h-3" />
+{showAksi && (
+                    <TableCell className="py-2 text-right">
+                      <div className="flex justify-end gap-1">
+                        {canKosongkan && meja.statusMeja === 'terpakai' && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="Kosongkan meja"
+                            onClick={() => handleKosongkanClick(meja)}
+                          >
+                            <RotateCcw className="w-3 h-3" />
                           </Button>
-                          <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(meja.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
+                        )}
+                        {isOwner && (
+                          <>
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog(meja)}>
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                            <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => handleDeleteClick(meja.id)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
