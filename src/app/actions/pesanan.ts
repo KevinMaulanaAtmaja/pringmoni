@@ -9,6 +9,7 @@ import { createLog } from "@/lib/log"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
+import { potongStokDapur } from "@/lib/stok"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()
@@ -455,6 +456,8 @@ export async function markPesananSelesai(id: number) {
       where: { id: pesanan.mejaId },
       data: { statusMeja: 'kosong' },
     })
+
+    await potongStokDapur(tx, id, parseInt(session.user.id))
   })
 
   await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})

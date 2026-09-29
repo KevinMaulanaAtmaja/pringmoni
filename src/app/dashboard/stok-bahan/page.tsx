@@ -73,11 +73,16 @@ import {
   StokBahanWithType,
   RiwayatStokWithType,
 } from '@/app/actions/stok-bahan'
-import { KategoriBahan, SatuanStok, StatusStok } from '@prisma/client'
+import { KategoriBahan, SatuanStok, StatusStok, LokasiStok } from '@prisma/client'
 
 const kategoriLabels: Record<KategoriBahan, string> = {
   bahan_utama: 'Bahan Utama',
   bumbu: 'Bumbu',
+}
+
+const tipeLabels: Record<LokasiStok, string> = {
+  gudang: 'Gudang',
+  dapur: 'Dapur',
 }
 
 const satuanLabels: Record<SatuanStok, string> = {
@@ -103,6 +108,7 @@ const jenisPerubahanLabels = {
   penggunaan: 'Penggunaan',
   koreksi: 'Koreksi',
   limbah: 'Limbah',
+  otomatis: 'Otomatis',
 } as const
 
 const ITEMS_PER_PAGE = 8
@@ -458,6 +464,7 @@ function BahanLogo({
 }
 
 const emptyForm = {
+  tipe: 'gudang' as LokasiStok,
   namaBahan: '',
   kategori: 'bahan_utama' as KategoriBahan,
   stokQty: '0',
@@ -468,6 +475,7 @@ const emptyForm = {
 }
 
 export default function StokBahanPage() {
+  const [activeTipe, setActiveTipe] = useState<LokasiStok>('gudang')
   const [items, setItems] = useState<StokBahanWithType[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -505,7 +513,7 @@ export default function StokBahanPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [activeTipe])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -514,7 +522,7 @@ export default function StokBahanPage() {
   async function loadData() {
     setLoading(true)
     try {
-      const data = await getStokBahanList()
+      const data = await getStokBahanList(activeTipe)
       setItems(data)
     } catch {
       setItems([])
@@ -528,6 +536,7 @@ export default function StokBahanPage() {
     if (item) {
       setEditingId(item.id)
       setForm({
+        tipe: item.tipe,
         namaBahan: item.namaBahan,
         kategori: item.kategori,
         stokQty: String(item.stokQty),
@@ -538,7 +547,7 @@ export default function StokBahanPage() {
       })
     } else {
       setEditingId(null)
-      setForm({ ...emptyForm })
+      setForm({ ...emptyForm, tipe: activeTipe })
     }
     setIsOpen(true)
   }
@@ -555,6 +564,7 @@ export default function StokBahanPage() {
       }
 
       const payload = {
+        tipe: form.tipe,
         namaBahan: cleanName,
         kategori: form.kategori,
         stokQty: parseFloat(form.stokQty) || 0,
@@ -639,7 +649,7 @@ export default function StokBahanPage() {
   async function handleResetConfirm() {
     setResetting(true)
     try {
-      const result = await resetAllStokBahan()
+      const result = await resetAllStokBahan(activeTipe)
       if (result?.error) {
         alert(result.error)
         return
@@ -768,6 +778,20 @@ export default function StokBahanPage() {
 
       {/* Filters Toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div className="flex items-center gap-1 rounded-lg border p-0.5 w-full sm:w-auto">
+          {(Object.keys(tipeLabels) as LokasiStok[]).map((value) => (
+            <Button
+              key={value}
+              type="button"
+              size="sm"
+              variant={activeTipe === value ? 'default' : 'ghost'}
+              onClick={() => setActiveTipe(value)}
+              className="h-7 flex-1 sm:flex-none text-xs"
+            >
+              {tipeLabels[value]}
+            </Button>
+          ))}
+        </div>
         <Input
           placeholder="Cari bahan..."
           value={search}
@@ -1101,6 +1125,24 @@ export default function StokBahanPage() {
                 onChange={(e) => setForm({ ...form, namaBahan: e.target.value })}
                 required
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tipe">Lokasi Stok</Label>
+              <Select
+                value={form.tipe}
+                onValueChange={(value) => setForm({ ...form, tipe: value as LokasiStok })}
+              >
+                <SelectTrigger id="tipe">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(tipeLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="kategori">Kategori</Label>
