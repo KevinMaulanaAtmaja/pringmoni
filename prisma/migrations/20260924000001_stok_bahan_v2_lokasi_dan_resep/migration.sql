@@ -38,10 +38,10 @@ CREATE TABLE "resep_menu" (
 CREATE UNIQUE INDEX "resep_menu_menu_id_stok_bahan_id_key" ON "resep_menu"("menu_id", "stok_bahan_id");
 
 -- AddForeignKey
-ALTER TABLE "resep_menu" ADD CONSTRAINT "resep_menu_menu_id_fkey" FOREIGN KEY ("menu_id") REFERENCES "menu"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "resep_menu" ADD CONSTRAINT "resep_menu_menu_id_fkey" FOREIGN KEY ("menu_id") REFERENCES "menu"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "resep_menu" ADD CONSTRAINT "resep_menu_stok_bahan_id_fkey" FOREIGN KEY ("stok_bahan_id") REFERENCES "stok_bahan"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "resep_menu" ADD CONSTRAINT "resep_menu_stok_bahan_id_fkey" FOREIGN KEY ("stok_bahan_id") REFERENCES "stok_bahan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AlterTable: penanda idempotensi pemotongan stok per pesanan
 ALTER TABLE "pesanan" ADD COLUMN "stok_deducted" BOOLEAN NOT NULL DEFAULT false;
