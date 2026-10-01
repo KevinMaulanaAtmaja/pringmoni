@@ -15,6 +15,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Boxes,
+  CookingPot,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -46,6 +47,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
         { name: "Stok Bahan", icon: Boxes, href: "/dashboard/stok-bahan" },
+        { name: "Resep", icon: CookingPot, href: "/dashboard/resep" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Akun", icon: User, href: "/dashboard/users" },
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },

@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { deleteAllMenuFotos } from './menu-foto';
+import { hitungKetersediaanResep } from '@/lib/resep';
 
 export type MenuWithKategori = {
   id: number;
@@ -20,6 +21,14 @@ export type MenuWithKategori = {
   kategori: KategoriMenu;
   fotoUrl: string | null;
   fotoUrls?: string[];
+  /** Punya >= 1 bahan di resep → stok dilacak otomatis; tanpa resep → manual */
+  adaResep?: boolean;
+  /** Resep punya 1 bahan utama + 1 bumbu (indikator kualitas data) */
+  resepLengkap?: boolean;
+  /** Porsi maksimum yang masih bisa dimasak dari stok bahan sekarang */
+  porsiTersedia?: number;
+  /** Bahan yang stoknya paling menentukan nilai porsiTersedia */
+  bahanPembatas?: string[];
 };
 
 export type CreateMenuInput = {
@@ -33,6 +42,10 @@ export type CreateMenuInput = {
 export type UpdateMenuInput = Partial<CreateMenuInput> & { id: number };
 
 export async function getMenus(): Promise<MenuWithKategori[]> {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error("Unauthorized")
+  }
   const menus = await prisma.menu.findMany({
     where: { deletedAt: null },
     select: {
@@ -54,15 +67,49 @@ export async function getMenus(): Promise<MenuWithKategori[]> {
         },
         orderBy: { urutan: 'asc' },
       },
+      resep: {
+        select: {
+          jumlah: true,
+          stokBahan: {
+            select: {
+              namaBahan: true,
+              kategori: true,
+              satuan: true,
+              stokQty: true,
+              deletedAt: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: 'desc' },
   });
-  return menus.map((m) => ({
-    ...m,
-    harga: Number(m.harga),
-    fotoUrl: m.menuFoto[0]?.fotoUrl || null,
-    fotoUrls: m.menuFoto.map(f => f.fotoUrl),
-  }));
+  return menus.map((m) => {
+    const bahanAktif = m.resep
+      .filter((r) => !r.stokBahan.deletedAt)
+      .map((r) => ({
+        namaBahan: r.stokBahan.namaBahan,
+        satuan: r.stokBahan.satuan,
+        jumlahPerPorsi: Number(r.jumlah),
+        stokQty: Number(r.stokBahan.stokQty),
+        kategori: r.stokBahan.kategori,
+      }));
+    const ketersediaan = hitungKetersediaanResep(
+      bahanAktif,
+      bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
+      bahanAktif.filter((b) => b.kategori === 'bumbu').length
+    );
+    return {
+      ...m,
+      harga: Number(m.harga),
+      fotoUrl: m.menuFoto[0]?.fotoUrl || null,
+      fotoUrls: m.menuFoto.map(f => f.fotoUrl),
+      adaResep: ketersediaan.adaResep,
+      resepLengkap: ketersediaan.lengkap,
+      porsiTersedia: ketersediaan.porsiTersedia,
+      bahanPembatas: ketersediaan.bahanPembatas,
+    };
+  });
 }
 
 export async function getKategoriMenus(): Promise<KategoriMenu[]> {
@@ -104,37 +151,46 @@ export async function createMenu(data: CreateMenuInput) {
 
 export async function updateMenu(data: UpdateMenuInput) {
   await requireOwner()
-  const { id, ...rest } = data;
-  
+  const { id, namaMenu, deskripsi, kategoriId, statusMenu, harga } = data;
+
   // Validation
-  if (rest.namaMenu !== undefined && !rest.namaMenu?.trim()) {
+  if (namaMenu !== undefined && !namaMenu?.trim()) {
     return { error: "Nama menu tidak boleh kosong" }
   }
-  if (rest.harga !== undefined && rest.harga <= 0) {
+  if (harga !== undefined && harga <= 0) {
     return { error: "Harga harus lebih dari 0" }
   }
-  
+
+  // Hanya field yang diizinkan (allowlist) supaya field sensitif seperti
+  // deletedAt/createdAt tidak bisa diubah paksa dari client.
   await prisma.menu.update({
     where: { id },
     data: {
-      ...rest,
-      harga: rest.harga !== undefined ? new Prisma.Decimal(rest.harga) : undefined,
+      namaMenu,
+      deskripsi,
+      kategoriId,
+      statusMenu,
+      harga: harga !== undefined ? new Prisma.Decimal(harga) : undefined,
     },
   });
   revalidatePath('/dashboard/menu');
 }
 
 export async function deleteMenu(id: number) {
-  await requireOwner()
-  // Delete all associated photos first
-  await deleteAllMenuFotos(id);
-  
-  await prisma.menu.update({
-    where: { id },
-    data: { deletedAt: new Date() },
-  });
-  revalidatePath('/dashboard/menu');
-  return { success: true }
+  try {
+    await requireOwner()
+    // Delete all associated photos first
+    await deleteAllMenuFotos(id);
+
+    await prisma.menu.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    revalidatePath('/dashboard/menu');
+    return { success: true }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Gagal menghapus menu" }
+  }
 }
 
 export async function toggleStatusMenu(id: number, status: StatusMenu) {

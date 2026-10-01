@@ -60,6 +60,7 @@ import {
   Banana,
   Apple,
   CookingPot,
+  ArrowRightLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -73,6 +74,7 @@ import {
   StokBahanWithType,
   RiwayatStokWithType,
 } from '@/app/actions/stok-bahan'
+import { TransferDapurDialog } from '@/components/dashboard/transfer-dapur-dialog'
 import { KategoriBahan, SatuanStok, StatusStok, LokasiStok } from '@prisma/client'
 
 const kategoriLabels: Record<KategoriBahan, string> = {
@@ -109,6 +111,7 @@ const jenisPerubahanLabels = {
   koreksi: 'Koreksi',
   limbah: 'Limbah',
   otomatis: 'Otomatis',
+  transfer: 'Transfer',
 } as const
 
 const ITEMS_PER_PAGE = 8
@@ -496,6 +499,11 @@ export default function StokBahanPage() {
   const [historyId, setHistoryId] = useState<number | null>(null)
   const [history, setHistory] = useState<RiwayatStokWithType[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+
+  // Transfer Gudang -> Dapur dialog
+  const [transferItem, setTransferItem] = useState<StokBahanWithType | null>(
+    null
+  )
 
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -921,6 +929,17 @@ export default function StokBahanPage() {
                         >
                           <PackagePlus className="w-3.5 h-3.5" />
                         </Button>
+                        {item.tipe === 'gudang' && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                            title="Pindahkan ke Dapur"
+                            onClick={() => setTransferItem(item)}
+                          >
+                            <ArrowRightLeft className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="icon"
@@ -1050,6 +1069,17 @@ export default function StokBahanPage() {
                   <PackagePlus className="w-3.5 h-3.5" />
                   Restock
                 </Button>
+                {item.tipe === 'gudang' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs px-2.5 gap-1 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                    onClick={() => setTransferItem(item)}
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                    Ke Dapur
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -1403,6 +1433,16 @@ export default function StokBahanPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Transfer Gudang -> Dapur Dialog */}
+      <TransferDapurDialog
+        open={transferItem != null}
+        onOpenChange={(open) => {
+          if (!open) setTransferItem(null)
+        }}
+        item={transferItem}
+        onDone={loadData}
+      />
     </div>
   )
 }

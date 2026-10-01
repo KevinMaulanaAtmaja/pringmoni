@@ -269,4 +269,5 @@ enum JenisPerubahanStok {
   koreksi
   limbah
   otomatis
+  transfer
 }

@@ -36,7 +36,11 @@ export async function potongStokDapur(
 
   if (kebutuhan.size > 0) {
     const bahan = await tx.stokBahan.findMany({
-      where: { id: { in: Array.from(kebutuhan.keys()) }, tipe: "dapur" },
+      where: {
+        id: { in: Array.from(kebutuhan.keys()) },
+        tipe: "dapur",
+        deletedAt: null,
+      },
     })
 
     const ops: Promise<unknown>[] = []
@@ -62,7 +66,7 @@ export async function potongStokDapur(
             stokBahanId: b.id,
             stokSebelum,
             stokSesudah,
-            jumlahPerubahan: need,
+            jumlahPerubahan: stokSebelum - stokSesudah,
             jenisPerubahan: "otomatis",
             keterangan: `Pemakaian otomatis dari pesanan #${pesananId}`,
             userId: userId ?? null,

@@ -10,6 +10,7 @@ import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
 import { potongStokDapur } from "@/lib/stok"
+import { hitungKetersediaanResep } from "@/lib/resep"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()
@@ -77,7 +78,9 @@ export async function getMejaByToken(tokenMeja: string) {
 
 export async function getMenusForCustomer() {
   const menus = await prisma.menu.findMany({
-    where: { statusMenu: 'tersedia', deletedAt: null },
+    // Menu 'habis' tetap ditampilkan ke customer (dengan tombol pesan disabled),
+    // hanya 'nonaktif' yang disembunyikan.
+    where: { statusMenu: { in: ['tersedia', 'habis'] }, deletedAt: null },
     select: {
       id: true,
       namaMenu: true,
@@ -96,20 +99,55 @@ export async function getMenusForCustomer() {
         },
         orderBy: { urutan: 'asc' },
       },
+      resep: {
+        select: {
+          jumlah: true,
+          stokBahan: {
+            select: {
+              namaBahan: true,
+              kategori: true,
+              satuan: true,
+              stokQty: true,
+              deletedAt: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { namaMenu: 'asc' },
   })
-  
-  return menus.map(menu => ({
-    id: menu.id,
-    namaMenu: menu.namaMenu,
-    deskripsi: menu.deskripsi,
-    harga: Number(menu.harga),
-    kategori: menu.kategori.namaKategori,
-    statusMenu: menu.statusMenu as "tersedia" | "habis" | "nonaktif",
-    fotoUrl: menu.menuFoto[0]?.fotoUrl || null,
-    menuFoto: menu.menuFoto.map(f => ({ id: f.id, fotoUrl: f.fotoUrl })),
-  }))
+
+  return menus.map(menu => {
+    const bahanAktif = menu.resep
+      .filter((r) => !r.stokBahan.deletedAt)
+      .map((r) => ({
+        namaBahan: r.stokBahan.namaBahan,
+        satuan: r.stokBahan.satuan,
+        jumlahPerPorsi: Number(r.jumlah),
+        stokQty: Number(r.stokBahan.stokQty),
+        kategori: r.stokBahan.kategori,
+      }))
+    const ketersediaan = hitungKetersediaanResep(
+      bahanAktif,
+      bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
+      bahanAktif.filter((b) => b.kategori === 'bumbu').length
+    )
+
+    return {
+      id: menu.id,
+      namaMenu: menu.namaMenu,
+      deskripsi: menu.deskripsi,
+      harga: Number(menu.harga),
+      kategori: menu.kategori.namaKategori,
+      statusMenu: menu.statusMenu as "tersedia" | "habis" | "nonaktif",
+      fotoUrl: menu.menuFoto[0]?.fotoUrl || null,
+      menuFoto: menu.menuFoto.map(f => ({ id: f.id, fotoUrl: f.fotoUrl })),
+      adaResep: ketersediaan.adaResep,
+      resepLengkap: ketersediaan.lengkap,
+      porsiTersedia: ketersediaan.porsiTersedia,
+      bahanPembatas: ketersediaan.bahanPembatas,
+    }
+  })
 }
 
 export const getCustomerMenuData = cache(async (tokenMeja: string) => {
@@ -158,22 +196,65 @@ export async function createPesanan(data: CreatePesananData) {
   let totalHarga = 0
   const itemPrices: Record<number, number> = {}
 
+  // Gabung jumlah per menu (item dengan catatan berbeda dihitung satu),
+  // supaya validasi stok memakai total yang benar.
+  const jumlahPerMenu = new Map<number, number>()
   for (const item of items) {
+    jumlahPerMenu.set(item.menuId, (jumlahPerMenu.get(item.menuId) ?? 0) + item.jumlah)
+  }
+
+  for (const [menuId, jumlahTotal] of jumlahPerMenu) {
     const menu = await prisma.menu.findFirst({
-      where: { id: item.menuId, deletedAt: null },
+      where: { id: menuId, deletedAt: null },
+      include: {
+        resep: {
+          include: { stokBahan: true },
+        },
+      },
     })
-    
+
     if (!menu) {
-      return { error: `Menu dengan ID ${item.menuId} tidak ditemukan` }
+      return { error: `Menu dengan ID ${menuId} tidak ditemukan` }
     }
 
     if (menu.statusMenu !== "tersedia") {
       return { error: `${menu.namaMenu} sedang tidak tersedia` }
     }
 
+    const bahanAktif = menu.resep
+      .filter((r) => !r.stokBahan.deletedAt)
+      .map((r) => ({
+        namaBahan: r.stokBahan.namaBahan,
+        satuan: r.stokBahan.satuan,
+        jumlahPerPorsi: Number(r.jumlah),
+        stokQty: Number(r.stokBahan.stokQty),
+        kategori: r.stokBahan.kategori,
+      }))
+    const ketersediaan = hitungKetersediaanResep(
+      bahanAktif,
+      bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
+      bahanAktif.filter((b) => b.kategori === 'bumbu').length
+    )
+
+    // Gerbang resep: menu tanpa resep lengkap (minimal 1 bahan utama + 1 bumbu)
+    // tidak boleh dipesan sama sekali, walau statusMenu 'tersedia'.
+    if (!ketersediaan.lengkap) {
+      return { error: `${menu.namaMenu} belum dapat dipesan — resep belum lengkap (butuh bahan utama & bumbu)` }
+    }
+
+    // Porsi yang boleh dipesan ditentukan stok bahan dapur, bukan hanya
+    // statusMenu — ini gerbang terakhir supaya customer tidak bisa pesan
+    // menu yang porsinya habis.
+    if (ketersediaan.porsiTersedia <= 0) {
+      return { error: `${menu.namaMenu} sedang habis — stok bahan tidak mencukupi` }
+    }
+    if (jumlahTotal > ketersediaan.porsiTersedia) {
+      return { error: `${menu.namaMenu} hanya tersisa ${ketersediaan.porsiTersedia} porsi` }
+    }
+
     const harga = Number(menu.harga)
-    itemPrices[item.menuId] = harga
-    totalHarga += harga * item.jumlah
+    itemPrices[menuId] = harga
+    totalHarga += harga * jumlahTotal
   }
 
   const publicId = crypto.randomUUID()
