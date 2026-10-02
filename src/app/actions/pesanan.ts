@@ -10,7 +10,7 @@ import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
 import { potongStokDapur } from "@/lib/stok"
-import { hitungKetersediaanResep } from "@/lib/resep"
+import { butuhBumbu, hitungKetersediaanResep } from "@/lib/resep"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()
@@ -130,7 +130,8 @@ export async function getMenusForCustomer() {
     const ketersediaan = hitungKetersediaanResep(
       bahanAktif,
       bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
-      bahanAktif.filter((b) => b.kategori === 'bumbu').length
+      bahanAktif.filter((b) => b.kategori === 'bumbu').length,
+      butuhBumbu(menu.kategori.namaKategori)
     )
 
     return {
@@ -207,6 +208,7 @@ export async function createPesanan(data: CreatePesananData) {
     const menu = await prisma.menu.findFirst({
       where: { id: menuId, deletedAt: null },
       include: {
+        kategori: { select: { namaKategori: true } },
         resep: {
           include: { stokBahan: true },
         },
@@ -230,16 +232,22 @@ export async function createPesanan(data: CreatePesananData) {
         stokQty: Number(r.stokBahan.stokQty),
         kategori: r.stokBahan.kategori,
       }))
+    const wajibBumbu = butuhBumbu(menu.kategori?.namaKategori)
     const ketersediaan = hitungKetersediaanResep(
       bahanAktif,
       bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
-      bahanAktif.filter((b) => b.kategori === 'bumbu').length
+      bahanAktif.filter((b) => b.kategori === 'bumbu').length,
+      wajibBumbu
     )
 
-    // Gerbang resep: menu tanpa resep lengkap (minimal 1 bahan utama + 1 bumbu)
-    // tidak boleh dipesan sama sekali, walau statusMenu 'tersedia'.
+    // Gerbang resep: makanan wajib punya bahan utama + bumbu; minuman & camilan
+    // cukup bahan utama (bumbu opsional). Menu yang belum lengkap tidak boleh
+    // dipesan walau statusMenu 'tersedia'.
     if (!ketersediaan.lengkap) {
-      return { error: `${menu.namaMenu} belum dapat dipesan — resep belum lengkap (butuh bahan utama & bumbu)` }
+      const butuh = wajibBumbu
+        ? 'butuh bahan utama & bumbu'
+        : 'butuh minimal 1 bahan utama'
+      return { error: `${menu.namaMenu} belum dapat dipesan — resep belum lengkap (${butuh})` }
     }
 
     // Porsi yang boleh dipesan ditentukan stok bahan dapur, bukan hanya

@@ -56,6 +56,13 @@ import {
   Milk,
   Coffee,
   GlassWater,
+  CupSoda,
+  Soup,
+  UtensilsCrossed,
+  Cookie,
+  Croissant,
+  IceCreamBowl,
+  CakeSlice,
   Sparkles,
   Banana,
   Apple,
@@ -91,6 +98,7 @@ const satuanLabels: Record<SatuanStok, string> = {
   kg: 'kg',
   pcs: 'pcs',
   pack: 'pack',
+  bungkus: 'bungkus',
 }
 
 const statusColors: Record<StatusStok, string> = {
@@ -126,6 +134,144 @@ type BahanLogoConfig = {
 function getBahanLogoConfig(namaBahan: string, kategori?: KategoriBahan): BahanLogoConfig {
   const n = (namaBahan || '').toLowerCase()
 
+  // 0. Bumbu racikan hasil seed: nama "Bumbu <menu>" pakai ikon bumbu.
+  if (n.startsWith('bumbu')) {
+    return {
+      icon: Sparkles,
+      bgColor: 'bg-purple-50',
+      textColor: 'text-purple-500',
+      borderColor: 'border-purple-200',
+    }
+  }
+
+  // 0a. Kopi & turunannya (dicek sebelum susu agar "kopi susu" tetap ikon kopi).
+  if (
+    n.includes('kopi') ||
+    n.includes('coffee') ||
+    n.includes('espresso') ||
+    n.includes('capucino') ||
+    n.includes('cappuccino') ||
+    n.includes('latte')
+  ) {
+    return {
+      icon: Coffee,
+      bgColor: 'bg-amber-50',
+      textColor: 'text-amber-800',
+      borderColor: 'border-amber-200',
+    }
+  }
+
+  // 0b. Minuman dingin/panas & olahan minuman (es, teh, milo, dsb).
+  if (
+    !n.includes('es krim') &&
+    !n.includes('ice cream') &&
+    (/\bes\b/.test(n) ||
+      n.includes('ice') ||
+      n.includes('teh') ||
+      n.includes('tea') ||
+      n.includes('milo') ||
+      n.includes('joshua') ||
+      n.includes('soda') ||
+      n.includes('sirup') ||
+      n.includes('air'))
+  ) {
+    return {
+      icon: CupSoda,
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-500',
+      borderColor: 'border-blue-200',
+    }
+  }
+
+  // 0c. Jus buah.
+  if (n.includes('jus')) {
+    return {
+      icon: GlassWater,
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-500',
+      borderColor: 'border-blue-200',
+    }
+  }
+
+  // 0d. Mie & olahan berkuah.
+  if (
+    n.includes('mie') ||
+    n.includes('noodle') ||
+    n.includes('bihun') ||
+    n.includes('kwetiau') ||
+    n.includes('ramen') ||
+    n.includes('bangladesh')
+  ) {
+    return {
+      icon: Soup,
+      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-500',
+      borderColor: 'border-orange-200',
+    }
+  }
+
+  // 0e. Camilan goreng/kukus.
+  if (
+    n.includes('dimsum') ||
+    n.includes('siomay') ||
+    n.includes('pangsit') ||
+    n.includes('sosis') ||
+    n.includes('kentang') ||
+    n.includes('fries')
+  ) {
+    return {
+      icon: UtensilsCrossed,
+      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-600',
+      borderColor: 'border-orange-200',
+    }
+  }
+  if (
+    n.includes('cireng') ||
+    n.includes('cimol') ||
+    n.includes('keripik') ||
+    n.includes('kerupuk') ||
+    n.includes('singkong')
+  ) {
+    return {
+      icon: Cookie,
+      bgColor: 'bg-amber-50',
+      textColor: 'text-amber-700',
+      borderColor: 'border-amber-200',
+    }
+  }
+  if (n.includes('roti') || n.includes('maryam') || n.includes('croissant')) {
+    return {
+      icon: Croissant,
+      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-600',
+      borderColor: 'border-orange-200',
+    }
+  }
+  if (n.includes('es krim') || n.includes('ice cream')) {
+    return {
+      icon: IceCreamBowl,
+      bgColor: 'bg-pink-50',
+      textColor: 'text-pink-500',
+      borderColor: 'border-pink-200',
+    }
+  }
+  if (
+    n.includes('kue') ||
+    n.includes('cake') ||
+    n.includes('puding') ||
+    n.includes('brownies') ||
+    n.includes('donat') ||
+    n.includes('donut')
+  ) {
+    return {
+      icon: CakeSlice,
+      bgColor: 'bg-rose-50',
+      textColor: 'text-rose-500',
+      borderColor: 'border-rose-200',
+    }
+  }
+
   // 1. Sayuran, Daun & Bumbu Segar (Cek dedaunan/sayuran dulu agar 'bayam' tidak tertukar dengan 'ayam')
   if (
     n.includes('bayam') ||
@@ -137,6 +283,8 @@ function getBahanLogoConfig(namaBahan: string, kategori?: KategoriBahan): BahanL
     n.includes('kol') ||
     n.includes('tomat') ||
     n.includes('timun') ||
+    n.includes('tauge') ||
+    n.includes('capcay') ||
     n.includes('sayur')
   ) {
     return {
@@ -188,7 +336,12 @@ function getBahanLogoConfig(namaBahan: string, kategori?: KategoriBahan): BahanL
   }
 
   // 2. Telur & Makanan Laut
-  if (n.includes('telur') || n.includes('telor') || n.includes('egg')) {
+  if (
+    (n.includes('telur') || n.includes('telor') || n.includes('egg')) &&
+    !n.includes('udang') &&
+    !n.includes('seafood') &&
+    !n.includes('cumi')
+  ) {
     return {
       icon: Egg,
       bgColor: 'bg-amber-50',

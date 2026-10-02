@@ -6,7 +6,7 @@ import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { deleteAllMenuFotos } from './menu-foto';
-import { hitungKetersediaanResep } from '@/lib/resep';
+import { butuhBumbu, hitungKetersediaanResep } from '@/lib/resep';
 
 export type MenuWithKategori = {
   id: number;
@@ -97,7 +97,8 @@ export async function getMenus(): Promise<MenuWithKategori[]> {
     const ketersediaan = hitungKetersediaanResep(
       bahanAktif,
       bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
-      bahanAktif.filter((b) => b.kategori === 'bumbu').length
+      bahanAktif.filter((b) => b.kategori === 'bumbu').length,
+      butuhBumbu(m.kategori?.namaKategori)
     );
     return {
       ...m,

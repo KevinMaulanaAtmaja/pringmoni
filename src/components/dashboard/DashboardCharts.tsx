@@ -176,7 +176,7 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
                 <BarChart data={ensureData(charts.topMenu)} layout="vertical" margin={{ top: 4, right: 8, left: 4, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10, fill: "#888" }} axisLine={{ stroke: "#e5e7eb" }} tickLine={false} />
-                  <YAxis type="category" dataKey="nama" tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} width={90} />
+                  <YAxis type="category" dataKey="nama" tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} width={170} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
                   <Bar dataKey="total" radius={[0, 4, 4, 0]} name="Terjual">
                     {ensureData(charts.topMenu).map((_, i) => (

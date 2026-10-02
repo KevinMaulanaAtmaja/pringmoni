@@ -36,6 +36,7 @@ import {
   saveResepMenu,
   StokBahanWithType,
 } from '@/app/actions/stok-bahan';
+import { butuhBumbu } from '@/lib/resep';
 
 const kategoriLabels: Record<string, string> = {
   bahan_utama: 'Bahan Utama',
@@ -46,6 +47,7 @@ const satuanLabels: Record<string, string> = {
   kg: 'kg',
   pcs: 'pcs',
   pack: 'pack',
+  bungkus: 'bungkus',
 };
 
 function normalisasiKategori(kategori: string): KategoriResep {
@@ -78,6 +80,7 @@ type ResepMenuDialogProps = {
   onOpenChange: (open: boolean) => void;
   menuId: number | null;
   namaMenu: string;
+  kategoriMenu?: string;
   onSaved?: () => void;
 };
 
@@ -86,6 +89,7 @@ export function ResepMenuDialog({
   onOpenChange,
   menuId,
   namaMenu,
+  kategoriMenu,
   onSaved,
 }: ResepMenuDialogProps) {
   const [bahanList, setBahanList] = useState<StokBahanWithType[]>([]);
@@ -246,9 +250,11 @@ export function ResepMenuDialog({
     return hasil;
   }, [rows]);
 
+  const wajibBumbu = butuhBumbu(kategoriMenu);
+
   const kurang: string[] = [];
   if (terisiPerKategori.bahan_utama === 0) kurang.push('1 bahan utama');
-  if (terisiPerKategori.bumbu === 0) kurang.push('1 bahan bumbu');
+  if (wajibBumbu && terisiPerKategori.bumbu === 0) kurang.push('1 bahan bumbu');
   const tidakLengkap = kurang.length > 0 && jumlahBahanTerpilih > 0;
 
   function updateRow(key: string, patch: Partial<ResepRow>) {
@@ -382,6 +388,13 @@ export function ResepMenuDialog({
                           className="text-[10px] text-emerald-700 border-emerald-300"
                         >
                           {terisi} bahan
+                        </Badge>
+                      ) : kategori === 'bumbu' && !wajibBumbu ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-muted-foreground"
+                        >
+                          Opsional
                         </Badge>
                       ) : (
                         <Badge
@@ -631,9 +644,9 @@ export function ResepMenuDialog({
             )}
             {tidakLengkap && (
               <p className="text-xs text-amber-700">
-                Tips: idealnya tiap menu punya 1 bahan utama dan 1
-                bahan bumbu. Tidak wajib — resep tetap disimpan dan
-                stok tetap dihitung otomatis dari bahan yang ada.
+                {wajibBumbu
+                  ? 'Menu kategori Makanan wajib punya 1 bahan utama dan 1 bahan bumbu.'
+                  : 'Bumbu opsional untuk menu kategori ini. Cukup minimal 1 bahan utama.'}
               </p>
             )}
             {saved && !error && (

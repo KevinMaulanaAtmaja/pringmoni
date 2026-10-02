@@ -21,6 +21,7 @@ const satuanLabels: Record<string, string> = {
   kg: 'kg',
   pcs: 'pcs',
   pack: 'pack',
+  bungkus: 'bungkus',
 }
 
 type TransferDapurDialogProps = {

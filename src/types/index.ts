@@ -249,7 +249,7 @@ export interface BandingData {
 
 // Stok Bahan types
 export type KategoriBahan = 'bahan_utama' | 'bumbu'
-export type SatuanStok = 'kg' | 'pcs' | 'pack'
+export type SatuanStok = 'kg' | 'pcs' | 'pack' | 'bungkus'
 export type StatusStok = 'tersedia' | 'menipis' | 'habis'
 export type JenisPerubahanStok = 'restock' | 'penggunaan' | 'koreksi' | 'limbah'
 

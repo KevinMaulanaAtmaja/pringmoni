@@ -30,7 +30,7 @@ interface Menu {
   jumlahDipesan?: number;
   /** Punya >= 1 bahan di resep → stok dilacak otomatis */
   adaResep?: boolean;
-  /** Resep punya 1 bahan utama + 1 bumbu (indikator kualitas data) */
+  /** Resep lengkap sesuai kategori: Makanan butuh bahan utama + bumbu, lainnya cukup bahan utama */
   resepLengkap?: boolean;
   porsiTersedia?: number;
   bahanPembatas?: string[];
@@ -46,8 +46,9 @@ interface MenuCardProps {
 export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardProps) {
   const stockHabis = menu.statusMenu !== "tersedia";
   // Ketersediaan mengacu pada resep: menu hanya bisa dipesan bila resepnya
-  // lengkap (minimal 1 bahan utama + 1 bumbu). Resep kosong / tidak lengkap
-  // tetap tampil sebagai card, tapi tidak bisa dipesan.
+  // lengkap sesuai kategorinya (Makanan: bahan utama + bumbu; Minuman/Camilan:
+  // cukup bahan utama). Resep kosong / tidak lengkap tetap tampil sebagai card,
+  // tapi tidak bisa dipesan.
   const resepLengkap = menu.resepLengkap ?? false;
   const resepTidakSiap = !resepLengkap;
   const adaResep = menu.adaResep ?? false;

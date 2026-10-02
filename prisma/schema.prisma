@@ -255,6 +255,7 @@ enum SatuanStok {
   kg
   pcs
   pack
+  bungkus
 }
 
 enum StatusStok {

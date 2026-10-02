@@ -12,7 +12,7 @@ import {
 } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
-import { hitungKetersediaanResep } from "@/lib/resep"
+import { butuhBumbu, hitungKetersediaanResep } from "@/lib/resep"
 
 export type StokBahanWithType = {
   id: number
@@ -86,15 +86,18 @@ async function hitungKelengkapanResep(
 }
 
 /**
- * Resep dianggap "lengkap" (indikator kualitas data) kalau punya minimal
- * 1 bahan utama dan 1 bahan bumbu. Kelengkapan TIDAK lagi menjadi syarat
- * menyimpan atau menghapus bahan: menu dengan resep seadanya tetap bisa
- * dipesan dan tetap dilacak stoknya otomatis selama punya >= 1 bahan.
+ * Peringatan kualitas data resep. Makanan wajib punya bahan utama + bumbu;
+ * kategori lain (Minuman/Camilan) cukup bahan utama. Kelengkapan TIDAK menjadi
+ * syarat menyimpan: menu dengan resep seadanya tetap bisa dipesan dan dilacak
+ * stoknya otomatis selama punya >= 1 bahan.
  */
-function pesanResepTidakLengkap(k: KelengkapanResep): string {
+function pesanResepTidakLengkap(
+  k: KelengkapanResep,
+  wajibBumbu = true
+): string {
   const kurang: string[] = []
   if (k.bahanUtama === 0) kurang.push("1 bahan utama")
-  if (k.bahanBumbu === 0) kurang.push("1 bahan bumbu")
+  if (wajibBumbu && k.bahanBumbu === 0) kurang.push("1 bahan bumbu")
 
   return `Idealnya resep punya 1 bahan utama dan 1 bahan bumbu. Saat ini masih kurang: ${kurang.join(" dan ")}.`
 }
@@ -573,7 +576,7 @@ export type MenuResepRingkasan = {
   jumlahBahanBumbu: number
   /** Punya >= 1 bahan → stok dilacak otomatis; kalau tidak → mode manual */
   adaResep: boolean
-  /** Punya 1 bahan utama + 1 bumbu (indikator kualitas data) */
+  /** Resep lengkap: Makanan wajib bahan utama + bumbu; kategori lain cukup bahan utama */
   lengkap: boolean
   porsiTersedia: number
   bahanPembatas: string[]
@@ -614,7 +617,8 @@ export async function getDaftarMenuResep(): Promise<MenuResepRingkasan[]> {
         stokQty: Number(r.stokBahan.stokQty),
       })),
       jumlahBahanUtama,
-      jumlahBahanBumbu
+      jumlahBahanBumbu,
+      butuhBumbu(m.kategori?.namaKategori)
     )
 
     return {
@@ -626,7 +630,7 @@ export async function getDaftarMenuResep(): Promise<MenuResepRingkasan[]> {
       jumlahBahanUtama,
       jumlahBahanBumbu,
       adaResep: ketersediaan.adaResep,
-      lengkap: jumlahBahanUtama > 0 && jumlahBahanBumbu > 0,
+      lengkap: ketersediaan.lengkap,
       porsiTersedia: ketersediaan.porsiTersedia,
       bahanPembatas: ketersediaan.bahanPembatas,
       bahan: bahan.map((r) => ({
@@ -675,6 +679,7 @@ export async function saveResepMenu(menuId: number, items: ResepMenuInput[]) {
     await requireOwner()
     const menu = await prisma.menu.findFirst({
       where: { id: menuId, deletedAt: null },
+      include: { kategori: { select: { namaKategori: true } } },
     })
     if (!menu) {
       return { error: "Menu tidak ditemukan" }
@@ -719,10 +724,13 @@ export async function saveResepMenu(menuId: number, items: ResepMenuInput[]) {
     ])
 
     // Kelengkapan cuma berupa peringatan, bukan penolakan.
+    // Makanan wajib bahan utama + bumbu; Minuman/Camilan cukup bahan utama.
+    const wajibBumbu = butuhBumbu(menu.kategori?.namaKategori)
     const kelengkapan = await hitungKelengkapanResep(bahanIds)
     const warning =
-      cleanItems.length > 0 && (kelengkapan.bahanUtama === 0 || kelengkapan.bahanBumbu === 0)
-        ? pesanResepTidakLengkap(kelengkapan)
+      cleanItems.length > 0 &&
+      (kelengkapan.bahanUtama === 0 || (wajibBumbu && kelengkapan.bahanBumbu === 0))
+        ? pesanResepTidakLengkap(kelengkapan, wajibBumbu)
         : undefined
 
     revalidatePath("/dashboard/stok-bahan")

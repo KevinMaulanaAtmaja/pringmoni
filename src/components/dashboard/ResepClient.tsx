@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CookingPot, Search, Trash2, ChefHat, PlusCircle } from 'lucide-react'
+import { CookingPot, Search, Trash2, ChefHat } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,18 +13,23 @@ import {
   type MenuResepRingkasan,
 } from '@/app/actions/stok-bahan'
 import { ResepMenuDialog } from '@/components/dashboard/resep-menu-dialog'
+import { butuhBumbu } from '@/lib/resep'
 
 const satuanLabels: Record<string, string> = {
   kg: 'kg',
   pcs: 'pcs',
   pack: 'pack',
+  bungkus: 'bungkus',
 }
+
+const URUTAN_KATEGORI = ['Makanan', 'Minuman', 'Camilan']
 
 export function ResepClient() {
   const [data, setData] = useState<MenuResepRingkasan[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [onlyLengkap, setOnlyLengkap] = useState(false)
+  const [kategoriFilter, setKategoriFilter] = useState('')
   const [dialogMenu, setDialogMenu] = useState<MenuResepRingkasan | null>(null)
   const [removing, setRemoving] = useState<number | null>(null)
 
@@ -43,9 +48,23 @@ export function ResepClient() {
     load()
   }, [])
 
+  const daftarKategori = useMemo(() => {
+    const set = new Set(data.map((m) => m.kategori || 'Tanpa Kategori'))
+    return Array.from(set).sort((a, b) => {
+      const ia = URUTAN_KATEGORI.indexOf(a)
+      const ib = URUTAN_KATEGORI.indexOf(b)
+      if (ia === -1 && ib === -1) return a.localeCompare(b)
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    })
+  }, [data])
+
   const terfilter = useMemo(() => {
     const q = search.trim().toLowerCase()
     return data.filter((m) => {
+      if (kategoriFilter && (m.kategori || 'Tanpa Kategori') !== kategoriFilter)
+        return false
       if (onlyLengkap && !m.lengkap) return false
       if (q === '') return true
       return (
@@ -53,7 +72,7 @@ export function ResepClient() {
         m.kategori.toLowerCase().includes(q)
       )
     })
-  }, [data, search, onlyLengkap])
+  }, [data, search, onlyLengkap, kategoriFilter])
 
   async function handleRemove(resepBahanId: number) {
     setRemoving(resepBahanId)
@@ -66,17 +85,38 @@ export function ResepClient() {
     }
   }
 
-  const perluDilengkapi = terfilter.filter((m) => m.adaResep && !m.lengkap)
-  const stokManual = terfilter.filter((m) => !m.adaResep)
-  const sudahLengkap = terfilter.filter((m) => m.lengkap)
+  const grupKategori = useMemo(() => {
+    const map = new Map<string, MenuResepRingkasan[]>()
+    for (const m of terfilter) {
+      const k = m.kategori || 'Tanpa Kategori'
+      const arr = map.get(k)
+      if (arr) arr.push(m)
+      else map.set(k, [m])
+    }
+    // Yang perlu dilengkapi tampil dulu, lalu mode manual, terakhir yang sudah lengkap.
+    const rangking = (m: MenuResepRingkasan) =>
+      !m.adaResep ? 1 : !m.lengkap ? 0 : 2
+    for (const arr of map.values()) {
+      arr.sort((a, b) => rangking(a) - rangking(b))
+    }
+    return Array.from(map.entries()).sort((a, b) => {
+      const ia = URUTAN_KATEGORI.indexOf(a[0])
+      const ib = URUTAN_KATEGORI.indexOf(b[0])
+      if (ia === -1 && ib === -1) return a[0].localeCompare(b[0])
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    })
+  }, [terfilter])
 
   function renderKartu(m: MenuResepRingkasan) {
+    const wajibBumbu = butuhBumbu(m.kategori)
     return (
       <Card key={m.id} className="py-3">
         <CardContent className="px-3 py-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <h3 className="text-xs font-semibold text-foreground truncate">
+              <h3 className="text-xs font-semibold text-foreground leading-snug line-clamp-2">
                 {m.namaMenu}
               </h3>
               <p className="text-[10px] text-muted-foreground">{m.kategori}</p>
@@ -101,7 +141,11 @@ export function ResepClient() {
               <Badge
                 variant="outline"
                 className="text-[9px] text-amber-700 border-amber-300 shrink-0"
-                title="Stok tetap dilacak otomatis, tapi idealnya ada 1 bahan utama + 1 bumbu"
+                title={
+                  wajibBumbu
+                    ? 'Menu Makanan idealnya punya 1 bahan utama + 1 bumbu'
+                    : 'Stok dilacak otomatis; menu ini cukup punya bahan utama'
+                }
               >
                 Otomatis · belum lengkap
               </Badge>
@@ -141,9 +185,14 @@ export function ResepClient() {
             <Badge
               variant="secondary"
               className="text-[9px] px-1.5 py-0"
-              title="Jumlah bahan bumbu"
+              title={
+                wajibBumbu
+                  ? 'Jumlah bahan bumbu'
+                  : 'Bumbu opsional untuk kategori ini'
+              }
             >
               Bumbu: {m.jumlahBahanBumbu}
+              {!wajibBumbu && ' (opsional)'}
             </Badge>
           </div>
 
@@ -215,6 +264,28 @@ export function ResepClient() {
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button
+          variant={kategoriFilter === '' ? 'default' : 'outline'}
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => setKategoriFilter('')}
+        >
+          Semua
+        </Button>
+        {daftarKategori.map((k) => (
+          <Button
+            key={k}
+            variant={kategoriFilter === k ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => setKategoriFilter(k)}
+          >
+            {k}
+          </Button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
           {[0, 1, 2, 3].map((i) => (
@@ -241,67 +312,35 @@ export function ResepClient() {
         </Card>
 ) : (
         <div className="space-y-6">
-          {perluDilengkapi.length > 0 && (
-            <section className="space-y-2">
-              <div className="flex items-center gap-2">
-                <PlusCircle className="w-4 h-4 text-amber-600" />
-                <h2 className="text-sm font-semibold text-foreground">
-                  Resepnya Belum Lengkap
-                </h2>
-                <Badge
-                  variant="secondary"
-                  className="text-[10px]"
-                >
-                  {perluDilengkapi.length}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Stok tetap dilacak otomatis. Idealnya tiap menu punya 1 bahan utama
-                dan 1 bahan bumbu.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {perluDilengkapi.map(renderKartu)}
-              </div>
-            </section>
-          )}
-
-          {stokManual.length > 0 && (
-            <section className="space-y-2">
-              <div className="flex items-center gap-2">
-                <CookingPot className="w-4 h-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold text-foreground">
-                  Tanpa Resep (Stok Manual)
-                </h2>
-                <Badge variant="secondary" className="text-[10px]">
-                  {stokManual.length}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Ketersediaan menu ini mengikuti status menu, bukan dihitung dari
-                stok bahan.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {stokManual.map(renderKartu)}
-              </div>
-            </section>
-          )}
-
-          {sudahLengkap.length > 0 && (
-            <section className="space-y-2">
-              <div className="flex items-center gap-2">
-                <ChefHat className="w-4 h-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold text-foreground">
-                  Sudah Punya Resep
-                </h2>
-                <Badge variant="secondary" className="text-[10px]">
-                  {sudahLengkap.length}
-                </Badge>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {sudahLengkap.map(renderKartu)}
-              </div>
-            </section>
-          )}
+          {grupKategori.map(([kategori, menus]) => {
+            const belumLengkap = menus.filter(
+              (m) => m.adaResep && !m.lengkap
+            ).length
+            return (
+              <section key={kategori} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CookingPot className="w-4 h-4 text-muted-foreground" />
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {kategori}
+                  </h2>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {menus.length}
+                  </Badge>
+                  {belumLengkap > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] text-amber-700 border-amber-300"
+                    >
+                      {belumLengkap} belum lengkap
+                    </Badge>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {menus.map(renderKartu)}
+                </div>
+              </section>
+            )
+          })}
         </div>
       )}
 
@@ -312,6 +351,7 @@ export function ResepClient() {
         }}
         menuId={dialogMenu?.id ?? 0}
         namaMenu={dialogMenu?.namaMenu ?? ''}
+        kategoriMenu={dialogMenu?.kategori ?? ''}
         onSaved={load}
       />
     </div>

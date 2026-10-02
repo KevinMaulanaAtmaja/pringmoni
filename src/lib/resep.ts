@@ -19,7 +19,7 @@ export type BahanResepAvailability = {
 export type KetersediaanResep = {
   /** true bila ada minimal 1 bahan aktif → stok dilacak otomatis */
   adaResep: boolean
-  /** true bila resep punya 1 bahan utama + 1 bumbu (indikator kualitas data) */
+  /** true bila resep dianggap lengkap sesuai aturan kategorinya */
   lengkap: boolean
   /** Resep tidak punya bahan cukup untuk 1 porsi pun */
   habis: boolean
@@ -30,15 +30,32 @@ export type KetersediaanResep = {
 }
 
 /**
+ * Aturan kelengkapan resep per kategori menu:
+ * - Makanan: wajib punya bahan utama + bumbu.
+ * - Kategori lain (Minuman, Camilan, dst.): bumbu opsional, cukup bahan utama.
+ *
+ * Dipakai bersama di server (gate pesanan) maupun client (badge & validasi form
+ * resep) supaya aturannya konsisten. Murni — tidak menyentuh database.
+ */
+export function butuhBumbu(kategori: string | null | undefined): boolean {
+  return (kategori ?? '').trim().toLowerCase() === 'makanan'
+}
+
+/**
  * Porsi tersedia = floor(min(stok / jumlah per porsi)).
  * Bahan dengan jumlah per porsi <= 0 diabaikan karena tidak membatasi.
+ *
+ * `wajibBumbu` menentukan apakah bumbu ikut dihitung untuk status `lengkap`.
+ * Default `true` agar pemanggil lama tetap aman; pemanggil sebaiknya mengirim
+ * `butuhBumbu(kategoriMenu)`.
  */
 export function hitungKetersediaanResep(
   bahan: BahanResepAvailability[],
   punyaBahanUtama: number,
-  punyaBahanBumbu: number
+  punyaBahanBumbu: number,
+  wajibBumbu = true
 ): KetersediaanResep {
-  const lengkap = punyaBahanUtama > 0 && punyaBahanBumbu > 0
+  const lengkap = punyaBahanUtama > 0 && (!wajibBumbu || punyaBahanBumbu > 0)
 
   const pembatas = bahan
     .filter((b) => b.jumlahPerPorsi > 0)
