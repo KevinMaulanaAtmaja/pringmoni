@@ -6150,7 +6150,7 @@
       "file_type": "code",
       "norm_label": "handleremove()",
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L62"
+      "source_location": "L77"
     },
     {
       "id": "src_components_dashboard_resepclient_resepclient_load",
@@ -6162,7 +6162,7 @@
       "file_type": "code",
       "norm_label": "load()",
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L35"
+      "source_location": "L36"
     },
     {
       "id": "src_components_dashboard_resepclient_resepclient_renderkartu",
@@ -6174,7 +6174,7 @@
       "file_type": "code",
       "norm_label": "renderkartu()",
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L97"
+      "source_location": "L112"
     },
     {
       "id": "src_components_dashboard_transfer_dapur_dialog_transferdapurdialog_handlesubmit",
@@ -20994,7 +20994,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L65",
+      "source_location": "L80",
       "weight": 1.0
     },
     {
@@ -21006,7 +21006,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L67",
+      "source_location": "L82",
       "weight": 1.0
     },
     {
@@ -21018,19 +21018,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L38",
-      "weight": 1.0
-    },
-    {
-      "source": "src_components_dashboard_resepclient_resepclient_renderkartu",
-      "target": "src_components_dashboard_resepclient_resepclient_handleremove",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L206",
+      "source_location": "L39",
       "weight": 1.0
     },
     {
@@ -21042,7 +21030,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L98",
+      "source_location": "L113",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_dashboard_resepclient_resepclient_renderkartu",
+      "target": "src_components_dashboard_resepclient_resepclient_handleremove",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "src/components/dashboard/ResepClient.tsx",
+      "source_location": "L221",
       "weight": 1.0
     },
     {
@@ -22578,7 +22578,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L35",
+      "source_location": "L36",
       "weight": 1.0
     },
     {
@@ -43220,7 +43220,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L62",
+      "source_location": "L77",
       "weight": 1.0
     },
     {
@@ -46446,7 +46446,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "src/components/dashboard/ResepClient.tsx",
-      "source_location": "L302",
+      "source_location": "L339",
       "weight": 1.0
     }
   ],
