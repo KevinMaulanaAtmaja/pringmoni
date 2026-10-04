@@ -42,10 +42,11 @@ model Meja {
 }
 
 model KategoriMenu {
-  id           Int       @id @default(autoincrement())
-  namaKategori String    @unique @map("nama_kategori")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  deletedAt    DateTime? @map("deleted_at")
+  id           Int        @id @default(autoincrement())
+  namaKategori String     @unique @map("nama_kategori")
+  lokasi       LokasiMenu @default(resto) @map("lokasi")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  deletedAt    DateTime?  @map("deleted_at")
   menus        Menu[]
 
   @@map("kategori_menu")
@@ -203,6 +204,11 @@ enum StatusMenu {
   tersedia
   habis
   nonaktif
+}
+
+enum LokasiMenu {
+  resto
+  cafe
 }
 
 enum StatusPesanan {

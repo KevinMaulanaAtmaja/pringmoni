@@ -54,9 +54,13 @@ export interface Meja {
 
 export type StatusMenu = 'tersedia' | 'habis' | 'nonaktif'
 
+/** Pringmoni mencakup 2 tempat: Resto dan Cafe */
+export type LokasiMenu = 'resto' | 'cafe'
+
 export interface KategoriMenu {
   id: number
   namaKategori: string
+  lokasi: LokasiMenu
 }
 
 export interface Menu {
@@ -80,6 +84,8 @@ export interface CustomerMenu {
   statusMenu: StatusMenu
   fotoUrl: string | null
   menuFoto?: { id: number; fotoUrl: string }[]
+  /** Lokasi asal menu (ikut kategori): resto atau cafe */
+  lokasi?: LokasiMenu
   /** Punya >= 1 bahan di resep → stok dilacak otomatis (mode otomatis) */
   adaResep?: boolean
   /** Resep punya 1 bahan utama + 1 bumbu (indikator kualitas data) */

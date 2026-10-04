@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
-import { Search, ShoppingCart, Camera, X, AlertTriangle } from "lucide-react";
+import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, UtensilsCrossed, ChevronDown, ArrowLeft } from "lucide-react";
 import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
 import { simpanKeranjangCheckout } from "@/lib/checkout-storage";
 import type { CustomerMenu } from "@/types";
@@ -22,13 +22,14 @@ export default function CustomerMenuPage() {
     const tokenMeja = params.tokenMeja as string;
 const [menus, setMenus] = useState<Menu[]>([]);
 const [mejaData, setMejaData] = useState<{ nomorMeja: string; statusMeja: string } | null>(null);
-const [kategoris, setKategoris] = useState<{ id: number; nama: string }[]>([]);
+    const [kategoris, setKategoris] = useState<{ id: number; nama: string; lokasi: "resto" | "cafe" }[]>([]);
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState<string | null>(null);
     const [keranjang, setKeranjang] = useState<KeranjangItem[]>([]);
     const [showToastBerhasil, setShowToastBerhasil] = useState(false);
     const [menuHabisTerhapus, setMenuHabisTerhapus] = useState<string[]>([]);
     const [activeKategori, setActiveKategori] = useState("Semua");
+    const [activeTempat, setActiveTempat] = useState<"resto" | "cafe">("resto");
     const [searchQuery, setSearchQuery] = useState("");
 
     const [voucher, setVoucher] = useState<Voucher | null>(null);
@@ -76,9 +77,14 @@ const [error, setError] = useState<string | null>(null);
                 setMejaData(data.meja);
 
                 setMenus(data.menus);
+                // Kategori yang tampil: Semua, lalu kategori Resto (Camilan,
+                // Makanan, Minuman, ...). Kategori cafe diatur melalui tab Cafe,
+                // tidak sebagai pill terpisah.
                 setKategoris([
-                    { id: 0, nama: "Semua" },
-                    ...data.kategoris.map((kat) => ({ id: kat.id, nama: kat.namaKategori }))
+                    { id: 0, nama: "Semua", lokasi: "resto" as const },
+                    ...data.kategoris
+                        .filter((kat) => kat.lokasi === "resto")
+                        .map((kat) => ({ id: kat.id, nama: kat.namaKategori, lokasi: "resto" as const })),
                 ]);
                 setLoading(false);
             } catch {
@@ -90,9 +96,16 @@ const [error, setError] = useState<string | null>(null);
     }, [tokenMeja]);
 
     const filteredMenu = menus.filter((menu) => {
-        const matchKategori = activeKategori === "Semua" || menu.kategori === activeKategori;
+        const matchTempat =
+            activeTempat === "cafe" ? menu.lokasi === "cafe" : menu.lokasi !== "cafe";
+        const matchKategori =
+            activeTempat === "cafe"
+                ? true
+                : activeKategori === "Semua"
+                ? true
+                : menu.kategori === activeKategori;
         const matchSearch = menu.namaMenu.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchKategori && matchSearch;
+        return matchTempat && matchKategori && matchSearch;
     });
 
     const displayedMenu = filteredMenu.slice(0, itemsToShow);
@@ -477,9 +490,54 @@ return (
                     </Card>
                 )}
 
-                {!loading && !error && (
-                    <>
-                        {mejaTerpakaiWarning && (
+                        {!loading && !error && (
+                            <>
+                                {/* Tab tempat: Resto | Cafe */}
+                                <div className="flex gap-2 mb-4">
+                                    <Button
+                                        variant={activeTempat === "resto" ? "default" : "outline"}
+                                        size="sm"
+                                        className="rounded-full px-5"
+                                        onClick={() => {
+                                            setActiveTempat("resto");
+                                            setActiveKategori("Semua");
+                                            setItemsToShow(12);
+                                        }}
+                                    >
+                                        <Utensils className="size-3.5 mr-1.5" />
+                                        Resto
+                                    </Button>
+                                    <Button
+                                        variant={activeTempat === "cafe" ? "default" : "outline"}
+                                        size="sm"
+                                        className={`rounded-full px-5 ${
+                                            activeTempat === "cafe"
+                                                ? "bg-amber-600 text-white hover:bg-amber-700"
+                                                : "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                                        }`}
+                                        onClick={() => {
+                                            setActiveTempat("cafe");
+                                            setActiveKategori("Semua");
+                                            setItemsToShow(12);
+                                        }}
+                                    >
+                                        <Coffee className="size-3.5 mr-1.5" />
+                                        Cafe
+                                    </Button>
+                                </div>
+
+                                {activeTempat === "cafe" && (
+                                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                                            <Coffee className="size-5 text-amber-700" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-amber-900">Pringmoni Cafe</p>
+                                            <p className="text-xs text-amber-700">Menu khusus cafe — pesan langsung ke meja.</p>
+                                        </div>
+                                    </div>
+                                )}
+                                {mejaTerpakaiWarning && (
                             <Card className="mb-4 border-yellow-400 bg-yellow-50">
                                 <CardContent className="flex items-start gap-3 py-3">
                                     <AlertTriangle className="size-5 text-yellow-600 shrink-0 mt-0.5" />
@@ -508,23 +566,26 @@ return (
                             />
                         </div>
 
-                        {/* Kategori - Pill buttons */}
-                        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                            {kategoris.map((kat) => (
-                                <Button
-                                    key={kat.id}
-                                    variant={activeKategori === kat.nama ? "default" : "outline"}
-                                    size="sm"
-                                    className="rounded-full px-4 shrink-0"
-                                    onClick={() => {
-                                    setActiveKategori(kat.nama);
-                                    setItemsToShow(12);
-                                }}
-                                >
-                                    {kat.nama}
-                                </Button>
-                            ))}
-                        </div>
+                        {/* Kategori - Pill buttons (hanya di tab Resto) */}
+                        {activeTempat === "resto" && (
+                            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                                {kategoris.map((kat) => (
+                                    <Button
+                                        key={kat.id}
+                                        variant={activeKategori === kat.nama ? "default" : "outline"}
+                                        size="sm"
+                                        className="rounded-full px-4 shrink-0"
+                                        onClick={() => {
+                                            setActiveKategori(kat.nama);
+                                            setItemsToShow(12);
+                                        }}
+                                    >
+                                        <UtensilsCrossed className="size-3.5 mr-1.5" />
+                                        {kat.nama}
+                                    </Button>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Menu Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
@@ -548,13 +609,14 @@ return (
 
                         {hasMore && (
                             <div className="mt-4 text-center">
-                                <Button
-                                    variant="outline"
-                                    className="rounded-full px-6"
-                                    onClick={() => setItemsToShow((prev) => prev + 12)}
-                                >
-                                    Tampilkan Lainnya ({filteredMenu.length - itemsToShow} menu)
-                                </Button>
+                                 <Button
+                                     variant="outline"
+                                     className="rounded-full px-6"
+                                     onClick={() => setItemsToShow((prev) => prev + 12)}
+                                 >
+                                     <ChevronDown className="size-4 mr-2" />
+                                     Tampilkan Lainnya ({filteredMenu.length - itemsToShow} menu)
+                                 </Button>
                             </div>
                         )}
 
@@ -562,6 +624,20 @@ return (
                             <Card className="py-12">
                                 <CardContent className="text-center text-muted-foreground">
                                     <p>Menu tidak ditemukan</p>
+                                    {activeTempat === "cafe" && (
+                                        <Button
+                                            variant="ghost"
+                                            className="mt-3 rounded-full"
+                                            onClick={() => {
+                                                setActiveTempat("resto");
+                                                setActiveKategori("Semua");
+                                                setItemsToShow(12);
+                                            }}
+                                        >
+                                            <ArrowLeft className="size-4 mr-2" />
+                                            Lihat Menu Resto
+                                        </Button>
+                                    )}
                                 </CardContent>
                             </Card>
                         )}
