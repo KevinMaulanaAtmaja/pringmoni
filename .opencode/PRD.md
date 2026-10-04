@@ -61,7 +61,7 @@
 | PBI-1.3 | CRUD Meja (token unik) | Done |
 | PBI-1.4 | CRUD Menu (kategori, foto) | Done |
 
-> Catatan PBI-1.4: Menu tidak lagi punya "mode manual" — ketersediaan mengacu pada resep (lihat Modul 7 & 8).
+> Catatan PBI-1.4: Menu tidak lagi punya "mode manual" — ketersediaan mengacu pada resep (lihat Modul 6).
 
 ### Modul 2: Pesanan
 | PBI | Deskripsi | Status |
@@ -70,7 +70,7 @@
 | PBI-2.2 | Kelola Item Pesanan | Done |
 | PBI-2.3 | Status & Pembatalan | Done |
 
-> Catatan PBI-2.1: Pemesanan kini tunduk pada validasi resep & stok dapur — menu wajib punya resep lengkap dan porsi tersedia, jika tidak maka ditolak server (lihat Modul 7 & 8).
+> Catatan PBI-2.1: Pemesanan kini tunduk pada validasi resep & stok dapur — menu wajib punya resep lengkap dan porsi tersedia, jika tidak maka ditolak server (lihat Modul 6).
 
 ### Modul 3: Pembayaran
 | PBI | Deskripsi | Status |
@@ -90,28 +90,48 @@
 | PBI-5.1 | Laporan (harian/bulanan) | Done |
 | PBI-5.2 | Analitik (menu terlaris) | Done |
 
-### Modul 6: Manajemen Stok Bahan
-| PBI | Deskripsi | Status |
-|-----|----------|--------|
-| PBI-6.1 | CRUD Bahan (nama, satuan, kategori, harga/satuan, stok minimum, status stok) | Done |
-| PBI-6.2 | Klasifikasi lokasi stok: Gudang & Dapur | Done |
-| PBI-6.3 | Restock bahan & koreksi/limbah | Done |
-| PBI-6.4 | Transfer bahan Gudang -> Dapur | Done |
-| PBI-6.5 | Riwayat/log pergerakan stok per bahan | Done |
+### Modul 6: Stok, Resep & Ketersediaan Otomatis
+*Gabungan eks Modul 6–8. Detail user story & spesifikasi teknis menyusul.*
 
-### Modul 7: Resep Menu (BOM)
 | PBI | Deskripsi | Status |
 |-----|----------|--------|
-| PBI-7.1 | Rakit resep menu (bahan dapur + jumlah per porsi) | Done |
-| PBI-7.2 | Validasi kelengkapan resep (min. 1 bahan utama + 1 bumbu) | Done |
+| PBI-6.1 | CRUD Bahan + klasifikasi lokasi (Gudang/Dapur) | Done |
+| PBI-6.2 | Restock, koreksi/limbah, transfer Gudang → Dapur | Done |
+| PBI-6.3 | Riwayat pergerakan stok per bahan | Done |
+| PBI-6.4 | Rakit resep menu (BOM) + validasi kelengkapan | Done |
+| PBI-6.5 | Hitung porsi tersedia dari stok dapur | Done |
+| PBI-6.6 | Pengurangan stok dapur otomatis + gate pemesanan | Done |
+| PBI-6.7 | Tampilkan sisa porsi / "Stok Habis" di menu customer | Done |
 
-### Modul 8: Ketersediaan Otomatis
+### Modul 7: Reservasi & Operasional Meja
+*Fitur prioritas. Detail user story & spesifikasi menyusul.*
+
 | PBI | Deskripsi | Status |
 |-----|----------|--------|
-| PBI-8.1 | Hitung porsi tersedia dari stok dapur | Done |
-| PBI-8.2 | Pengurangan stok dapur otomatis saat pesanan dibuat | Done |
-| PBI-8.3 | Gate pemesanan: resep tak lengkap / porsi habis ditolak | Done |
-| PBI-8.4 | Tampilkan sisa porsi / "Stok Habis" di menu customer | Done |
+| PBI-7.1 | Reservasi pesanan (offline) | Todo |
+| PBI-7.2 | Ganti meja (pindah pesanan antar meja) | Todo |
+| PBI-7.3 | Pergantian shift kasir | Todo |
+| PBI-7.4 | Auto-kosongkan meja + pesanan (pesanan selesai / pesanan lama dibayar) | Todo |
+| PBI-7.5 | Refund + bukti foto | Todo |
+
+### Modul 8: Notifikasi, QR & Backup
+*Fitur prioritas. Detail user story & spesifikasi menyusul.*
+
+| PBI | Deskripsi | Status |
+|-----|----------|--------|
+| PBI-8.1 | Download QR meja | Todo |
+| PBI-8.2 | Notifikasi perubahan status pesanan ke customer | Todo |
+| PBI-8.3 | Backup data | Todo |
+
+### Modul 9: Non-Fungsional & Pengujian
+*Fitur prioritas. Detail user story & spesifikasi menyusul.*
+
+| PBI | Deskripsi | Status |
+|-----|----------|--------|
+| PBI-9.1 | Caching | Todo |
+| PBI-9.2 | Realtime | Todo |
+| PBI-9.3 | Pengujian Ramadhan (50 orang) | Todo |
+| PBI-9.4 | Data uji menu (contoh: Abi Coffee) | Todo |
 
 ## 4. Definition of Done
 
