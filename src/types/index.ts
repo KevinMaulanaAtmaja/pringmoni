@@ -109,6 +109,14 @@ export interface CustomerMenu {
   statusMenu: StatusMenu
   fotoUrl: string | null
   menuFoto?: { id: number; fotoUrl: string }[]
+  /** Punya >= 1 bahan di resep → stok dilacak otomatis (mode otomatis) */
+  adaResep?: boolean
+  /** Resep punya 1 bahan utama + 1 bumbu (indikator kualitas data) */
+  resepLengkap?: boolean
+  /** Sisa porsi maksimum dari stok bahan dapur */
+  porsiTersedia?: number
+  /** Bahan yang stoknya paling menentukan porsiTersedia */
+  bahanPembatas?: string[]
 }
 
 export type StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan'
@@ -270,7 +278,7 @@ export interface BandingData {
 
 // Stok Bahan types
 export type KategoriBahan = 'bahan_utama' | 'bumbu'
-export type SatuanStok = 'kg' | 'pcs' | 'pack'
+export type SatuanStok = 'kg' | 'pcs' | 'pack' | 'bungkus'
 export type StatusStok = 'tersedia' | 'menipis' | 'habis'
 export type JenisPerubahanStok = 'restock' | 'penggunaan' | 'koreksi' | 'limbah'
 

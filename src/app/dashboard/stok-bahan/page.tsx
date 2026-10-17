@@ -56,10 +56,18 @@ import {
   Milk,
   Coffee,
   GlassWater,
+  CupSoda,
+  Soup,
+  UtensilsCrossed,
+  Cookie,
+  Croissant,
+  IceCreamBowl,
+  CakeSlice,
   Sparkles,
   Banana,
   Apple,
   CookingPot,
+  ArrowRightLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -73,17 +81,24 @@ import {
   StokBahanWithType,
   RiwayatStokWithType,
 } from '@/app/actions/stok-bahan'
-import { KategoriBahan, SatuanStok, StatusStok } from '@prisma/client'
+import { TransferDapurDialog } from '@/components/dashboard/transfer-dapur-dialog'
+import { KategoriBahan, SatuanStok, StatusStok, LokasiStok } from '@prisma/client'
 
 const kategoriLabels: Record<KategoriBahan, string> = {
   bahan_utama: 'Bahan Utama',
   bumbu: 'Bumbu',
 }
 
+const tipeLabels: Record<LokasiStok, string> = {
+  gudang: 'Gudang',
+  dapur: 'Dapur',
+}
+
 const satuanLabels: Record<SatuanStok, string> = {
   kg: 'kg',
   pcs: 'pcs',
   pack: 'pack',
+  bungkus: 'bungkus',
 }
 
 const statusColors: Record<StatusStok, string> = {
@@ -103,6 +118,8 @@ const jenisPerubahanLabels = {
   penggunaan: 'Penggunaan',
   koreksi: 'Koreksi',
   limbah: 'Limbah',
+  otomatis: 'Otomatis',
+  transfer: 'Transfer',
 } as const
 
 const ITEMS_PER_PAGE = 8
@@ -117,6 +134,144 @@ type BahanLogoConfig = {
 function getBahanLogoConfig(namaBahan: string, kategori?: KategoriBahan): BahanLogoConfig {
   const n = (namaBahan || '').toLowerCase()
 
+  // 0. Bumbu racikan hasil seed: nama "Bumbu <menu>" pakai ikon bumbu.
+  if (n.startsWith('bumbu')) {
+    return {
+      icon: Sparkles,
+      bgColor: 'bg-purple-50',
+      textColor: 'text-purple-500',
+      borderColor: 'border-purple-200',
+    }
+  }
+
+  // 0a. Kopi & turunannya (dicek sebelum susu agar "kopi susu" tetap ikon kopi).
+  if (
+    n.includes('kopi') ||
+    n.includes('coffee') ||
+    n.includes('espresso') ||
+    n.includes('capucino') ||
+    n.includes('cappuccino') ||
+    n.includes('latte')
+  ) {
+    return {
+      icon: Coffee,
+      bgColor: 'bg-amber-50',
+      textColor: 'text-amber-800',
+      borderColor: 'border-amber-200',
+    }
+  }
+
+  // 0b. Minuman dingin/panas & olahan minuman (es, teh, milo, dsb).
+  if (
+    !n.includes('es krim') &&
+    !n.includes('ice cream') &&
+    (/\bes\b/.test(n) ||
+      n.includes('ice') ||
+      n.includes('teh') ||
+      n.includes('tea') ||
+      n.includes('milo') ||
+      n.includes('joshua') ||
+      n.includes('soda') ||
+      n.includes('sirup') ||
+      n.includes('air'))
+  ) {
+    return {
+      icon: CupSoda,
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-500',
+      borderColor: 'border-blue-200',
+    }
+  }
+
+  // 0c. Jus buah.
+  if (n.includes('jus')) {
+    return {
+      icon: GlassWater,
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-500',
+      borderColor: 'border-blue-200',
+    }
+  }
+
+  // 0d. Mie & olahan berkuah.
+  if (
+    n.includes('mie') ||
+    n.includes('noodle') ||
+    n.includes('bihun') ||
+    n.includes('kwetiau') ||
+    n.includes('ramen') ||
+    n.includes('bangladesh')
+  ) {
+    return {
+      icon: Soup,
+      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-500',
+      borderColor: 'border-orange-200',
+    }
+  }
+
+  // 0e. Camilan goreng/kukus.
+  if (
+    n.includes('dimsum') ||
+    n.includes('siomay') ||
+    n.includes('pangsit') ||
+    n.includes('sosis') ||
+    n.includes('kentang') ||
+    n.includes('fries')
+  ) {
+    return {
+      icon: UtensilsCrossed,
+      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-600',
+      borderColor: 'border-orange-200',
+    }
+  }
+  if (
+    n.includes('cireng') ||
+    n.includes('cimol') ||
+    n.includes('keripik') ||
+    n.includes('kerupuk') ||
+    n.includes('singkong')
+  ) {
+    return {
+      icon: Cookie,
+      bgColor: 'bg-amber-50',
+      textColor: 'text-amber-700',
+      borderColor: 'border-amber-200',
+    }
+  }
+  if (n.includes('roti') || n.includes('maryam') || n.includes('croissant')) {
+    return {
+      icon: Croissant,
+      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-600',
+      borderColor: 'border-orange-200',
+    }
+  }
+  if (n.includes('es krim') || n.includes('ice cream')) {
+    return {
+      icon: IceCreamBowl,
+      bgColor: 'bg-pink-50',
+      textColor: 'text-pink-500',
+      borderColor: 'border-pink-200',
+    }
+  }
+  if (
+    n.includes('kue') ||
+    n.includes('cake') ||
+    n.includes('puding') ||
+    n.includes('brownies') ||
+    n.includes('donat') ||
+    n.includes('donut')
+  ) {
+    return {
+      icon: CakeSlice,
+      bgColor: 'bg-rose-50',
+      textColor: 'text-rose-500',
+      borderColor: 'border-rose-200',
+    }
+  }
+
   // 1. Sayuran, Daun & Bumbu Segar (Cek dedaunan/sayuran dulu agar 'bayam' tidak tertukar dengan 'ayam')
   if (
     n.includes('bayam') ||
@@ -128,6 +283,8 @@ function getBahanLogoConfig(namaBahan: string, kategori?: KategoriBahan): BahanL
     n.includes('kol') ||
     n.includes('tomat') ||
     n.includes('timun') ||
+    n.includes('tauge') ||
+    n.includes('capcay') ||
     n.includes('sayur')
   ) {
     return {
@@ -179,7 +336,12 @@ function getBahanLogoConfig(namaBahan: string, kategori?: KategoriBahan): BahanL
   }
 
   // 2. Telur & Makanan Laut
-  if (n.includes('telur') || n.includes('telor') || n.includes('egg')) {
+  if (
+    (n.includes('telur') || n.includes('telor') || n.includes('egg')) &&
+    !n.includes('udang') &&
+    !n.includes('seafood') &&
+    !n.includes('cumi')
+  ) {
     return {
       icon: Egg,
       bgColor: 'bg-amber-50',
@@ -458,6 +620,7 @@ function BahanLogo({
 }
 
 const emptyForm = {
+  tipe: 'gudang' as LokasiStok,
   namaBahan: '',
   kategori: 'bahan_utama' as KategoriBahan,
   stokQty: '0',
@@ -468,6 +631,7 @@ const emptyForm = {
 }
 
 export default function StokBahanPage() {
+  const [activeTipe, setActiveTipe] = useState<LokasiStok>('gudang')
   const [items, setItems] = useState<StokBahanWithType[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -489,6 +653,11 @@ export default function StokBahanPage() {
   const [history, setHistory] = useState<RiwayatStokWithType[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
 
+  // Transfer Gudang -> Dapur dialog
+  const [transferItem, setTransferItem] = useState<StokBahanWithType | null>(
+    null
+  )
+
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -505,7 +674,7 @@ export default function StokBahanPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [activeTipe])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -514,7 +683,7 @@ export default function StokBahanPage() {
   async function loadData() {
     setLoading(true)
     try {
-      const data = await getStokBahanList()
+      const data = await getStokBahanList(activeTipe)
       setItems(data)
     } catch {
       setItems([])
@@ -528,6 +697,7 @@ export default function StokBahanPage() {
     if (item) {
       setEditingId(item.id)
       setForm({
+        tipe: item.tipe,
         namaBahan: item.namaBahan,
         kategori: item.kategori,
         stokQty: String(item.stokQty),
@@ -538,7 +708,7 @@ export default function StokBahanPage() {
       })
     } else {
       setEditingId(null)
-      setForm({ ...emptyForm })
+      setForm({ ...emptyForm, tipe: activeTipe })
     }
     setIsOpen(true)
   }
@@ -555,6 +725,7 @@ export default function StokBahanPage() {
       }
 
       const payload = {
+        tipe: form.tipe,
         namaBahan: cleanName,
         kategori: form.kategori,
         stokQty: parseFloat(form.stokQty) || 0,
@@ -639,7 +810,7 @@ export default function StokBahanPage() {
   async function handleResetConfirm() {
     setResetting(true)
     try {
-      const result = await resetAllStokBahan()
+      const result = await resetAllStokBahan(activeTipe)
       if (result?.error) {
         alert(result.error)
         return
@@ -768,6 +939,20 @@ export default function StokBahanPage() {
 
       {/* Filters Toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div className="flex items-center gap-1 rounded-lg border p-0.5 w-full sm:w-auto">
+          {(Object.keys(tipeLabels) as LokasiStok[]).map((value) => (
+            <Button
+              key={value}
+              type="button"
+              size="sm"
+              variant={activeTipe === value ? 'default' : 'ghost'}
+              onClick={() => setActiveTipe(value)}
+              className="h-7 flex-1 sm:flex-none text-xs"
+            >
+              {tipeLabels[value]}
+            </Button>
+          ))}
+        </div>
         <Input
           placeholder="Cari bahan..."
           value={search}
@@ -897,6 +1082,17 @@ export default function StokBahanPage() {
                         >
                           <PackagePlus className="w-3.5 h-3.5" />
                         </Button>
+                        {item.tipe === 'gudang' && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                            title="Pindahkan ke Dapur"
+                            onClick={() => setTransferItem(item)}
+                          >
+                            <ArrowRightLeft className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="icon"
@@ -1026,6 +1222,17 @@ export default function StokBahanPage() {
                   <PackagePlus className="w-3.5 h-3.5" />
                   Restock
                 </Button>
+                {item.tipe === 'gudang' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs px-2.5 gap-1 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                    onClick={() => setTransferItem(item)}
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                    Ke Dapur
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -1101,6 +1308,24 @@ export default function StokBahanPage() {
                 onChange={(e) => setForm({ ...form, namaBahan: e.target.value })}
                 required
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tipe">Lokasi Stok</Label>
+              <Select
+                value={form.tipe}
+                onValueChange={(value) => setForm({ ...form, tipe: value as LokasiStok })}
+              >
+                <SelectTrigger id="tipe">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(tipeLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="kategori">Kategori</Label>
@@ -1361,6 +1586,16 @@ export default function StokBahanPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Transfer Gudang -> Dapur Dialog */}
+      <TransferDapurDialog
+        open={transferItem != null}
+        onOpenChange={(open) => {
+          if (!open) setTransferItem(null)
+        }}
+        item={transferItem}
+        onDone={loadData}
+      />
     </div>
   )
 }

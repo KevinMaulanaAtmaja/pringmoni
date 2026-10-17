@@ -45,7 +45,7 @@ export async function createLog(
     await prisma.logs.create({
       data: {
         userId,
-        aksi: aksi as any,
+        aksi,
         keterangan,
         ipAddress: ip,
       },
@@ -65,7 +65,7 @@ export async function createLogNoSession(
     await prisma.logs.create({
       data: {
         userId,
-        aksi: aksi as any,
+        aksi,
         keterangan,
         ipAddress: ip || null,
       },

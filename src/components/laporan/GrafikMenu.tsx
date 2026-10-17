@@ -47,7 +47,7 @@ export function GrafikMenu({ data, loading }: { data: MenuTerlaris[]; loading: b
 
   const chartData = top10.map(d => ({
     ...d,
-    namaPendek: d.namaMenu.length > 20 ? d.namaMenu.slice(0, 19) + ".." : d.namaMenu,
+    namaPendek: d.namaMenu.length > 34 ? d.namaMenu.slice(0, 32) + ".." : d.namaMenu,
   })).reverse()
 
   return (
@@ -70,7 +70,7 @@ export function GrafikMenu({ data, loading }: { data: MenuTerlaris[]; loading: b
                 tick={{ fontSize: 10, fill: "#555" }}
                 axisLine={false}
                 tickLine={false}
-                width={140}
+                width={200}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
               <Bar dataKey="totalTerjual" radius={[0, 4, 4, 0]} barSize={20}>

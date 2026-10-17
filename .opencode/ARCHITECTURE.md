@@ -29,10 +29,23 @@ Dokumen ini menjelaskan **arsitektur teknis** dari **Pringmoni Resto POS & Monit
 | Users | Akun (owner, cashier, waiter) | - |
 | Meja | Meja restoran + token QR | - |
 | Menu | Menu makanan/minuman | -> KategoriMenu |
+| MenuFoto | Foto menu (multi-gambar) | -> Menu |
 | KategoriMenu | Kategori menu | - |
 | Pesanan | Pesanan customer | -> Users, Meja, DetailPesanan |
 | DetailPesanan | Item dalam pesanan | -> Pesanan, Menu |
+| StokBahan | Master bahan: lokasi (gudang/dapur), kategori, satuan, stok, minimum, harga, status | -> RiwayatStok, ResepMenu |
+| RiwayatStok | Log pergerakan stok (sebelum/sesudah, jenis, keterangan, user) | -> StokBahan, Users |
+| ResepMenu | Komposisi menu (bahan dapur + jumlah per porsi) | -> Menu, StokBahan |
 | Logs | Log aktivitas | - |
+
+### Enums (stok & resep)
+| Enum | Nilai |
+|------|-------|
+| LokasiStok | gudang, dapur |
+| KategoriBahan | bahan_utama, bumbu |
+| SatuanStok | kg, pcs, pack, bungkus |
+| StatusStok | tersedia, menipis, habis |
+| JenisPerubahanStok | restock, penggunaan, koreksi, limbah, otomatis, transfer |
 
 ## 3. Route Structure
 
@@ -48,6 +61,8 @@ src/app/
 │   ├── pesanan/page.tsx             # Kelola pesanan
 │   ├── kasir/page.tsx               # Kasir
 │   ├── menu/page.tsx                # Kelola menu
+│   ├── resep/page.tsx               # Resep menu (BOM)
+│   ├── stok-bahan/page.tsx          # Kelola stok bahan (gudang/dapur)
 │   ├── meja/page.tsx                # Kelola meja
 │   ├── user/page.tsx                # Kelola user
 │   └── laporan/page.tsx             # Laporan
@@ -60,6 +75,7 @@ src/app/
 |------|--------|
 | `src/app/actions/meja.ts` | getMejas, createMeja, updateMeja, getMejaByToken |
 | `src/app/actions/menu.ts` | getMenus, createMenu, updateMenu, deleteMenu |
+| `src/app/actions/stok-bahan.ts` | getStokBahanList, createStokBahan, updateStokBahan, deleteStokBahan, restockBahan, transferStokBahan, getRiwayatStok, getDaftarMenuResep, getResepMenu, saveResepMenu |
 | `src/app/actions/pesanan.ts` | getPesanan, createPesanan, updateStatusPesanan, prosesPembayaran |
 
 ## 5. Auth Flow
@@ -85,3 +101,13 @@ Customer Order -> Server Action -> Pusher Event -> Dashboard Update
 ```
 Checkout -> Midtrans (QRIS/Transfer/VA) -> Callback -> Update Status -> Struk PDF
 ```
+
+## 8. Stock & Availability Flow
+
+```
+Gudang --transfer--> Dapur --resep--> porsiTersedia --pesanan--> potong stok dapur (RiwayatStok)
+```
+
+- Ketersediaan menu mengacu pada **resep** (bahan dapur), bukan `statusMenu` manual.
+- `porsiTersedia = floor(min(stok dapur / jumlah per porsi))`; menu wajib punya **bahan utama + bumbu** (resep lengkap).
+- Resep tak lengkap / `porsiTersedia <= 0` -> menu tampil di kiosk customer tetapi **tidak bisa dipesan** (gate di `createPesanan`).

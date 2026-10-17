@@ -5,13 +5,12 @@
   // Untuk mengaktifkan kembali: rename .opencode/plugin/auto-format.ts.disabled -> auto-format.ts
   "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
   "instructions": ["AGENTS.md"],
-  "default_agent": "orchestrator",
+  "default_agent": "build",
   "autoupdate": false,
   "subagent_depth": 1,
   "agent": {
     "orchestrator": {
-      "color": "success",
-      "steps": 30
+      "disable": true
     },
     "build": {
       "color": "#7C3AED",

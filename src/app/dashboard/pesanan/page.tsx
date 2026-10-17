@@ -28,6 +28,7 @@ import {
 import { useUserRole } from "@/lib/user-context"
 import { printStruk } from "@/lib/print-struk"
 import { useNotification } from "@/hooks/use-notification"
+import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 
 const statusColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
@@ -268,9 +269,11 @@ export default function PesananPage() {
   }, [])
 
   useEffect(() => {
-    const interval = setInterval(pollDataAktif, 5000)
+    const interval = setInterval(pollDataAktif, 30000)
     return () => clearInterval(interval)
   }, [pollDataAktif])
+
+  useOrdersRealtime(pollDataAktif)
 
   // Deteksi pesanan yang baru dibayar untuk notifikasi suara
   useEffect(() => {

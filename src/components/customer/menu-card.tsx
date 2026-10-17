@@ -28,6 +28,12 @@ interface Menu {
   kategori: string;
   statusMenu: "tersedia" | "habis" | "nonaktif";
   jumlahDipesan?: number;
+  /** Punya >= 1 bahan di resep → stok dilacak otomatis */
+  adaResep?: boolean;
+  /** Resep lengkap sesuai kategori: Makanan butuh bahan utama + bumbu, lainnya cukup bahan utama */
+  resepLengkap?: boolean;
+  porsiTersedia?: number;
+  bahanPembatas?: string[];
 }
 
 interface MenuCardProps {
@@ -38,10 +44,28 @@ interface MenuCardProps {
 }
 
 export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardProps) {
-  const isDisabled = menu.statusMenu !== "tersedia";
+  const stockHabis = menu.statusMenu !== "tersedia";
+  // Ketersediaan mengacu pada resep: menu hanya bisa dipesan bila resepnya
+  // lengkap sesuai kategorinya (Makanan: bahan utama + bumbu; Minuman/Camilan:
+  // cukup bahan utama). Resep kosong / tidak lengkap tetap tampil sebagai card,
+  // tapi tidak bisa dipesan.
+  const resepLengkap = menu.resepLengkap ?? false;
+  const resepTidakSiap = !resepLengkap;
+  const adaResep = menu.adaResep ?? false;
+  const diKeranjang = Math.max(0, jumlahDipesan ?? 0);
+  const porsiTersedia = Math.max(0, (menu.porsiTersedia ?? 0) - diKeranjang);
+  // Porsi 0 (stok bahan dapur habis) juga membuat menu tidak bisa dipesan.
+  const bahanHabis = adaResep && porsiTersedia <= 0;
+  const isDisabled = stockHabis || resepTidakSiap || bahanHabis;
   const [jumlah, setJumlah] = useState(1);
   const [catatan, setCatatan] = useState("");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  // Jumlah per porsi tidak boleh melebihi sisa porsi yang tersedia, jadi
+  // nilainya diderivate langsung (tidak perlu efek untuk menjepit).
+  const jumlahValid = bahanHabis ? 1 : Math.min(jumlah, Math.max(1, porsiTersedia));
+  // Angka "sisa porsi" di dialog ikut turun tiap kali tombol + ditekan,
+  // karena porsi yang sedang dipilih sudah dianggap terpakai.
+  const porsiSetelahTambah = Math.max(0, porsiTersedia - jumlahValid);
 
   // Use menuFoto for slider, fallback to fotoUrl
   const allImages = menu.menuFoto && menu.menuFoto.length > 0
@@ -65,7 +89,8 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
   };
 
   const handleTambah = () => {
-    onTambah?.(menu, jumlah, catatan || null);
+    if (isDisabled) return;
+    onTambah?.(menu, jumlahValid, catatan || null);
     handleReset();
     onSuccess();
   };
@@ -74,10 +99,10 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
     <Dialog onOpenChange={(open) => !open && handleReset()}>
       <DialogTrigger asChild>
         <div
-          className={`bg-card rounded-2xl overflow-hidden border transition-all ${
+          className={`bg-card rounded-2xl overflow-hidden border transition-all cursor-pointer ${
             isDisabled
-              ? "opacity-60 pointer-events-none"
-              : "hover:shadow-lg hover:border-primary/20 active:scale-95 cursor-pointer"
+              ? "opacity-60"
+              : "hover:shadow-lg hover:border-primary/20 active:scale-95"
           }`}
         >
           {/* Image */}
@@ -97,9 +122,17 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
             {isDisabled && (
               <Badge
                 variant="secondary"
-                className="absolute top-2 right-2 rounded-full text-xs"
+                className="absolute top-2 right-2 rounded-full bg-destructive/10 text-xs text-destructive"
               >
-                Habis
+                {bahanHabis ? "Stok Habis" : "Habis"}
+              </Badge>
+            )}
+            {!isDisabled && adaResep && (
+              <Badge
+                variant="outline"
+                className="absolute top-2 right-2 rounded-full border-primary/40 bg-background/90 text-[11px] font-semibold text-primary backdrop-blur-sm"
+              >
+                Sisa {porsiTersedia} porsi
               </Badge>
             )}
             {jumlahDipesan !== undefined && jumlahDipesan > 0 && (
@@ -118,10 +151,10 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
         </div>
       </DialogTrigger>
 
-      <DialogContent className="max-w-sm rounded-3xl overflow-hidden p-0 gap-0" showCloseButton={true} onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent className="max-h-[92dvh] max-w-sm rounded-3xl overflow-hidden p-0 gap-0 grid grid-rows-[auto_minmax(0,1fr)]" showCloseButton={true} onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogTitle className="sr-only">{menu.namaMenu}</DialogTitle>
         {/* Image Slider */}
-        <div className="aspect-video w-full bg-muted flex items-center justify-center rounded-t-3xl relative">
+        <div className="aspect-video w-full bg-muted flex items-center justify-center rounded-t-3xl relative shrink-0">
           {allImages.length > 0 ? (
             <>
               <Image
@@ -169,9 +202,34 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
           )}
         </div>
 
-        <div className="p-5 pt-4">
+        <div className="p-5 pt-4 overflow-y-auto min-h-0">
           {/* Title & Price */}
-          <h3 className="font-bold text-lg">{menu.namaMenu}</h3>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-bold text-lg">{menu.namaMenu}</h3>
+            {(adaResep || isDisabled) && (
+              <Badge
+                variant="outline"
+                title={
+                  isDisabled
+                    ? "Menu ini sedang tidak dapat dipesan"
+                    : "Sisa porsi setelah pesanan ini ditambahkan"
+                }
+                className={
+                  isDisabled
+                    ? "shrink-0 text-destructive border-destructive/40"
+                    : porsiTersedia <= 5
+                      ? "shrink-0 text-amber-700 border-amber-300"
+                      : "shrink-0 text-primary border-primary/40"
+                }
+              >
+                {isDisabled
+                  ? bahanHabis
+                    ? "Stok Habis"
+                    : "Habis"
+                  : `Sisa ${porsiSetelahTambah} porsi`}
+              </Badge>
+            )}
+          </div>
           <p className="text-primary font-bold text-xl mt-1">
             Rp {menu.harga.toLocaleString("id-ID")}
           </p>
@@ -179,48 +237,76 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
             <p className="text-sm text-muted-foreground mt-2">{menu.deskripsi}</p>
           )}
 
-          {/* Catatan */}
-          <div className="mt-4">
-            <p className="text-sm font-medium mb-2">Catatan (opsional)</p>
-            <input
-              type="text"
-              placeholder="Contoh: tanpa bawang, extra mayo..."
-              className="w-full px-3 py-2 text-sm rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              value={catatan}
-              onChange={(e) => setCatatan(e.target.value)}
-            />
-          </div>
+          {adaResep && (menu.bahanPembatas?.length ?? 0) > 0 && (
+            <p className="text-xs text-muted-foreground mt-3">
+              Stok bahan terbatas: {menu.bahanPembatas?.join(", ")}
+            </p>
+          )}
 
-          {/* Jumlah & Tombol */}
-          <div className="mt-5 flex items-center gap-3">
-            {/* Quantity Control */}
-            <div className="flex items-center gap-2 bg-muted rounded-full px-2 py-1">
-              <button
-                onClick={() => setJumlah(Math.max(1, jumlah - 1))}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-background transition-colors"
-              >
-                <Minus className="size-4" />
-              </button>
-              <span className="font-bold w-6 text-center">{jumlah}</span>
-              <button
-                onClick={() => setJumlah(jumlah + 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-background transition-colors"
-              >
-                <Plus className="size-4" />
-              </button>
+          {isDisabled ? (
+            /* Menu habis: tidak ada kontrol pemesanan sama sekali */
+            <div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-center">
+              <p className="text-sm font-semibold text-destructive">
+                {bahanHabis ? "Stok Habis" : "Menu Habis"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {bahanHabis
+                  ? "Bahan untuk menu ini sedang habis. Silakan pilih menu lain."
+                  : "Menu ini sedang tidak tersedia. Silakan pilih menu lain."}
+              </p>
             </div>
+          ) : (
+            <>
+              {/* Catatan */}
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2">Catatan (opsional)</p>
+                <input
+                  type="text"
+                  placeholder="Contoh: tanpa bawang, extra mayo..."
+                  className="w-full px-3 py-2 text-sm rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={catatan}
+                  onChange={(e) => setCatatan(e.target.value)}
+                />
+              </div>
 
-            {/* Tombol Tambah */}
-            <DialogClose asChild>
-              <Button
-                className="flex-1 rounded-full h-11"
-                onClick={handleTambah}
-                disabled={isDisabled}
-              >
-                Tambah Rp {(menu.harga * jumlah).toLocaleString("id-ID")}
-              </Button>
-            </DialogClose>
-          </div>
+              {/* Jumlah & Tombol */}
+              <div className="mt-5 flex items-center gap-3">
+                {/* Quantity Control */}
+                <div className="flex items-center gap-2 bg-muted rounded-full px-2 py-1">
+                  <button
+                    onClick={() => setJumlah(Math.max(1, jumlahValid - 1))}
+                    disabled={jumlahValid <= 1}
+                    className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-background transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Minus className="size-4" />
+                  </button>
+                  <span className="font-bold w-6 text-center">{jumlahValid}</span>
+                  <button
+                    onClick={() => setJumlah(jumlahValid + 1)}
+                    disabled={adaResep && jumlahValid >= porsiTersedia}
+                    className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-background transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={
+                      adaResep && jumlahValid >= porsiTersedia
+                        ? `Maksimal ${porsiTersedia} porsi sesuai stok bahan`
+                        : undefined
+                    }
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </div>
+
+                {/* Tombol Tambah */}
+                <DialogClose asChild>
+                  <Button
+                    className="flex-1 rounded-full h-11"
+                    onClick={handleTambah}
+                  >
+                    Tambah Rp {(menu.harga * jumlahValid).toLocaleString("id-ID")}
+                  </Button>
+                </DialogClose>
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

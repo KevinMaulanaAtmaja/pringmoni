@@ -4,6 +4,7 @@ import { getDashboardStats, getDashboardCharts, getStaleOrders, autoCancelStaleU
 import { StatGrid } from "@/components/dashboard/StatGrid"
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts"
 import { StaleOrdersWarning } from "@/components/dashboard/StaleOrdersWarning"
+import { DashboardRealtimeRefresh } from "@/components/dashboard/DashboardRealtimeRefresh"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -14,14 +15,12 @@ export default async function DashboardPage() {
 
   const role = session.user.role
 
-  if (role !== 'owner') {
-    try {
-      const { cancelled } = await autoCancelStaleUnpaid()
-      if (cancelled > 0) {
-        console.log(`Auto-cancelled ${cancelled} stale unpaid orders`)
-      }
-    } catch {}
-  }
+  try {
+    const { cancelled } = await autoCancelStaleUnpaid()
+    if (cancelled > 0) {
+      console.log(`Auto-cancelled ${cancelled} stale unpaid orders`)
+    }
+  } catch {}
 
   let stats
   try {
@@ -64,6 +63,7 @@ export default async function DashboardPage() {
       {role !== 'owner' && <StaleOrdersWarning orders={staleOrders} />}
       <StatGrid stats={stats} role={role} />
       <DashboardCharts charts={charts} />
+      <DashboardRealtimeRefresh />
     </div>
   )
 }

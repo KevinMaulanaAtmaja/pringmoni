@@ -27,6 +27,7 @@ const [loading, setLoading] = useState(true);
 const [error, setError] = useState<string | null>(null);
     const [keranjang, setKeranjang] = useState<KeranjangItem[]>([]);
     const [showToastBerhasil, setShowToastBerhasil] = useState(false);
+    const [menuHabisTerhapus, setMenuHabisTerhapus] = useState<string[]>([]);
     const [activeKategori, setActiveKategori] = useState("Semua");
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -114,15 +115,28 @@ const [error, setError] = useState<string | null>(null);
     const totalHarga = effectiveVoucher ? subtotal - effectiveVoucher.potongan : subtotal;
 
     const tambahKeranjang = (menu: Menu, jumlah: number = 1, catatan: string | null = null) => {
+        // Jaring pengaman: menu habis / resep belum lengkap / porsi habis
+        // tidak boleh masuk keranjang, meski data di dialog sudah basi.
+        if (menu.statusMenu !== "tersedia") return;
+        if (!menu.resepLengkap) return;
+        if (menu.adaResep && (menu.porsiTersedia ?? 0) <= 0) return;
         setKeranjang((prev) => {
+            // Total porsi menu ini yang sudah ada di keranjang (semua catatan),
+            // supaya tidak melebihi sisa porsi meski dipecah jadi beberapa catatan.
+            const terpakai = prev
+                .filter((item) => item.id === menu.id)
+                .reduce((sum, item) => sum + item.jumlah, 0);
+            const maksTambah = menu.adaResep ? Math.max(1, (menu.porsiTersedia ?? 0) - terpakai) : jumlah;
+            const jumlahFinal = Math.min(jumlah, maksTambah);
+
             // Cek jika ada item dengan menu yang sama dan catatan yang sama
             const existing = prev.find((item) => item.id === menu.id && item.catatan === catatan);
             if (existing) {
                 return prev.map((item) =>
-                    item.id === menu.id && item.catatan === catatan ? { ...item, jumlah: item.jumlah + jumlah } : item,
+                    item.id === menu.id && item.catatan === catatan ? { ...item, jumlah: item.jumlah + jumlahFinal } : item,
                 );
             }
-            return [...prev, { ...menu, jumlah, catatan }];
+            return [...prev, { ...menu, jumlah: jumlahFinal, catatan }];
         });
     };
 
@@ -134,21 +148,76 @@ const [error, setError] = useState<string | null>(null);
     const updateJumlah = (key: string, jumlah: number) => {
         if (jumlah <= 0) {
             setKeranjang((prev) => prev.filter((item) => `${item.id}-${item.catatan || "no-note"}` !== key));
-        } else {
-            setKeranjang((prev) =>
-                prev.map((item) => (`${item.id}-${item.catatan || "no-note"}` === key ? { ...item, jumlah } : item)),
-            );
+            return;
         }
+        setKeranjang((prev) =>
+            prev.map((item) => {
+                if (`${item.id}-${item.catatan || "no-note"}` !== key) return item;
+                // Jangan melebihi sisa porsi dari resep bahan (mode otomatis).
+                const maks = item.adaResep ? item.porsiTersedia ?? 0 : jumlah;
+                return { ...item, jumlah: Math.min(jumlah, Math.max(maks, 1)) };
+            }),
+        );
     };
 
     const hapusDariKeranjang = (key: string) => {
         setKeranjang((prev) => prev.filter((item) => `${item.id}-${item.catatan || "no-note"}` !== key));
     };
 
-    const handleCheckout = () => {
+    const handleCheckout = async () => {
         if (keranjang.length === 0) return;
-        simpanKeranjangCheckout(keranjang);
-        router.push(`/${tokenMeja}/checkout`);
+
+        // Validasi ulang stok terbaru sebelum masuk checkout: menu yang sudah
+        // habis dibuang dari keranjang supaya customer tidak bisa pesan.
+        try {
+            const data = await getCustomerMenuData(tokenMeja);
+            const menuMap = new Map(data.menus.map((m) => [m.id, m]));
+            const keranjangValid: KeranjangItem[] = [];
+            const dihapus: string[] = [];
+
+            for (const item of keranjang) {
+                const menu = menuMap.get(item.id);
+                const porsi = menu?.porsiTersedia ?? 0;
+                const habis =
+                    !menu ||
+                    menu.statusMenu !== "tersedia" ||
+                    menu.resepLengkap !== true ||
+                    (menu.adaResep === true && porsi <= 0);
+
+                if (habis) {
+                    dihapus.push(item.namaMenu);
+                    continue;
+                }
+
+                const maks = menu.adaResep === true ? porsi : item.jumlah;
+                const jumlahBaru = Math.min(item.jumlah, Math.max(1, maks));
+                keranjangValid.push({
+                    ...item,
+                    jumlah: jumlahBaru,
+                    adaResep: menu.adaResep,
+                    porsiTersedia: porsi,
+                });
+            }
+
+            if (dihapus.length > 0) {
+                setMenuHabisTerhapus(dihapus);
+                setTimeout(() => setMenuHabisTerhapus([]), 4000);
+            }
+
+            if (keranjangValid.length === 0) {
+                setKeranjang([]);
+                return;
+            }
+
+            setKeranjang(keranjangValid);
+            simpanKeranjangCheckout(keranjangValid);
+            router.push(`/${tokenMeja}/checkout`);
+        } catch {
+            // Jika validasi daring gagal, tetap lanjut — createPesanan tetap
+            // jadi gerbang terakhir di server.
+            simpanKeranjangCheckout(keranjang);
+            router.push(`/${tokenMeja}/checkout`);
+        }
     };
 
     const startScanner = async () => {
@@ -469,8 +538,11 @@ return (
                         {/* Menu Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                             {displayedMenu.map((menu) => {
-                                const itemKeranjang = keranjang.find((k) => k.id === menu.id);
-                                const jumlahDipesan = itemKeranjang?.jumlah || 0;
+                                // Jumlah di keranjang dijumlahkan dari semua baris
+                                // (menu yang sama bisa punya catatan berbeda).
+                                const jumlahDipesan = keranjang
+                                    .filter((k) => k.id === menu.id)
+                                    .reduce((sum, k) => sum + k.jumlah, 0);
                                 return (
                                     <MenuCard
                                         key={menu.id}
@@ -534,6 +606,21 @@ return (
                     <Card className="bg-primary text-primary-foreground shadow-lg py-2 px-3 rounded-full">
                         <CardContent className="flex items-center gap-2 p-0">
                             <span className="text-xs">Menu ditambahkan</span>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {/* Toast Menu Habis Dihapus dari Keranjang */}
+            {menuHabisTerhapus.length > 0 && (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-2">
+                    <Card className="bg-destructive text-destructive-foreground shadow-lg py-2 px-3 rounded-full">
+                        <CardContent className="flex items-center gap-2 p-0">
+                            <span className="text-xs">
+                                {menuHabisTerhapus.length === 1
+                                    ? `${menuHabisTerhapus[0]} habis dan dihapus dari keranjang`
+                                    : `${menuHabisTerhapus.length} menu habis dan dihapus dari keranjang`}
+                            </span>
                         </CardContent>
                     </Card>
                 </div>

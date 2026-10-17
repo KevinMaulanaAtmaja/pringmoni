@@ -203,7 +203,7 @@ function renderAllPages(doc: jsPDF, data: StrukData, mg: number): number {
   centerText(doc, sepLine, y, 11)
   y += 8
 
-  y = renderStruk(doc, data, y, false, true, mg)
+  y = renderStruk(doc, data, y, true, false, mg)
 
   const footerY = y + 5
   centerText(doc, is58 ? "=".repeat(14) : "=".repeat(24), footerY, 9)

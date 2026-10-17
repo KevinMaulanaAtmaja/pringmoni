@@ -36,6 +36,7 @@ import {
   ChevronRight,
   ImageIcon,
   Upload,
+  CookingPot,
 } from 'lucide-react';
 
 import {
@@ -57,6 +58,8 @@ import {
   deleteMenuFoto,
   getMenuFotos,
 } from '@/app/actions/menu-foto';
+
+import { ResepMenuDialog } from '@/components/dashboard/resep-menu-dialog';
 
 import { useUploadThing } from '@/lib/uploadthing-client';
 
@@ -89,6 +92,11 @@ export default function MenuPage() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  // Resep bahan states
+  const [isResepOpen, setIsResepOpen] = useState(false);
+  const [resepMenuId, setResepMenuId] = useState<number | null>(null);
+  const [resepNamaMenu, setResepNamaMenu] = useState('');
 
   const [loading, setLoading] = useState(true);
 
@@ -313,6 +321,12 @@ export default function MenuPage() {
     setUploadedFotoUrls([]);
     setUploadedFileKeys([]);
     setIsOpen(true);
+  }
+
+  function openResepDialog(menuId: number, namaMenu: string) {
+    setResepMenuId(menuId);
+    setResepNamaMenu(namaMenu);
+    setIsResepOpen(true);
   }
 
   async function loadMenuFotos(menuId: number) {
@@ -755,6 +769,10 @@ export default function MenuPage() {
               </TableHead>
 
               <TableHead className="h-9">
+                Ketersediaan
+              </TableHead>
+
+              <TableHead className="h-9">
                 Harga
               </TableHead>
 
@@ -817,7 +835,7 @@ export default function MenuPage() {
             ) : paginatedMenus.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center py-4"
                 >
                   {search ||
@@ -929,6 +947,46 @@ export default function MenuPage() {
                       }
                     </TableCell>
 
+                    <TableCell className="py-2">
+                      {!menu.adaResep ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-gray-500 border-gray-300"
+                          title="Belum punya resep — ketersediaan mengikuti status menu"
+                        >
+                          Stok manual
+                        </Badge>
+                      ) : (menu.porsiTersedia ?? 0) <= 0 ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-red-700 border-red-300"
+                          title={`Stok bahan habis${
+                            menu.bahanPembatas?.length
+                              ? `: ${menu.bahanPembatas.join(', ')}`
+                              : ''
+                          }`}
+                        >
+                          Stok habis
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${
+                            (menu.porsiTersedia ?? 0) <= 5
+                              ? 'text-amber-700 border-amber-300'
+                              : 'text-emerald-700 border-emerald-300'
+                          }`}
+                          title={`Stok bahan cukup untuk ${menu.porsiTersedia} porsi${
+                            menu.bahanPembatas?.length
+                              ? `. Paling tipis: ${menu.bahanPembatas.join(', ')}`
+                              : ''
+                          }`}
+                        >
+                          {menu.porsiTersedia} porsi
+                        </Badge>
+                      )}
+                    </TableCell>
+
                     <TableCell className="py-2 text-sm">
                       {formatHarga(
                         menu.harga
@@ -949,6 +1007,21 @@ export default function MenuPage() {
 
                     <TableCell className="py-2 text-right">
                       <div className="flex justify-end gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Atur resep bahan"
+                          onClick={() =>
+                            openResepDialog(
+                              menu.id,
+                              menu.namaMenu
+                            )
+                          }
+                        >
+                          <CookingPot className="w-3 h-3" />
+                        </Button>
+
                         <Button
                           variant="outline"
                           size="icon"
@@ -1512,6 +1585,20 @@ export default function MenuPage() {
             </div>
 
             <DialogFooter className="gap-1">
+              {editingId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    openResepDialog(editingId, form.namaMenu)
+                  }
+                  className="h-7 text-xs px-3 mr-auto"
+                >
+                  <CookingPot className="w-3 h-3 mr-1" />
+                  Resep
+                </Button>
+              )}
+
               <Button
                 type="button"
                 variant="outline"
@@ -1536,6 +1623,14 @@ export default function MenuPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Resep Menu Dialog */}
+      <ResepMenuDialog
+        open={isResepOpen}
+        onOpenChange={setIsResepOpen}
+        menuId={resepMenuId}
+        namaMenu={resepNamaMenu}
+      />
 
       {/* Category Dialog */}
       <Dialog

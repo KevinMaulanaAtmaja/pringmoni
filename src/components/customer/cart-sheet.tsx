@@ -25,6 +25,9 @@ export interface KeranjangItem {
   harga: number;
   jumlah: number;
   catatan: string | null;
+  /** Punya >= 1 bahan di resep → jumlah dibatasi sisa porsi */
+  adaResep?: boolean;
+  porsiTersedia?: number;
 }
 
 interface CartSheetProps {
@@ -139,13 +142,16 @@ return (
               </div>
             ) : (
               <div className="space-y-3">
-                {keranjang.map((item) => {
-                  const key = getItemKey(item);
-                  return (
-                    <div
-                      key={key}
-                      className="p-3 rounded-xl border bg-card"
-                    >
+{keranjang.map((item) => {
+                    const key = getItemKey(item);
+                    // Menu berresep tidak boleh melebihi sisa porsi dari bahan.
+                    const maksPorsi = item.adaResep ? item.porsiTersedia ?? 0 : null;
+                    const sudahMaks = maksPorsi !== null && item.jumlah >= maksPorsi;
+                    return (
+                      <div
+                        key={key}
+                        className="p-3 rounded-xl border bg-card"
+                      >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium">{item.namaMenu}</h4>
@@ -175,11 +181,13 @@ return (
                             <Minus className="size-3" />
                           </button>
                           <span className="font-bold w-5 text-center text-sm">{item.jumlah}</span>
-                          <button
+<button
                             onClick={() => onUpdateJumlah(key, item.jumlah + 1)}
-                            className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-background transition-colors"
+                            disabled={sudahMaks}
+                            title={sudahMaks ? `Maksimal ${maksPorsi} porsi sesuai stok bahan` : undefined}
+                            className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-background transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            <Plus className="size-3" />
+                            <Plus className="w-3" />
                           </button>
                         </div>
                         <p className="font-bold text-sm">

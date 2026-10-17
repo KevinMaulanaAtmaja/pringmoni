@@ -14,6 +14,7 @@ import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, ba
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
 import { ShiftKasirPanel, useShiftAktif } from "@/components/kasir/ShiftKasirPanel"
+import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 
 const metodeLabels: Record<MetodePembayaran, string> = {
   qris: "QRIS",
@@ -198,7 +199,7 @@ export default function KasirPage() {
     fetchData()
   }, [fetchData])
 
-  // Polling 5 detik — tanpa setLoading biar gak refresh halaman
+  // Polling 30 detik + Pusher realtime — tanpa setLoading biar gak refresh halaman
   const pollData = useCallback(async () => {
     try {
       const [belumResult] = await Promise.all([
@@ -212,9 +213,12 @@ export default function KasirPage() {
   }, [])
 
   useEffect(() => {
-    const interval = setInterval(pollData, 5000)
+    const interval = setInterval(pollData, 30000)
     return () => clearInterval(interval)
   }, [pollData])
+
+// Realtime via Pusher (list refresh) + fallback polling 30 detik
+  useOrdersRealtime(pollData)
 
   const fetchRiwayatOnly = useCallback(async () => {
     setError(null)

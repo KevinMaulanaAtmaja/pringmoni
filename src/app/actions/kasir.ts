@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { getQrisStaticUrl } from "@/lib/qris-static"
 import { requireShiftAktif } from "@/lib/shift"
+import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { MetodePembayaran } from "@/types"
 import { StatusPesanan, Prisma } from "@prisma/client"
 
@@ -266,6 +267,8 @@ export async function prosesPembayaranTunai(
 
     await createLog('PROCESS_PAYMENT', `Pembayaran tunai pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')}, kembalian Rp${kembalian.toLocaleString('id-ID')} (shift #${shift.shiftId})`)
 
+    await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderPaid, {})
+
     revalidatePath("/dashboard/kasir")
     revalidatePath("/dashboard/pesanan")
 
@@ -321,6 +324,8 @@ export async function prosesPembayaranQRIS(pesananId: number) {
   })
 
   await createLog('PROCESS_PAYMENT', `Pembayaran QRIS pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')} (shift #${shift.shiftId})`)
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderPaid, {})
 
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
@@ -393,6 +398,8 @@ export async function selesaikanPesananKasir(pesananId: number) {
 
   await createLog('UPDATE_ORDER_STATUS', `Pesanan #${pesananId} ditandai selesai oleh kasir — meja dikosongkan`)
 
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
 
@@ -444,6 +451,8 @@ export async function updatePesananMeja(tokenMeja: string, updates: {
     })
   }
 
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
 
@@ -486,6 +495,8 @@ export async function konfirmasiPembayaran(pesananId: number) {
     })
 
     await createLog('PROCESS_PAYMENT', `Konfirmasi pembayaran pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')} (shift #${shift.shiftId})`)
+
+    await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderPaid, {})
 
     revalidatePath("/dashboard/kasir")
     revalidatePath("/dashboard/pesanan")
@@ -534,6 +545,8 @@ export async function batalkanPesananKasir(pesananId: number) {
 
   await createLog('CANCEL_ORDER_KASIR', `Pesanan #${pesananId} dibatalkan oleh kasir (via halaman kasir)`)
 
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
 
@@ -564,6 +577,8 @@ export async function accPesanan(pesananId: number) {
   })
 
   await createLog('UPDATE_ORDER_STATUS', `Pesanan #${pesananId} diterima (menunggu → diproses)`)
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
 
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
@@ -596,6 +611,8 @@ export async function generateQRISCode(pesananId: number) {
       updatedAt: new Date(),
     },
   })
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
 
   return {
     success: true,
@@ -639,6 +656,8 @@ export async function confirmQrisPayment(pesananId: number) {
   })
 
   await createLog('PROCESS_PAYMENT', `Konfirmasi QRIS pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')} (shift #${shift.shiftId})`)
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderPaid, {})
 
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")

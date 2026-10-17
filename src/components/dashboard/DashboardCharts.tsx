@@ -88,6 +88,14 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
   const entries = Object.entries(raw)
   if (entries.length === 0) return null
 
+  const mejaPie = charts.meja
+    ? [
+        { label: "Terpakai", value: charts.meja.terpakai, color: "#3b82f6" },
+        { label: "Kosong", value: charts.meja.kosong, color: "#10b981" },
+      ]
+    : []
+  const mejaTotal = mejaPie.reduce((s, x) => s + x.value, 0)
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
       {charts.pendapatan7Hari && (
@@ -112,25 +120,46 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
         </Card>
       )}
 
-      {charts.meja && (
+      {charts.meja !== undefined && (
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-3">
               <Sofa className="w-4 h-4 text-blue-500" />
               <h3 className="text-sm font-semibold text-gray-700">Status Meja</h3>
             </div>
-            <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
-                  <span className="text-gray-500">Terpakai</span>
-                  <span className="font-semibold text-gray-800">{charts.meja.terpakai}</span>
+            {mejaTotal === 0 ? (
+              <p className="text-xs text-gray-400 italic">Belum ada data meja</p>
+            ) : (
+              <div className="flex items-center gap-6">
+                <div className="w-24 h-24 shrink-0">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+                    <PieChart>
+                      <Pie data={mejaPie} dataKey="value" nameKey="label" innerRadius={22} outerRadius={40} paddingAngle={2}>
+                        {mejaPie.map((m) => (
+                          <Cell key={m.label} fill={m.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span className="text-gray-500">Kosong</span>
-                  <span className="font-semibold text-gray-800">{charts.meja.kosong}</span>
+                <div className="space-y-1.5">
+                  {mejaPie.map((m) => {
+                    const pct = mejaTotal > 0 ? Math.round((m.value / mejaTotal) * 100) : 0
+                    return (
+                      <div key={m.label} className="flex items-center gap-2 text-xs">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
+                        <span className="text-gray-500 w-16">{m.label}</span>
+                        <span className="font-medium text-gray-800">{m.value} ({pct}%)</span>
+                      </div>
+                    )
+                  })}
+                  <div className="flex items-center gap-2 text-xs border-t pt-1.5 mt-1.5">
+                    <span className="text-gray-400 w-16">Total</span>
+                    <span className="font-bold text-gray-800">{mejaTotal} meja</span>
+                  </div>
                 </div>
               </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -147,7 +176,7 @@ export function DashboardCharts({ charts: raw }: { charts: Record<string, unknow
                 <BarChart data={ensureData(charts.topMenu)} layout="vertical" margin={{ top: 4, right: 8, left: 4, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10, fill: "#888" }} axisLine={{ stroke: "#e5e7eb" }} tickLine={false} />
-                  <YAxis type="category" dataKey="nama" tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} width={90} />
+                  <YAxis type="category" dataKey="nama" tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} width={170} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
                   <Bar dataKey="total" radius={[0, 4, 4, 0]} name="Terjual">
                     {ensureData(charts.topMenu).map((_, i) => (

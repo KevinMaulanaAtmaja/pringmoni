@@ -7,8 +7,11 @@ import { cache } from "react"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { requireShiftAktif } from "@/lib/shift"
+import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
+import { potongStokDapur } from "@/lib/stok"
+import { butuhBumbu, hitungKetersediaanResep } from "@/lib/resep"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()
@@ -42,6 +45,8 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
     data: { statusPesanan: status },
   })
 
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
   if (status === StatusPesanan.dibatalkan) {
     await createLog('CANCEL_ORDER_KASIR', `Pesanan #${id} dibatalkan oleh ${session.user.username || 'staff'} (${session.user.role}) — status sebelumnya: ${pesanan.statusPesanan}`)
   } else {
@@ -74,7 +79,9 @@ export async function getMejaByToken(tokenMeja: string) {
 
 export async function getMenusForCustomer() {
   const menus = await prisma.menu.findMany({
-    where: { statusMenu: 'tersedia', deletedAt: null },
+    // Menu 'habis' tetap ditampilkan ke customer (dengan tombol pesan disabled),
+    // hanya 'nonaktif' yang disembunyikan.
+    where: { statusMenu: { in: ['tersedia', 'habis'] }, deletedAt: null },
     select: {
       id: true,
       namaMenu: true,
@@ -93,20 +100,56 @@ export async function getMenusForCustomer() {
         },
         orderBy: { urutan: 'asc' },
       },
+      resep: {
+        select: {
+          jumlah: true,
+          stokBahan: {
+            select: {
+              namaBahan: true,
+              kategori: true,
+              satuan: true,
+              stokQty: true,
+              deletedAt: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { namaMenu: 'asc' },
   })
-  
-  return menus.map(menu => ({
-    id: menu.id,
-    namaMenu: menu.namaMenu,
-    deskripsi: menu.deskripsi,
-    harga: Number(menu.harga),
-    kategori: menu.kategori.namaKategori,
-    statusMenu: menu.statusMenu as "tersedia" | "habis" | "nonaktif",
-    fotoUrl: menu.menuFoto[0]?.fotoUrl || null,
-    menuFoto: menu.menuFoto.map(f => ({ id: f.id, fotoUrl: f.fotoUrl })),
-  }))
+
+  return menus.map(menu => {
+    const bahanAktif = menu.resep
+      .filter((r) => !r.stokBahan.deletedAt)
+      .map((r) => ({
+        namaBahan: r.stokBahan.namaBahan,
+        satuan: r.stokBahan.satuan,
+        jumlahPerPorsi: Number(r.jumlah),
+        stokQty: Number(r.stokBahan.stokQty),
+        kategori: r.stokBahan.kategori,
+      }))
+    const ketersediaan = hitungKetersediaanResep(
+      bahanAktif,
+      bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
+      bahanAktif.filter((b) => b.kategori === 'bumbu').length,
+      butuhBumbu(menu.kategori.namaKategori)
+    )
+
+    return {
+      id: menu.id,
+      namaMenu: menu.namaMenu,
+      deskripsi: menu.deskripsi,
+      harga: Number(menu.harga),
+      kategori: menu.kategori.namaKategori,
+      statusMenu: menu.statusMenu as "tersedia" | "habis" | "nonaktif",
+      fotoUrl: menu.menuFoto[0]?.fotoUrl || null,
+      menuFoto: menu.menuFoto.map(f => ({ id: f.id, fotoUrl: f.fotoUrl })),
+      adaResep: ketersediaan.adaResep,
+      resepLengkap: ketersediaan.lengkap,
+      porsiTersedia: ketersediaan.porsiTersedia,
+      bahanPembatas: ketersediaan.bahanPembatas,
+    }
+  })
 }
 
 export const getCustomerMenuData = cache(async (tokenMeja: string) => {
@@ -155,22 +198,72 @@ export async function createPesanan(data: CreatePesananData) {
   let totalHarga = 0
   const itemPrices: Record<number, number> = {}
 
+  // Gabung jumlah per menu (item dengan catatan berbeda dihitung satu),
+  // supaya validasi stok memakai total yang benar.
+  const jumlahPerMenu = new Map<number, number>()
   for (const item of items) {
+    jumlahPerMenu.set(item.menuId, (jumlahPerMenu.get(item.menuId) ?? 0) + item.jumlah)
+  }
+
+  for (const [menuId, jumlahTotal] of jumlahPerMenu) {
     const menu = await prisma.menu.findFirst({
-      where: { id: item.menuId, deletedAt: null },
+      where: { id: menuId, deletedAt: null },
+      include: {
+        kategori: { select: { namaKategori: true } },
+        resep: {
+          include: { stokBahan: true },
+        },
+      },
     })
-    
+
     if (!menu) {
-      return { error: `Menu dengan ID ${item.menuId} tidak ditemukan` }
+      return { error: `Menu dengan ID ${menuId} tidak ditemukan` }
     }
 
     if (menu.statusMenu !== "tersedia") {
       return { error: `${menu.namaMenu} sedang tidak tersedia` }
     }
 
+    const bahanAktif = menu.resep
+      .filter((r) => !r.stokBahan.deletedAt)
+      .map((r) => ({
+        namaBahan: r.stokBahan.namaBahan,
+        satuan: r.stokBahan.satuan,
+        jumlahPerPorsi: Number(r.jumlah),
+        stokQty: Number(r.stokBahan.stokQty),
+        kategori: r.stokBahan.kategori,
+      }))
+    const wajibBumbu = butuhBumbu(menu.kategori?.namaKategori)
+    const ketersediaan = hitungKetersediaanResep(
+      bahanAktif,
+      bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
+      bahanAktif.filter((b) => b.kategori === 'bumbu').length,
+      wajibBumbu
+    )
+
+    // Gerbang resep: makanan wajib punya bahan utama + bumbu; minuman & camilan
+    // cukup bahan utama (bumbu opsional). Menu yang belum lengkap tidak boleh
+    // dipesan walau statusMenu 'tersedia'.
+    if (!ketersediaan.lengkap) {
+      const butuh = wajibBumbu
+        ? 'butuh bahan utama & bumbu'
+        : 'butuh minimal 1 bahan utama'
+      return { error: `${menu.namaMenu} belum dapat dipesan — resep belum lengkap (${butuh})` }
+    }
+
+    // Porsi yang boleh dipesan ditentukan stok bahan dapur, bukan hanya
+    // statusMenu — ini gerbang terakhir supaya customer tidak bisa pesan
+    // menu yang porsinya habis.
+    if (ketersediaan.porsiTersedia <= 0) {
+      return { error: `${menu.namaMenu} sedang habis — stok bahan tidak mencukupi` }
+    }
+    if (jumlahTotal > ketersediaan.porsiTersedia) {
+      return { error: `${menu.namaMenu} hanya tersisa ${ketersediaan.porsiTersedia} porsi` }
+    }
+
     const harga = Number(menu.harga)
-    itemPrices[item.menuId] = harga
-    totalHarga += harga * item.jumlah
+    itemPrices[menuId] = harga
+    totalHarga += harga * jumlahTotal
   }
 
   const publicId = crypto.randomUUID()
@@ -205,6 +298,8 @@ export async function createPesanan(data: CreatePesananData) {
 
   const itemsSummary = items.map(i => `${i.jumlah}x menu #${i.menuId}`).join(', ')
   await createLog('CREATE_ORDER', `Pesanan baru #${pesanan.id} dari ${meja.nomorMeja}: ${itemsSummary} (Total: Rp${totalHarga.toLocaleString('id-ID')})`)
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.newOrder, {})
 
   revalidatePath("/dashboard/pesanan")
   revalidatePath(`/${tokenMeja}`)
@@ -301,6 +396,8 @@ export async function updatePembayaran(
       shiftId: shift.shiftId,
     },
   })
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderPaid, {})
 
   await createLog('PROCESS_PAYMENT', `Pembayaran pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')} (${data.metodePembayaran}) oleh ${session.user.username || 'staff'} — bayar: Rp${Number(data.jumlahBayar).toLocaleString('id-ID')}, kembalian: Rp${Number(data.kembalian).toLocaleString('id-ID')} (shift #${shift.shiftId})`)
 
@@ -455,7 +552,11 @@ export async function markPesananSelesai(id: number) {
       where: { id: pesanan.mejaId },
       data: { statusMeja: 'kosong' },
     })
+
+    await potongStokDapur(tx, id, parseInt(session.user.id))
   })
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
 
   await createLog('UPDATE_ORDER_STATUS', `Pesanan #${id} ditandai selesai oleh ${session.user.username || 'waiter'} — meja ${pesanan.mejaId} dikosongkan`)
 
@@ -499,6 +600,8 @@ export async function cancelPesanan(id: number) {
     where: { id: pesanan.mejaId },
     data: { statusMeja: 'kosong' },
   })
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
 
   await createLog('CANCEL_ORDER_KASIR', `Pesanan #${id} dibatalkan oleh ${session.user.username || 'staff'} (${session.user.role}) via detail pesanan — status: ${pesanan.statusPesanan}, total: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')}`)
 
@@ -644,6 +747,8 @@ export async function konfirmasiPembayaranCustomer(
     }
   })
 
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
 
@@ -671,6 +776,8 @@ export async function markItemDiantar(detailId: number) {
     where: { id: detailId },
     data: { statusAntar: newStatus },
   })
+
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
 
   revalidatePath("/dashboard/pesanan")
 

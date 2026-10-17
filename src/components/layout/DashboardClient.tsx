@@ -18,6 +18,8 @@ import {
   BarChart3,
   ScrollText,
   History,
+  Boxes,
+  CookingPot,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
@@ -106,6 +108,7 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
     ? [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
+        { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
       ]
     : (role === 'cashier')
     ? [
@@ -113,12 +116,15 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Buat Pesanan", icon: ShoppingCart, href: "/dashboard/kasir/pesanan-baru" },
         { name: "Kasir", icon: Receipt, href: "/dashboard/kasir" },
+        { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
     : [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
+        { name: "Stok Bahan", icon: Boxes, href: "/dashboard/stok-bahan" },
+        { name: "Resep", icon: CookingPot, href: "/dashboard/resep" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Akun", icon: User, href: "/dashboard/users" },
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },

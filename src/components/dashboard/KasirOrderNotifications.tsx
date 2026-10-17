@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { Bell } from "lucide-react"
 import { getPesananBelumBayar, getPaidOrdersForNotification } from "@/app/actions/kasir"
 import { useNotification } from "@/hooks/use-notification"
+import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 
 interface NotifOrder {
   id: number
@@ -46,63 +47,52 @@ export function KasirOrderNotifications() {
     toastTimerRef.current = setTimeout(() => setToast(null), 6000)
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
+  const run = useCallback(async () => {
+    const belumResult = await getPesananBelumBayar()
+    if ("error" in belumResult || !Array.isArray(belumResult)) return
 
-    const pollNewOrders = async () => {
-      const result = await getPesananBelumBayar()
-      if (cancelled || "error" in result || !Array.isArray(result)) return
+    const orders = belumResult as unknown as NotifOrder[]
+    const confirmed = orders.filter(o => o.metodePembayaran)
 
-      const orders = result as unknown as NotifOrder[]
-      const confirmed = orders.filter(o => o.metodePembayaran)
-      const fresh = confirmed.filter(o => !soundedConfirmedOrders.has(o.id))
-
-      if (fresh.length === 0) return
-
-      // Tandai semua pesanan baru sebagai sudah diberitahukan agar tidak bunyi dua kali
-      for (const order of fresh) {
-        soundedConfirmedOrders.add(order.id)
-      }
-
-      // Bunyikan hanya pesanan paling baru
-      const newest = fresh[0]
-      notifyNewOrder(newest.nomorMeja, newest.namaPelanggan)
-      showToast({ type: "new_order", meja: newest.nomorMeja, nama: newest.namaPelanggan })
+    for (const order of confirmed) {
+      if (soundedConfirmedOrders.has(order.id)) continue
+      soundedConfirmedOrders.add(order.id)
+      notifyNewOrder(order.nomorMeja, order.namaPelanggan)
+      showToast({ type: "new_order", meja: order.nomorMeja, nama: order.namaPelanggan })
     }
 
-    const pollPaid = async () => {
-      const result = await getPaidOrdersForNotification()
-      if (cancelled || "error" in result || !Array.isArray(result)) return
+    const paidResult = await getPaidOrdersForNotification()
+    if ("error" in paidResult || !Array.isArray(paidResult)) return
 
-      const orders = result as unknown as PaidOrder[]
-      const fresh = orders.filter(o => !soundedPaidOrders.has(o.id))
+    const paidOrders = paidResult as unknown as PaidOrder[]
 
-      if (fresh.length === 0) return
-
-      // Tandai semua sebagai sudah diberitahukan agar tidak bunyi dua kali
-      for (const order of fresh) {
-        soundedPaidOrders.add(order.id)
-      }
-
-      // Bunyikan hanya pembayaran terbaru
-      const newest = fresh[0]
-      const total = newest.totalHarga + (newest.biayaAdmin || 0) + (newest.ppn || 0)
-      notifyOrderPaid(newest.nomorMeja, newest.namaPelanggan, total)
-      showToast({ type: "order_paid", meja: newest.nomorMeja, nama: newest.namaPelanggan })
-    }
-
-    const run = async () => {
-      await Promise.all([pollNewOrders(), pollPaid()])
-    }
-
-    run()
-    const interval = setInterval(run, 5000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    for (const order of paidOrders) {
+      if (soundedPaidOrders.has(order.id)) continue
+      soundedPaidOrders.add(order.id)
+      const total = order.totalHarga + (order.biayaAdmin || 0) + (order.ppn || 0)
+      notifyOrderPaid(order.nomorMeja, order.namaPelanggan, total)
+      showToast({ type: "order_paid", meja: order.nomorMeja, nama: order.namaPelanggan })
     }
   }, [notifyNewOrder, notifyOrderPaid, showToast])
+
+  useEffect(() => {
+    const t = setTimeout(() => { void run() }, 0)
+    return () => clearTimeout(t)
+  }, [run])
+
+  // Fallback polling lambat + trigger realtime via Pusher
+  useEffect(() => {
+    const interval = setInterval(run, 30000)
+    return () => clearInterval(interval)
+  }, [run])
+
+  useOrdersRealtime(run)
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    }
+  }, [])
 
   if (!toast) return null
 

@@ -70,8 +70,8 @@ export default function PesananDetailPage() {
   const loadPesanan = async () => {
     setLoading(true)
     try {
-      const result: any = await getPesananById(orderId)
-      if (!result || result.error) {
+      const result = await getPesananById(orderId)
+      if (!result || 'error' in result) {
         setError("Pesanan tidak ditemukan")
       } else {
         const items = (result.items || []).map((item: { id: number; menu_id: number; nama_menu: string; jumlah: number; harga_saat_pesan: number; catatan_item: string | null; foto_urls?: string[] }) => ({
@@ -95,8 +95,8 @@ export default function PesananDetailPage() {
           metodePembayaran: (result.metode_pembayaran || undefined) as "qris" | "tunai" | "transfer" | undefined,
           jumlahBayar: result.jumlah_bayar ? Number(result.jumlah_bayar) : undefined,
           kembalian: Number(result.kembalian),
-          createdAt: result.created_at!.toISOString(),
-          updatedAt: (result.updated_at || result.created_at!).toISOString(),
+          createdAt: result.created_at.toISOString(),
+          updatedAt: result.updated_at.toISOString(),
           meja: {
             id: result.meja_id,
             nomorMeja: result.nomor_meja,
@@ -120,8 +120,11 @@ export default function PesananDetailPage() {
   }
 
   useEffect(() => {
-    if (orderId) {
+    if (Number.isFinite(orderId)) {
       loadPesanan()
+    } else {
+      setError("Pesanan tidak ditemukan")
+      setLoading(false)
     }
   }, [orderId])
 
