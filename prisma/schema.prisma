@@ -23,8 +23,44 @@ model Users {
   kasirPesanan     Pesanan[]     @relation("KasirPesanan")
   waiterPesanan    Pesanan[]     @relation("WaiterPesanan")
   riwayatStok      RiwayatStok[]
+  shiftKasir       ShiftKasir[]
 
   @@map("users")
+}
+
+model ShiftKasir {
+  id             Int         @id @default(autoincrement())
+  kasirId        Int         @map("kasir_id")
+  tanggal        DateTime    @map("tanggal") @db.Date
+  waktuMasuk     DateTime    @default(now()) @map("waktu_masuk")
+  waktuKeluar    DateTime?   @map("waktu_keluar")
+  uangAwal       Decimal     @map("uang_awal") @db.Decimal(15, 2)
+  uangAkhir      Decimal?    @map("uang_akhir") @db.Decimal(15, 2)
+  statusShift    StatusShift @default(ACTIVE) @map("status_shift")
+  /// Nyika ACTIVE -> berisi kasirId (mencegah satu kasir punya 2 shift aktif).
+  /// Nyika CLOSED -> NULL, sehingga banyak shift tertutup per kasir tetap diizinkan.
+  aktifKey       Int?        @unique @map("aktif_key")
+  totalTransaksi Int         @default(0) @map("total_transaksi")
+  totalPendapatan Decimal    @default(0) @map("total_pendapatan") @db.Decimal(15, 2)
+  totalTunai     Decimal     @default(0) @map("total_tunai") @db.Decimal(15, 2)
+  totalNonTunai  Decimal     @default(0) @map("total_non_tunai") @db.Decimal(15, 2)
+  selisihKas     Decimal?    @map("selisih_kas") @db.Decimal(15, 2)
+  keterangan     String?
+  /// Shift tertutup milik kasir lain yang uang akhirnya jadi uang awal shift ini
+  /// (aturan 7). Tetap dua shift terpisah, tapi serah terima uangnya terlacak.
+  sumberShiftId  Int?        @map("sumber_shift_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime?   @map("updated_at")
+
+  kasir          Users         @relation(fields: [kasirId], references: [id])
+  pesanan        Pesanan[]
+  sumberShift    ShiftKasir?   @relation("SerahTerimaShift", fields: [sumberShiftId], references: [id], onDelete: SetNull)
+  dipakaiUntuk   ShiftKasir[]  @relation("SerahTerimaShift")
+
+  @@index([kasirId, tanggal])
+  @@index([statusShift])
+  @@index([sumberShiftId])
+  @@map("shift_kasir")
 }
 
 model Meja {
@@ -101,11 +137,14 @@ model Pesanan {
   midtransTransactionId String?           @map("midtrans_transaction_id")
   biayaAdmin            Decimal?          @map("biaya_admin") @db.Decimal(10, 2)
   ppn                   Decimal?          @map("ppn") @db.Decimal(10, 2)
+  shiftId               Int?              @map("shift_id")
   detailPesanan         DetailPesanan[]
   kasir                 Users?            @relation("KasirPesanan", fields: [kasirId], references: [id])
   meja                  Meja              @relation(fields: [mejaId], references: [id])
   waiter                Users?            @relation("WaiterPesanan", fields: [waiterId], references: [id])
+  shift                 ShiftKasir?       @relation(fields: [shiftId], references: [id])
 
+  @@index([shiftId])
   @@map("pesanan")
 }
 
@@ -211,6 +250,11 @@ enum StatusAntar {
   diantar
 }
 
+enum StatusShift {
+  ACTIVE
+  CLOSED
+}
+
 enum JenisAksiLog {
   LOGIN
   LOGOUT
@@ -221,6 +265,9 @@ enum JenisAksiLog {
   CANCEL_ORDER_EXPIRED
   CANCEL_ORDER_STALE
   PROCESS_PAYMENT
+  EMPTY_TABLE
+  OPEN_SHIFT
+  CLOSE_SHIFT
 }
 
 enum KategoriBahan {

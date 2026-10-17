@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { cache } from "react"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
+import { requireShiftAktif } from "@/lib/shift"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
 
@@ -32,7 +33,7 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
     return { error: "Pesanan tidak ditemukan" }
   }
 
-  if (status === StatusPesanan.dibatalkan && pesanan.statusPembayaran === 'berhasil') {
+  if (status === StatusPesanan.dibatalkan && pesanan.statusPembayaran === 'berhasil' && pesanan.statusPesanan !== 'menunggu') {
     return { error: "Tidak bisa membatalkan pesanan yang sudah dibayar" }
   }
 
@@ -276,6 +277,11 @@ export async function updatePembayaran(
     return { error: "Unauthorized" }
   }
 
+  const shift = await requireShiftAktif()
+  if ('error' in shift) {
+    return shift
+  }
+
   const pesanan = await prisma.pesanan.findFirst({
     where: { id: pesananId },
   })
@@ -292,10 +298,11 @@ export async function updatePembayaran(
       kembalian: data.kembalian,
       statusPembayaran: StatusBayar.berhasil,
       kasirId: parseInt(session.user.id),
+      shiftId: shift.shiftId,
     },
   })
 
-  await createLog('PROCESS_PAYMENT', `Pembayaran pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')} (${data.metodePembayaran}) oleh ${session.user.username || 'staff'} — bayar: Rp${Number(data.jumlahBayar).toLocaleString('id-ID')}, kembalian: Rp${Number(data.kembalian).toLocaleString('id-ID')}`)
+  await createLog('PROCESS_PAYMENT', `Pembayaran pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')} (${data.metodePembayaran}) oleh ${session.user.username || 'staff'} — bayar: Rp${Number(data.jumlahBayar).toLocaleString('id-ID')}, kembalian: Rp${Number(data.kembalian).toLocaleString('id-ID')} (shift #${shift.shiftId})`)
 
   revalidatePath("/dashboard/pesanan")
   revalidatePath("/dashboard/kasir")
@@ -613,10 +620,23 @@ export async function konfirmasiPembayaranCustomer(
     return { error: `Waktu konfirmasi pembayaran telah habis (lebih dari ${BATAS_MENIT} menit). Silakan hubungi kasir.` }
   }
 
+  const data: Prisma.PesananUncheckedUpdateInput = {
+    metodePembayaran: metode as MetodePembayaran,
+  }
+
+  if (metode === 'qris') {
+    // Klaim "Saya Sudah Bayar" (QRIS) → tandai sebagai Sudah Dibayar (berhasil)
+    // tapi statusPesanan tetap menunggu, sehingga muncul konfirmasi untuk kasir
+    // di halaman kasir (badge "Sudah Dibayar" + tombol "Konfirmasi Pembayaran").
+    data.statusPembayaran = StatusBayar.berhasil
+    data.jumlahBayar = pesanan.totalHarga
+    data.kembalian = 0
+  }
+
   await prisma.$transaction(async (tx) => {
     const updated = await tx.pesanan.update({
       where: { id: pesanan.id },
-      data: { metodePembayaran: metode as MetodePembayaran },
+      data,
     })
 
     if (!updated) {

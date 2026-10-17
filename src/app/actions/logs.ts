@@ -32,6 +32,8 @@ export async function getLogs(filters?: {
       Pesanan: ['CREATE_ORDER', 'UPDATE_ORDER_STATUS'],
       Pembatalan: ['CANCEL_ORDER_KASIR', 'CANCEL_ORDER_EXPIRED', 'CANCEL_ORDER_STALE'],
       Pembayaran: ['PROCESS_PAYMENT'],
+      Meja: ['EMPTY_TABLE'],
+      Shift: ['OPEN_SHIFT', 'CLOSE_SHIFT'],
     }
     const selected = kategoriMap[filters.aksi]
     if (selected?.length === 1) {

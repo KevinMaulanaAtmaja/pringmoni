@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { getQrisStaticUrl } from "@/lib/qris-static"
+import { requireShiftAktif } from "@/lib/shift"
 import { MetodePembayaran } from "@/types"
 import { StatusPesanan, Prisma } from "@prisma/client"
 
@@ -222,6 +223,11 @@ export async function prosesPembayaranTunai(
       return { error: "Unauthorized" }
     }
 
+    const shift = await requireShiftAktif()
+    if ('error' in shift) {
+      return shift
+    }
+
     const pesanan = await prisma.pesanan.findFirst({
       where: { id: pesananId, deletedAt: null },
     })
@@ -252,12 +258,13 @@ export async function prosesPembayaranTunai(
         statusPembayaran: 'berhasil',
         statusPesanan: 'diproses',
         kasirId: parseInt(session.user.id),
+        shiftId: shift.shiftId,
         midtransTransactionId: null,
         updatedAt: new Date(),
       },
     })
 
-    await createLog('PROCESS_PAYMENT', `Pembayaran tunai pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')}, kembalian Rp${kembalian.toLocaleString('id-ID')}`)
+    await createLog('PROCESS_PAYMENT', `Pembayaran tunai pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')}, kembalian Rp${kembalian.toLocaleString('id-ID')} (shift #${shift.shiftId})`)
 
     revalidatePath("/dashboard/kasir")
     revalidatePath("/dashboard/pesanan")
@@ -273,6 +280,11 @@ export async function prosesPembayaranQRIS(pesananId: number) {
   const session = await auth()
   if (!session?.user || session.user.role !== 'cashier') {
     return { error: "Unauthorized" }
+  }
+
+  const shift = await requireShiftAktif()
+  if ('error' in shift) {
+    return shift
   }
 
   const pesanan = await prisma.pesanan.findFirst({
@@ -303,11 +315,12 @@ export async function prosesPembayaranQRIS(pesananId: number) {
       statusPembayaran: 'berhasil',
       statusPesanan: 'diproses' as StatusPesanan,
       kasirId: parseInt(session.user.id),
+      shiftId: shift.shiftId,
       updatedAt: new Date(),
     },
   })
 
-  await createLog('PROCESS_PAYMENT', `Pembayaran QRIS pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')}`)
+  await createLog('PROCESS_PAYMENT', `Pembayaran QRIS pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')} (shift #${shift.shiftId})`)
 
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")
@@ -444,6 +457,11 @@ export async function konfirmasiPembayaran(pesananId: number) {
       return { error: "Unauthorized" }
     }
 
+    const shift = await requireShiftAktif()
+    if ('error' in shift) {
+      return shift
+    }
+
     const pesanan = await prisma.pesanan.findFirst({
       where: { id: pesananId, deletedAt: null },
     })
@@ -462,11 +480,12 @@ export async function konfirmasiPembayaran(pesananId: number) {
         statusPembayaran: 'berhasil',
         statusPesanan: 'diproses' as any,
         kasirId: parseInt(session.user.id),
+        shiftId: shift.shiftId,
         updatedAt: new Date(),
       },
     })
 
-    await createLog('PROCESS_PAYMENT', `Konfirmasi pembayaran pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')}`)
+    await createLog('PROCESS_PAYMENT', `Konfirmasi pembayaran pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')} (shift #${shift.shiftId})`)
 
     revalidatePath("/dashboard/kasir")
     revalidatePath("/dashboard/pesanan")
@@ -492,7 +511,7 @@ export async function batalkanPesananKasir(pesananId: number) {
     return { error: "Pesanan tidak ditemukan" }
   }
 
-  if (pesanan.statusPembayaran === 'berhasil') {
+  if (pesanan.statusPembayaran === 'berhasil' && pesanan.statusPesanan !== 'menunggu') {
     return { error: "Tidak bisa membatalkan pesanan yang sudah dibayar" }
   }
 
@@ -593,6 +612,11 @@ export async function confirmQrisPayment(pesananId: number) {
     return { error: "Unauthorized" }
   }
 
+  const shift = await requireShiftAktif()
+  if ('error' in shift) {
+    return shift
+  }
+
   const pesanan = await prisma.pesanan.findFirst({
     where: { id: pesananId, deletedAt: null },
   })
@@ -609,11 +633,12 @@ export async function confirmQrisPayment(pesananId: number) {
       statusPembayaran: 'berhasil',
       statusPesanan: 'diproses',
       kasirId: parseInt(session.user.id),
+      shiftId: shift.shiftId,
       updatedAt: new Date(),
     },
   })
 
-  await createLog('PROCESS_PAYMENT', `Konfirmasi QRIS pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')}`)
+  await createLog('PROCESS_PAYMENT', `Konfirmasi QRIS pesanan #${pesananId}: Rp${Number(pesanan.totalHarga).toLocaleString('id-ID')} (shift #${shift.shiftId})`)
 
   revalidatePath("/dashboard/kasir")
   revalidatePath("/dashboard/pesanan")

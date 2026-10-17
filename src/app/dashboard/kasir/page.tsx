@@ -13,6 +13,7 @@ import { MetodePembayaran, StatusBayar } from "@/types"
 import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
+import { ShiftKasirPanel, useShiftAktif } from "@/components/kasir/ShiftKasirPanel"
 
 const metodeLabels: Record<MetodePembayaran, string> = {
   qris: "QRIS",
@@ -100,6 +101,10 @@ export default function KasirPage() {
   const [showConfirmProcess, setShowConfirmProcess] = useState(false)
   const [showMethodWarning, setShowMethodWarning] = useState(false)
   const pendingMethodAction = useRef<"tunai-step" | null>(null)
+
+  // Gate shift: kasir tidak boleh bertransaksi sebelum shift-nya sendiri dibuka.
+  const { shift: shiftAktif, ready: shiftReady, refreshShift } = useShiftAktif()
+  const belumAdaShift = shiftReady && !shiftAktif
 
   const pesananBelumFiltered = pesananBelum.filter(p => {
     if (filterText) {
@@ -449,6 +454,10 @@ export default function KasirPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Kelola Kasir</h1>
+
+      {!isOwner && (
+        <ShiftKasirPanel onShiftChange={() => { refreshShift(); fetchData() }} />
+      )}
       {/* Header Tabs */}
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex gap-2">
@@ -669,6 +678,12 @@ export default function KasirPage() {
                           <Button
                             className="text-base min-h-[52px]"
                             onClick={() => openPayment(p)}
+                            disabled={belumAdaShift}
+                            title={
+                              belumAdaShift
+                                ? "Buka shift terlebih dahulu sebelum bertransaksi"
+                                : undefined
+                            }
                             aria-label="Proses pembayaran"
                           >
                             <CreditCard className="w-6 h-6" />

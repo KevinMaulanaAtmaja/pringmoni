@@ -10,7 +10,7 @@ import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
 import { Search, ShoppingCart, Camera, X, AlertTriangle } from "lucide-react";
 import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
-import { simpanKeranjangCheckout } from "@/lib/checkout-storage";
+import { simpanKeranjangCheckout, ambilKeranjangCheckout } from "@/lib/checkout-storage";
 import type { CustomerMenu } from "@/types";
 import type { KeranjangItem } from "@/components/customer/cart-sheet";
 
@@ -87,6 +87,15 @@ const [error, setError] = useState<string | null>(null);
         };
         loadData();
     }, [tokenMeja]);
+
+    // Pulihkan keranjang dari checkout yang belum selesai agar tidak hilang
+    // saat customer kembali dari halaman checkout.
+    useEffect(() => {
+        const saved = ambilKeranjangCheckout();
+        if (saved && saved.length > 0) {
+            setKeranjang(saved);
+        }
+    }, []);
 
     const filteredMenu = menus.filter((menu) => {
         const matchKategori = activeKategori === "Semua" || menu.kategori === activeKategori;

@@ -13,6 +13,8 @@ type JenisAksiLog =
   | "CANCEL_ORDER_STALE"
   | "PROCESS_PAYMENT"
   | "EMPTY_TABLE"
+  | "OPEN_SHIFT"
+  | "CLOSE_SHIFT"
 
 async function getIp(): Promise<string | null> {
   try {

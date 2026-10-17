@@ -17,8 +17,10 @@ import {
   ShoppingCart,
   BarChart3,
   ScrollText,
+  History,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
 
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(() =>
@@ -111,6 +113,7 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Buat Pesanan", icon: ShoppingCart, href: "/dashboard/kasir/pesanan-baru" },
         { name: "Kasir", icon: Receipt, href: "/dashboard/kasir" },
+        { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
     : [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -120,6 +123,7 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
         { name: "Akun", icon: User, href: "/dashboard/users" },
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },
         { name: "Laporan", icon: BarChart3, href: "/dashboard/laporan" },
+        { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
 
   return (
@@ -127,10 +131,10 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
       <div className="flex flex-col w-full">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 bg-white/90 rounded-xl flex items-center justify-center text-green-700 font-bold text-lg shrink-0">
-            PM
+            IM
           </div>
           <div className="overflow-hidden flex-1">
-            <h1 className="text-lg font-semibold whitespace-nowrap">PringMoni</h1>
+            <h1 className="text-lg font-semibold whitespace-nowrap">Dashboard</h1>
           </div>
         </div>
 
@@ -167,8 +171,10 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
               </Link>
             )
           })}
-        </nav>
+</nav>
+        </div>
+
+        {role === 'cashier' && <ShiftSidebarStatus />}
       </div>
-    </div>
   )
 }

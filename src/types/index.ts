@@ -52,6 +52,35 @@ export interface Meja {
   statusMeja: StatusMeja
 }
 
+// ── Shift Kasir ───────────────────────────────────────────────────────────────
+export type StatusShift = 'ACTIVE' | 'CLOSED'
+
+export interface ShiftAktif {
+  id: number
+  kasirId: number
+  kasirUsername: string
+  tanggal: string
+  waktuMasuk: string
+  waktuKeluar: string | null
+  uangAwal: number
+  uangAkhir: number | null
+  statusShift: StatusShift
+  totalTransaksi: number
+  totalPendapatan: number
+  totalTunai: number
+  totalNonTunai: number
+  selisihKas: number | null
+  keterangan: string | null
+}
+
+export interface ShiftRiwayat extends ShiftAktif {
+  /** Uang kas fisik yang tercatat ada di laci saat menutup shift. */
+  uangHarapAkhir: number
+  /** Shift yang uang akhirnya berpindah ke shift ini (aturan 7). */
+  sumberShiftId: number | null
+  sumberShiftKasir: string | null
+}
+
 export type StatusMenu = 'tersedia' | 'habis' | 'nonaktif'
 
 export interface KategoriMenu {

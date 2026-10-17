@@ -15,6 +15,7 @@ const roleRouteAccess: Record<string, RoleUser[]> = {
   "/dashboard/users": ["owner"],
   "/dashboard/laporan": ["owner"],
   "/dashboard/logging": ["owner"],
+  "/dashboard/shift": ["owner", "cashier"],
 }
 
 function getRouteRole(pathname: string): RoleUser[] | null {
