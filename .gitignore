@@ -47,3 +47,4 @@ next-env.d.ts
 # graphify
 graphify-out/cost.json
 graphify-out/cache/
+graphify-out/*.pending.json
