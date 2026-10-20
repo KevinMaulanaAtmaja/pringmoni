@@ -1,7 +1,7 @@
 'use server';
 
 import prisma from '@/lib/prisma';
-import { KategoriMenu, StatusMenu } from '@prisma/client';
+import { KategoriMenu, LokasiMenu, StatusMenu } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
@@ -203,8 +203,9 @@ export async function toggleStatusMenu(id: number, status: StatusMenu) {
   revalidatePath('/dashboard/menu');
 }
 
-export async function createKategori(data: { namaKategori: string }) {
+export async function createKategori(data: { namaKategori: string; lokasi?: LokasiMenu }) {
   await requireOwner()
+  const lokasi = data.lokasi ?? 'resto'
   // Check if kategori with same name exists (including soft-deleted)
   const existing = await prisma.kategoriMenu.findFirst({
     where: {
@@ -220,6 +221,7 @@ export async function createKategori(data: { namaKategori: string }) {
         data: {
           deletedAt: null,
           namaKategori: data.namaKategori,
+          lokasi,
         },
       });
     } else {
@@ -228,7 +230,7 @@ export async function createKategori(data: { namaKategori: string }) {
   } else {
     // Create new kategori
     await prisma.kategoriMenu.create({
-      data: { namaKategori: data.namaKategori },
+      data: { namaKategori: data.namaKategori, lokasi },
     });
   }
   
@@ -236,7 +238,7 @@ export async function createKategori(data: { namaKategori: string }) {
   return { success: true };
 }
 
-export async function updateKategori(id: number, data: { namaKategori: string }) {
+export async function updateKategori(id: number, data: { namaKategori: string; lokasi?: LokasiMenu }) {
   await requireOwner()
   // Check if namaKategori already exists (excluding current id, ONLY active ones)
   const existing = await prisma.kategoriMenu.findFirst({
@@ -253,7 +255,10 @@ export async function updateKategori(id: number, data: { namaKategori: string })
 
   await prisma.kategoriMenu.update({
     where: { id },
-    data: { namaKategori: data.namaKategori },
+    data: {
+      namaKategori: data.namaKategori,
+      lokasi: data.lokasi,
+    },
   });
   revalidatePath('/dashboard/menu');
   return { success: true };

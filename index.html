@@ -1,0 +1,2144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PRINGMONI - Pitch Deck Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --emerald: #10B981;
+      --emerald-dark: #059669;
+      --emerald-soft: #ECFDF5;
+      --emerald-border: #A7F3D0;
+      --white: #FFFFFF;
+      --gray-light: #F3F4F6;
+      --gray-card: #F9FAFB;
+      --gray-border: #E5E7EB;
+      --gray-text-muted: #6B7280;
+      --gray-dark: #1F2937;
+      --transition-speed: 0.55s;
+      --ease-kinetic: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Poppins', 'Inter', sans-serif;
+      background-color: var(--white);
+      color: var(--gray-dark);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+    }
+
+    /* SVG Icon Helpers */
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    .icon-lg { width: 32px; height: 32px; }
+    .icon-xl { width: 44px; height: 44px; }
+    .icon-emerald { stroke: var(--emerald); color: var(--emerald); }
+    .icon-danger { stroke: #EF4444; color: #EF4444; }
+
+    /* Deck Container */
+    .deck-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      perspective: 1000px;
+    }
+
+    /* Single Slide Styles - Unified Top Alignment & Kinetic Entrance */
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      padding: 80px 80px 96px 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(80px) scale(0.98);
+      transition: opacity var(--transition-speed) var(--ease-kinetic),
+                  transform var(--transition-speed) var(--ease-kinetic),
+                  visibility var(--transition-speed);
+      background-color: var(--white);
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* Pengecualian: Slide dengan konten terpusat (Cover, Closing, etc.) */
+    .slide.slide--center {
+      justify-content: center;
+      padding-top: 80px;
+      padding-bottom: 96px;
+    }
+
+    /* Pengecualian: Slide yang mendistribusikan ruang secara seimbang tanpa melewati batas bawah */
+    .slide.slide--expand {
+      justify-content: flex-start;
+      padding-bottom: 96px;
+    }
+
+    .slide--expand .slide-content-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0;
+      max-height: calc(100vh - 230px);
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0) scale(1);
+      z-index: 2;
+      pointer-events: auto;
+    }
+
+    .slide.prev-slide {
+      transform: translateX(-80px) scale(0.98);
+    }
+
+    /* ========================================================
+       KINETIC TYPOGRAPHY ANIMATION SYSTEM
+       ======================================================== */
+    .slide.active .badge-chip {
+      animation: kineticBadge 0.6s var(--ease-snap) both;
+    }
+
+    .slide.active .slide-title,
+    .slide.active .hero-title {
+      animation: kineticTitle 0.7s var(--ease-kinetic) 0.08s both;
+    }
+
+    .slide.active .slide-subtitle,
+    .slide.active .hero-tagline {
+      animation: kineticSubtitle 0.7s var(--ease-kinetic) 0.16s both;
+    }
+
+    .slide.active .hero-desc {
+      animation: kineticFadeUp 0.65s var(--ease-kinetic) 0.22s both;
+    }
+
+    .slide.active .cover-meta,
+    .slide.active .cover-visual {
+      animation: kineticFadeUp 0.7s var(--ease-kinetic) 0.28s both;
+    }
+
+    /* Staggered Kinetic Grid Items */
+    .slide.active .grid-4 > .card:nth-child(1),
+    .slide.active .grid-3 > .card:nth-child(1),
+    .slide.active .team-grid > .team-card:nth-child(1),
+    .slide.active .flow-node:nth-child(1) {
+      animation: kineticCard 0.6s var(--ease-kinetic) 0.18s both;
+    }
+
+    .slide.active .grid-4 > .card:nth-child(2),
+    .slide.active .grid-3 > .card:nth-child(2),
+    .slide.active .team-grid > .team-card:nth-child(2),
+    .slide.active .flow-node:nth-child(3) {
+      animation: kineticCard 0.6s var(--ease-kinetic) 0.25s both;
+    }
+
+    .slide.active .grid-4 > .card:nth-child(3),
+    .slide.active .grid-3 > .card:nth-child(3),
+    .slide.active .team-grid > .team-card:nth-child(3),
+    .slide.active .flow-node:nth-child(5) {
+      animation: kineticCard 0.6s var(--ease-kinetic) 0.32s both;
+    }
+
+    .slide.active .grid-4 > .card:nth-child(4),
+    .slide.active .team-grid > .team-card:nth-child(4),
+    .slide.active .flow-node:nth-child(7) {
+      animation: kineticCard 0.6s var(--ease-kinetic) 0.39s both;
+    }
+
+    .slide.active .team-grid > .team-card:nth-child(5),
+    .slide.active .flow-node:nth-child(9) {
+      animation: kineticCard 0.6s var(--ease-kinetic) 0.46s both;
+    }
+
+    /* Showcase & Tables Kinetic Stagger */
+    .slide.active .showcase-grid .app-window {
+      animation: kineticWindow 0.65s var(--ease-kinetic) both;
+    }
+    .slide.active .showcase-grid .app-window:nth-child(1) { animation-delay: 0.12s; }
+    .slide.active .showcase-grid .app-window:nth-child(2) { animation-delay: 0.18s; }
+    .slide.active .showcase-grid .app-window:nth-child(3) { animation-delay: 0.24s; }
+    .slide.active .showcase-grid .app-window:nth-child(4) { animation-delay: 0.30s; }
+    .slide.active .showcase-grid .app-window:nth-child(5) { animation-delay: 0.36s; }
+    .slide.active .showcase-grid .app-window:nth-child(6) { animation-delay: 0.42s; }
+
+    .slide.active .table-container,
+    .slide.active .timeline {
+      animation: kineticFadeUp 0.7s var(--ease-kinetic) 0.22s both;
+    }
+
+    .slide.active .pantun-box {
+      animation: kineticFadeUp 0.65s var(--ease-kinetic) 0.2s both;
+    }
+    .slide.active .cta-btn {
+      animation: kineticFadeUp 0.65s var(--ease-kinetic) 0.3s both;
+    }
+
+    /* Kinetic Keyframes */
+    @keyframes kineticTitle {
+      0% {
+        opacity: 0;
+        transform: translateY(32px) skewY(2deg);
+        letter-spacing: -1.5px;
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) skewY(0deg);
+        letter-spacing: normal;
+      }
+    }
+
+    @keyframes kineticSubtitle {
+      0% {
+        opacity: 0;
+        transform: translateY(22px);
+        letter-spacing: 0.5px;
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+        letter-spacing: normal;
+      }
+    }
+
+    @keyframes kineticBadge {
+      0% {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.9);
+      }
+      60% {
+        transform: translateY(2px) scale(1.04);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes kineticCard {
+      0% {
+        opacity: 0;
+        transform: translateY(28px) scale(0.96);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes kineticWindow {
+      0% {
+        opacity: 0;
+        transform: translateY(24px) scale(0.94);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes kineticFadeUp {
+      0% {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes kineticPantun {
+      0% {
+        opacity: 0;
+        transform: translateX(-24px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes kineticPulsePop {
+      0% {
+        opacity: 0;
+        transform: scale(0.85);
+      }
+      70% {
+        transform: scale(1.05);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    /* Top Left Logos */
+    .top-left-logos {
+      position: fixed;
+      top: 24px;
+      left: 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 100;
+    }
+
+    .top-left-logos img {
+      height: 38px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .top-left-logos img:hover {
+      transform: scale(1.05);
+      opacity: 0.9;
+    }
+
+    .slide-counter {
+      position: fixed;
+      bottom: 24px;
+      right: 36px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--gray-text-muted);
+      background: var(--gray-light);
+      padding: 4px 14px;
+      border-radius: 999px;
+      z-index: 100;
+    }
+
+    /* Bottom Horizontal Navigation Bar & Dots */
+    .bottom-nav-bar {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--gray-border);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      z-index: 100;
+    }
+
+    .dot-navigation {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--gray-border);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .dot.active {
+      background-color: var(--emerald);
+      width: 24px;
+      border-radius: 999px;
+      transform: none;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Controls (Prev/Next) */
+    .nav-btn {
+      background: var(--white);
+      border: 1px solid var(--gray-border);
+      color: var(--gray-dark);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      background: var(--emerald);
+      border-color: var(--emerald);
+      color: var(--white);
+      transform: translateY(-1px);
+    }
+
+    /* Typography & Section Titles */
+    .slide-header {
+      margin-bottom: 32px;
+    }
+
+    .badge-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--emerald-dark);
+      background-color: var(--emerald-soft);
+      border: 1px solid var(--emerald-border);
+      padding: 5px 14px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+    }
+
+    /* Responsive Typography & Fluid Layout Variables */
+    .slide-title {
+      font-size: clamp(1.6rem, 2.5vw, 2.35rem);
+      font-weight: 800;
+      color: var(--gray-dark);
+      line-height: 1.22;
+    }
+
+    .slide-subtitle {
+      font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+      color: var(--gray-text-muted);
+      margin-top: 6px;
+      line-height: 1.45;
+    }
+
+    .hero-title {
+      font-size: clamp(2.4rem, 4.5vw, 3.8rem);
+      font-weight: 800;
+      color: var(--emerald-dark);
+      letter-spacing: -1px;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    .hero-tagline {
+      font-size: clamp(1.05rem, 1.6vw, 1.45rem);
+      font-weight: 600;
+      color: var(--gray-dark);
+      margin-bottom: 12px;
+      line-height: 1.35;
+    }
+
+    .hero-desc {
+      font-size: clamp(0.88rem, 1.15vw, 1.05rem);
+      color: var(--gray-text-muted);
+      margin-bottom: 24px;
+      max-width: 560px;
+      line-height: 1.6;
+    }
+
+    /* Cards & Grids */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(16px, 2.2vw, 32px); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(14px, 2vw, 30px); }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(12px, 1.8vw, 26px); }
+
+    .card {
+      background: var(--gray-card);
+      border: 1px solid var(--gray-border);
+      border-radius: 24px;
+      padding: clamp(18px, 2vw, 28px) clamp(16px, 1.8vw, 22px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.03);
+      transition: transform 0.25s ease, border-color 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      min-height: 240px;
+    }
+
+    .card:hover {
+      border-color: var(--emerald);
+      transform: translateY(-3px);
+    }
+
+    .card-header-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: clamp(44px, 4.2vw, 56px);
+      height: clamp(44px, 4.2vw, 56px);
+      border-radius: 16px;
+      background: var(--white);
+      border: 1px solid var(--gray-border);
+      margin-bottom: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+    }
+
+    .card-title {
+      font-size: 1.22rem;
+      font-weight: 700;
+      color: var(--gray-dark);
+      margin-bottom: 10px;
+    }
+
+    .card-desc {
+      font-size: 0.95rem;
+      color: var(--gray-text-muted);
+      line-height: 1.6;
+    }
+
+    /* Slide 1: Cover */
+    .cover-layout {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      align-items: center;
+      gap: 48px;
+    }
+
+    .hero-title {
+      font-size: 3.8rem;
+      font-weight: 800;
+      color: var(--emerald-dark);
+      letter-spacing: -1px;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    .hero-tagline {
+      font-size: 1.45rem;
+      font-weight: 600;
+      color: var(--gray-dark);
+      margin-bottom: 12px;
+    }
+
+    .hero-desc {
+      font-size: 1.05rem;
+      color: var(--gray-text-muted);
+      margin-bottom: 24px;
+      max-width: 560px;
+      line-height: 1.6;
+    }
+
+    .cover-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 16px;
+      border-top: 2px solid var(--gray-light);
+    }
+
+    .meta-team {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--gray-dark);
+    }
+
+    .meta-inst {
+      font-size: 0.88rem;
+      color: var(--gray-text-muted);
+    }
+
+    .cover-visual {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .qr-hero-card {
+      background: var(--white);
+      border: 2px solid var(--emerald-border);
+      border-radius: 24px;
+      padding: 36px;
+      text-align: center;
+      box-shadow: 0 16px 36px rgba(16, 185, 129, 0.12);
+      position: relative;
+    }
+
+    .qr-hero-card::after {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border: 1px dashed var(--emerald);
+      border-radius: 28px;
+      pointer-events: none;
+    }
+
+    /* Slide 4: How It Works Flow */
+    .flow-chain {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .flow-node {
+      flex: 1;
+      background: var(--gray-card);
+      border: 1px solid var(--gray-border);
+      border-radius: 20px;
+      padding: 28px 16px;
+      text-align: center;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .flow-step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--emerald);
+      color: var(--white);
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px auto;
+    }
+
+    .flow-arrow {
+      color: var(--emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Showcase Layout & App Window Mockup (Landscape 16:9 Ratio) */
+    .showcase-dual-layout {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 32px;
+      margin-top: 10px;
+      align-items: stretch;
+    }
+
+    .app-window {
+      background: var(--white);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      border: 1px solid var(--emerald-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .app-window:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 36px rgba(16, 185, 129, 0.12);
+    }
+
+    .app-window__bar {
+      height: 38px;
+      background: var(--gray-light);
+      border-bottom: 1px solid var(--gray-border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 8px;
+    }
+
+    .app-window__bar .dot-ui {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #D1D5DB;
+    }
+
+    .app-window__title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--gray-dark);
+      margin-left: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .app-window__body {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: var(--gray-card);
+      border: 2px dashed var(--emerald);
+      margin: 12px;
+      width: calc(100% - 24px);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      color: var(--gray-text-muted);
+      text-align: center;
+      padding: 16px;
+    }
+
+    .placeholder__icon {
+      width: 44px;
+      height: 44px;
+      color: var(--emerald-dark);
+    }
+
+    .placeholder span {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--gray-dark);
+    }
+
+    /* Slide 8: Competition Table */
+    .table-container {
+      background: var(--white);
+      border: 1px solid var(--gray-border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    }
+
+    .comp-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .comp-table th, .comp-table td {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--gray-border);
+    }
+
+    .comp-table th {
+      background: var(--gray-light);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--gray-dark);
+    }
+
+    .comp-table th.highlight, .comp-table td.highlight {
+      background: var(--emerald-soft);
+      color: var(--emerald-dark);
+      font-weight: 700;
+      border-left: 2px solid var(--emerald);
+      border-right: 2px solid var(--emerald);
+    }
+
+    .comp-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Slide 12: Team */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 18px;
+      align-items: stretch;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .team-card {
+      background: var(--white);
+      border: 2px solid var(--gray-border);
+      border-radius: 12px;
+      padding: 24px 18px;
+      text-align: center;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      min-height: 280px;
+    }
+
+    .team-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--emerald);
+    }
+
+    .team-avatar {
+      width: 110px;
+      height: 140px;
+      border-radius: 14px;
+      background: var(--emerald-soft);
+      border: 3px solid var(--emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px auto;
+      color: var(--emerald-dark);
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+      position: relative;
+    }
+
+    .team-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+    }
+
+    .team-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-dark);
+      margin-bottom: 6px;
+      line-height: 1.35;
+    }
+
+    .team-role {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--emerald-dark);
+      margin-bottom: 6px;
+    }
+
+    .team-nim {
+      font-size: 0.8rem;
+      color: var(--gray-text-muted);
+    }
+
+    /* Slide 11: Timeline */
+    .timeline {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      margin-top: 42px;
+      padding-top: 24px;
+      padding-bottom: 12px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      top: 30px;
+      left: 60px;
+      right: 60px;
+      height: 4px;
+      background: var(--gray-border);
+      z-index: 1;
+    }
+
+    .timeline-step {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      flex: 1;
+    }
+
+    .timeline-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--white);
+      border: 4px solid var(--emerald);
+      margin: 0 auto 14px auto;
+    }
+
+    /* Slide 14: Closing */
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--emerald);
+      color: var(--white);
+      padding: 14px 32px;
+      border-radius: 999px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
+      border: 1px solid var(--emerald);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      margin-top: 18px;
+    }
+
+    .cta-btn:hover {
+      background: var(--emerald-dark);
+      border-color: var(--emerald-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.25);
+    }
+
+    .pantun-box {
+      background: var(--emerald-soft);
+      border: 1px solid var(--emerald-border);
+      border-left: 4px solid var(--emerald);
+      padding: clamp(14px, 1.8vw, 20px) clamp(18px, 2.2vw, 28px);
+      border-radius: 16px;
+      font-style: italic;
+      color: var(--gray-dark);
+      line-height: 1.7;
+      font-size: clamp(0.88rem, 1.1vw, 1.02rem);
+      text-align: center;
+    }
+
+    /* Top Right Presentation Utility Tools (Fullscreen & Print PDF) */
+    .top-right-tools {
+      position: fixed;
+      top: 24px;
+      right: 36px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 100;
+    }
+
+    .tool-btn {
+      background: var(--white);
+      border: 1px solid var(--gray-border);
+      color: var(--gray-dark);
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .tool-btn:hover {
+      background: var(--emerald);
+      border-color: var(--emerald);
+      color: var(--white);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    }
+
+    .tool-btn .icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ========================================================
+       RESPONSIVE ADAPTATIONS (LAPTOP, TABLET & MOBILE)
+       ======================================================== */
+    @media screen and (max-width: 1200px) {
+      .slide {
+        padding: 72px 50px 88px 50px;
+      }
+      .slide.slide--center {
+        padding: 72px 50px 88px 50px;
+      }
+      .grid-4 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      .team-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 14px;
+      }
+      .team-card:nth-child(4),
+      .team-card:nth-child(5) {
+        grid-column: span 1;
+      }
+      .card {
+        min-height: auto;
+      }
+    }
+
+    @media screen and (max-width: 900px) {
+      .slide {
+        padding: 68px 30px 84px 30px;
+        overflow-y: auto;
+      }
+      .cover-layout {
+        grid-template-columns: 1fr;
+        gap: 28px;
+        text-align: center;
+      }
+      .hero-desc {
+        margin: 0 auto 20px auto;
+      }
+      .cover-meta {
+        align-items: center;
+      }
+      .showcase-dual-layout {
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      .grid-3 {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      .grid-2 {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      .flow-chain {
+        flex-direction: column;
+        gap: 10px;
+      }
+      .flow-arrow {
+        transform: rotate(90deg);
+      }
+      .team-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      .timeline {
+        flex-direction: column;
+        gap: 16px;
+      }
+      .timeline::before {
+        display: none;
+      }
+      .bottom-nav-bar {
+        padding: 6px 12px;
+        gap: 10px;
+      }
+      .slide-counter {
+        display: none;
+      }
+    }
+
+    /* ========================================================
+       PRINT & PDF EXPORT STYLESHEET (EXACT 1:1 SLIDE LAYOUT)
+       ======================================================== */
+    @media print {
+      @page {
+        size: 297mm 210mm; /* A4 Landscape exact dimensions */
+        margin: 0;
+      }
+
+      *, *:before, *:after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        animation: none !important;
+        transition: none !important;
+        box-shadow: none !important;
+      }
+
+      html, body {
+        width: 297mm !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #FFFFFF !important;
+        overflow: visible !important;
+        font-size: 14px !important;
+      }
+
+      /* Hide floating UI controls and overlays */
+      .top-left-logos,
+      .top-right-tools,
+      .bottom-nav-bar,
+      .slide-counter {
+        display: none !important;
+      }
+
+      .deck-container {
+        position: static !important;
+        display: block !important;
+        width: 297mm !important;
+        height: auto !important;
+        overflow: visible !important;
+        perspective: none !important;
+      }
+
+      /* Ensure each slide is an exact, standalone page */
+      .slide {
+        position: relative !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 297mm !important;
+        height: 210mm !important;
+        max-width: 297mm !important;
+        max-height: 210mm !important;
+        box-sizing: border-box !important;
+        padding: 24mm 24mm 20mm 24mm !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+        page-break-before: auto !important;
+        page-break-after: always !important;
+        page-break-inside: avoid !important;
+        break-after: page !important;
+        break-inside: avoid !important;
+        background: #FFFFFF !important;
+        overflow: hidden !important;
+      }
+
+      .slide:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+
+      .slide.slide--center {
+        justify-content: center !important;
+        padding: 20mm 24mm !important;
+      }
+
+      .slide-header {
+        margin-bottom: 16px !important;
+        flex-shrink: 0 !important;
+      }
+
+      .slide-title {
+        font-size: 24pt !important;
+        line-height: 1.2 !important;
+      }
+
+      .slide-subtitle {
+        font-size: 11pt !important;
+      }
+
+      .badge-chip {
+        font-size: 8.5pt !important;
+        padding: 4px 12px !important;
+        margin-bottom: 6px !important;
+      }
+
+      .slide-content-wrap {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        max-height: none !important;
+        min-height: 0 !important;
+      }
+
+      /* Preserve multi-column layouts exactly as seen on screen */
+      .grid-4 {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 16px !important;
+      }
+
+      .grid-3 {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 18px !important;
+      }
+
+      .grid-2 {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+      }
+
+      .team-grid {
+        display: grid !important;
+        grid-template-columns: repeat(5, 1fr) !important;
+        gap: 14px !important;
+      }
+
+      .showcase-dual-layout {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+      }
+
+      .flow-chain {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 10px !important;
+      }
+
+      .flow-node {
+        min-height: 160px !important;
+        padding: 18px 12px !important;
+      }
+
+      .card {
+        min-height: auto !important;
+        padding: 18px 16px !important;
+        border-radius: 16px !important;
+        background: #F9FAFB !important;
+        border: 1px solid #E5E7EB !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .card-title {
+        font-size: 11pt !important;
+        margin-bottom: 6px !important;
+      }
+
+      .card-desc {
+        font-size: 9pt !important;
+        line-height: 1.45 !important;
+      }
+
+      .card-header-icon {
+        width: 44px !important;
+        height: 44px !important;
+        margin-bottom: 12px !important;
+        border-radius: 12px !important;
+      }
+
+      .card-header-icon .icon {
+        width: 22px !important;
+        height: 22px !important;
+      }
+
+      .team-card {
+        min-height: auto !important;
+        padding: 16px 10px !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .team-avatar {
+        width: 70px !important;
+        height: 70px !important;
+        margin-bottom: 10px !important;
+      }
+
+      .team-name {
+        font-size: 10pt !important;
+      }
+
+      .team-role {
+        font-size: 8.5pt !important;
+      }
+
+      .team-nim {
+        font-size: 8pt !important;
+      }
+
+      .app-window {
+        border-radius: 14px !important;
+        border: 1px solid #A7F3D0 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .app-window__body {
+        aspect-ratio: 16 / 9 !important;
+        margin: 8px !important;
+        width: calc(100% - 16px) !important;
+      }
+
+      .table-container {
+        border-radius: 16px !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .comp-table th, .comp-table td {
+        padding: 12px 16px !important;
+        font-size: 9pt !important;
+      }
+
+      .timeline {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        margin-top: 14px !important;
+        padding-top: 10px !important;
+      }
+
+      .timeline::before {
+        display: block !important;
+        top: 20px !important;
+      }
+
+      .timeline-dot {
+        width: 18px !important;
+        height: 18px !important;
+        margin-bottom: 8px !important;
+      }
+
+      .cover-layout {
+        display: grid !important;
+        grid-template-columns: 1.2fr 0.8fr !important;
+        gap: 36px !important;
+        align-items: center !important;
+        text-align: left !important;
+      }
+
+      .hero-title {
+        font-size: 36pt !important;
+        margin-bottom: 8px !important;
+      }
+
+      .hero-tagline {
+        font-size: 14pt !important;
+        margin-bottom: 8px !important;
+      }
+
+      .hero-desc {
+        font-size: 10pt !important;
+        margin-bottom: 16px !important;
+      }
+
+      .pantun-box {
+        font-size: 10.5pt !important;
+        padding: 16px 24px !important;
+        margin-bottom: 16px !important;
+      }
+
+      .cta-btn {
+        padding: 10px 24px !important;
+        font-size: 10pt !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Left Logos: Poliwangi, PRINGMONI, Quarta Code -->
+  <div class="top-left-logos">
+    <img src="assets/logos/poliwangi-logo.png" alt="Logo Politeknik Negeri Banyuwangi" title="Politeknik Negeri Banyuwangi">
+    <img src="assets/logos/logo-pm2.png" alt="Logo PRINGMONI" title="PRINGMONI">
+    <img src="assets/logos/quarta-code-logo.jpeg" alt="Logo Quarta Code" title="Quarta Code" style="border-radius:6px;">
+  </div>
+
+  <!-- Top Right Utility Buttons: Fullscreen & Print to PDF -->
+  <div class="top-right-tools">
+    <button class="tool-btn" id="fullscreenBtn" title="Mode Layar Penuh (F / Esc)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      <span>Fullscreen</span>
+    </button>
+    <button class="tool-btn" id="printPdfBtn" title="Cetak Seluruh Slide ke PDF (Ctrl + P)">
+      <svg class="icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      <span>Cetak PDF</span>
+    </button>
+  </div>
+
+  <div class="slide-counter" id="slideCounter">1 / 14</div>
+
+  <div class="bottom-nav-bar">
+    <button class="nav-btn" id="prevBtn" title="Sebelumnya (Arrow Left)">
+      <svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="dot-navigation" id="dotContainer"></div>
+    <button class="nav-btn" id="nextBtn" title="Selanjutnya (Arrow Right)">
+      <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+
+  <div class="deck-container">
+
+    <!-- SLIDE 1: COVER / OPENING -->
+    <section class="slide slide--center active" id="slide-1">
+      <div class="cover-layout">
+        <div>
+          <div class="badge-chip">
+            <svg class="icon icon-emerald" style="width:16px;height:16px;" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Inovasi Digitalisasi Restoran & Cafe
+          </div>
+          <h1 class="hero-title">PRINGMONI</h1>
+          <h2 class="hero-tagline">Sistem Pemesanan & Monitoring Restoran Berbasis QR Code</h2>
+          <p class="hero-desc">Pesan Lebih Cepat, Pelayanan Lebih Presisi. Solusi self-order berbasis token meja terintegrasi monitoring multi-peran secara real-time.</p>
+
+          <div class="cover-meta">
+            <div class="meta-team">Quarta Code: Faizatul I. | Muhammad P. | Kevin M. A. | Melandri F. S. | Maulana A. F.</div>
+            <div class="meta-inst">Teknologi Rekayasa Perangkat Lunak — Politeknik Negeri Banyuwangi</div>
+          </div>
+        </div>
+
+        <div class="cover-visual">
+          <div class="app-window" style="width: 100%; max-width: 520px;">
+            <div class="app-window__bar">
+              <span class="dot-ui"></span>
+              <span class="dot-ui"></span>
+              <span class="dot-ui"></span>
+              <span class="app-window__title">PRINGMONI - Menu </span>
+            </div>
+            <div class="app-window__body">
+              <img src="assets/screen/menu-utama.png" alt="Tampilan Dashboard Kasir PRINGMONI" style="width:100%; height:100%; object-fit:contain; background:white;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: PROBLEM -->
+    <section class="slide slide--expand" id="slide-2">
+      <div class="slide-header">
+        <div class="badge-chip">Tantangan Pasar & Operasional</div>
+        <h2 class="slide-title">Kendala Operasional Restoran Konvensional</h2>
+        <p class="slide-subtitle">Evaluasi empiris operasional pada jam sibuk di Cafe & Resto Pringsewu Osing, Rogojampi.</p>
+      </div>
+
+      <div class="slide-content-wrap">
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-danger" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <h3 class="card-title">Antrean Jam Sibuk</h3>
+            <p class="card-desc">Penumpukan pemesanan di kasir dan meja tunggu yang memicu keterlambatan alur operasional dapur.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-danger" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <h3 class="card-title">Salah Catat Pesanan</h3>
+            <p class="card-desc">Pencatatan manual oleh pelayan rentan terhadap miskomunikasi menu dan kekeliruan nomor meja makan.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-danger" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </div>
+            <h3 class="card-title">Verifikasi Lambat</h3>
+            <p class="card-desc">Validasi manual transaksi kasir dan struk fisik memperlambat penyelesaian pembayaran pengunjung.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-danger" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <h3 class="card-title">Ketergantungan Waiter</h3>
+            <p class="card-desc">Pelanggan harus menunggu staf datang hanya untuk melihat daftar menu atau menanyakan progres pesanan.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: SOLUTION -->
+    <section class="slide slide--expand" id="slide-3">
+      <div class="slide-header">
+        <div class="badge-chip">Solusi & Nilai Utama</div>
+        <h2 class="slide-title">PRINGMONI: Presisi, Cepat & Terintegrasi</h2>
+        <p class="slide-subtitle">Digitalisasi menyeluruh dari pemesanan mandiri meja hingga analitik performa owner.</p>
+      </div>
+
+      <div class="slide-content-wrap">
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <h3 class="card-title">Self-Order QR Meja</h3>
+            <p class="card-desc">Pemesanan mandiri dari smartphone pelanggan menggunakan QR token unik per nomor meja.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <h3 class="card-title">Monitoring Real-Time</h3>
+            <p class="card-desc">Pembaruan status sinkron langsung antara layar Waiter, Cashier, Kitchen, dan Owner.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <h3 class="card-title">Kalkulasi Otomatis</h3>
+            <p class="card-desc">Perhitungan subtotal, diskon, dan uang kembalian secara presisi tanpa risiko human-error.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <h3 class="card-title">Multi-Payment Gateway</h3>
+            <p class="card-desc">Dukungan fleksibel untuk pembayaran tunai di kasir maupun transfer non-tunai / QRIS.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: HOW IT WORKS -->
+    <section class="slide slide--expand" id="slide-4">
+      <div class="slide-header">
+        <div class="badge-chip">User Experience Flow</div>
+        <h2 class="slide-title">5 Langkah Praktis Pengalaman Pelanggan</h2>
+        <p class="slide-subtitle">Sederhana untuk pelanggan, rapi dan otomatis bagi staf restoran.</p>
+      </div>
+
+      <div class="slide-content-wrap">
+        <div class="flow-chain">
+          <div class="flow-node">
+            <div class="flow-step-num">1</div>
+            <svg class="icon-lg icon-emerald" style="margin-bottom:10px;" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <h4 style="font-size:0.95rem; font-weight:700;">Scan QR Code</h4>
+            <p style="font-size:0.8rem; color:var(--gray-text-muted); margin-top:4px;">Pindai kode QR unik pada meja makan</p>
+          </div>
+
+          <div class="flow-arrow">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+
+          <div class="flow-node">
+            <div class="flow-step-num">2</div>
+            <svg class="icon-lg icon-emerald" style="margin-bottom:10px;" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <h4 style="font-size:0.95rem; font-weight:700;">Pilih Menu</h4>
+            <p style="font-size:0.8rem; color:var(--gray-text-muted); margin-top:4px;">Eksplor katalog & status ketersediaan</p>
+          </div>
+
+          <div class="flow-arrow">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+
+          <div class="flow-node">
+            <div class="flow-step-num">3</div>
+            <svg class="icon-lg icon-emerald" style="margin-bottom:10px;" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            <h4 style="font-size:0.95rem; font-weight:700;">Keranjang</h4>
+            <p style="font-size:0.8rem; color:var(--gray-text-muted); margin-top:4px;">Kustomisasi porsi & catatan pesanan</p>
+          </div>
+
+          <div class="flow-arrow">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+
+          <div class="flow-node">
+            <div class="flow-step-num">4</div>
+            <svg class="icon-lg icon-emerald" style="margin-bottom:10px;" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <h4 style="font-size:0.95rem; font-weight:700;">Bayar</h4>
+            <p style="font-size:0.8rem; color:var(--gray-text-muted); margin-top:4px;">Tunai di kasir atau QRIS instan</p>
+          </div>
+
+          <div class="flow-arrow">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+
+          <div class="flow-node">
+            <div class="flow-step-num">5</div>
+            <svg class="icon-lg icon-emerald" style="margin-bottom:10px;" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <h4 style="font-size:0.95rem; font-weight:700;">Pantau</h4>
+            <p style="font-size:0.8rem; color:var(--gray-text-muted); margin-top:4px;">Tracking langsung status sajian</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: PRODUCT SHOWCASE 1 - CUSTOMER EXPERIENCE -->
+    <section class="slide" id="slide-5">
+      <div class="slide-header" style="margin-bottom:24px;">
+        <div class="badge-chip">Product Showcase 1/3 — Customer App</div>
+        <h2 class="slide-title">Antarmuka Pemesanan Mandiri (Customer)</h2>
+        <p class="slide-subtitle">Akses instan melalui pemindaian QR Code meja tanpa perlu unduh aplikasi.</p>
+      </div>
+
+      <div class="showcase-dual-layout">
+        <!-- Window 1: Daftar Menu -->
+        <div class="app-window">
+          <div class="app-window__bar">
+            <span class="dot-ui"></span><span class="dot-ui"></span><span class="dot-ui"></span>
+            <span class="app-window__title">Daftar Menu & Katalog Produk</span>
+          </div>
+          <div class="app-window__body">
+              <img src="assets/screen/daftar_menu.png" alt="Tampilan Daftar Menu PRINGMONI" style="width:100%; height:100%; object-fit:contain; background:white;">
+          </div>
+        </div>
+
+        <!-- Window 2: Detail Pesanan -->
+        <div class="app-window">
+          <div class="app-window__bar">
+            <span class="dot-ui"></span><span class="dot-ui"></span><span class="dot-ui"></span>
+            <span class="app-window__title">Detail Pesanan & Checkout</span>
+          </div>
+          <div class="app-window__body">
+              <img src="assets/screen/halaman_checkout.jpeg" alt="Tampilan Checkout PRINGMONI" style="width:100%; height:100%; object-fit:contain; background:white;">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: PRODUCT SHOWCASE 2 - CASHIER & WAITER -->
+    <section class="slide" id="slide-6">
+      <div class="slide-header" style="margin-bottom:24px;">
+        <div class="badge-chip">Product Showcase 2/3 — Operasional Staf</div>
+        <h2 class="slide-title">Dashboard Staf (Kasir & Waiter)</h2>
+        <p class="slide-subtitle">Koordinasi cepat antara validasi pembayaran kasir dan distribusi sajian meja oleh waiter.</p>
+      </div>
+
+      <div class="showcase-dual-layout">
+        <!-- Window 3: Dashboard Cashier -->
+        <div class="app-window">
+          <div class="app-window__bar">
+            <span class="dot-ui"></span><span class="dot-ui"></span><span class="dot-ui"></span>
+            <span class="app-window__title">Dashboard Cashier & Validasi Pembayaran</span>
+          </div>
+          <div class="app-window__body">
+            <img src="assets/screen/validasi-bayar2.png" alt="Tampilan Validasi Pembayaran PRINGMONI" style="width:100%; height:100%; object-fit:contain; background:white;">
+          </div>
+        </div>
+
+        <!-- Window 4: Dashboard Waiter -->
+        <div class="app-window">
+          <div class="app-window__bar">
+            <span class="dot-ui"></span><span class="dot-ui"></span><span class="dot-ui"></span>
+            <span class="app-window__title">Dashboard Waiter & Manajemen Antrean Meja</span>
+          </div>
+          <div class="app-window__body">
+            <img src="assets/screen/kelola-pesanan.png" alt="Tampilan Manajemen Antrean Meja PRINGMONI" style="width:100%; height:100%; object-fit:contain; background:white;">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: PRODUCT SHOWCASE 3 - OWNER & REAL-TIME TRACKING -->
+    <section class="slide" id="slide-7">
+      <div class="slide-header" style="margin-bottom:24px;">
+        <div class="badge-chip">Product Showcase 3/3 — Manajerial & Tracking</div>
+        <h2 class="slide-title">Dashboard Owner & Status Real-Time</h2>
+        <p class="slide-subtitle">Transparansi pendapatan serta pemantauan linimasa status pesanan per menu.</p>
+      </div>
+
+      <div class="showcase-dual-layout">
+        <!-- Window 5: Dashboard Owner -->
+        <div class="app-window">
+          <div class="app-window__bar">
+            <span class="dot-ui"></span><span class="dot-ui"></span><span class="dot-ui"></span>
+            <span class="app-window__title">Dashboard Analitik & Pendapatan Owner</span>
+          </div>
+          <div class="app-window__body">
+            <img src="assets/screen/pendapatan_owner.jpeg" alt="Tampilan Pendapatan Owner PRINGMONI" style="width:100%; height:100%; object-fit:contain; background:white;">
+          </div>
+        </div>
+
+        <!-- Window 6: Status Pesanan -->
+        <div class="app-window">
+          <div class="app-window__bar">
+            <span class="dot-ui"></span><span class="dot-ui"></span><span class="dot-ui"></span>
+            <span class="app-window__title">Tracking Status Pesanan Real-Time</span>
+          </div>
+          <div class="app-window__body">
+            <img src="assets/screen/tracking.png" alt="Tampilan Status Pesanan PRINGMONI" style="width:100%; height:100%; object-fit:contain; background:white;">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: MARKET OPPORTUNITY (TAM / SAM / SOM) -->
+    <section class="slide slide--expand" id="slide-8">
+      <div class="slide-header">
+        <div class="badge-chip">Peluang Pasar & Ukuran Pasar (TAM / SAM / SOM)</div>
+        <h2 class="slide-title">Ukuran Pasar & Potensi Digitalisasi Kuliner</h2>
+        <p class="slide-subtitle">Peluang ekspansi terukur dari pilot project Rogojampi hingga sentra kuliner Jawa Timur.</p>
+      </div>
+
+      <div class="slide-content-wrap">
+        <div class="grid-3" style="margin-bottom: 16px;">
+          <div class="card" style="text-align: center; min-height: 220px; justify-content: center; padding: 22px 18px;">
+            <div style="font-size:0.85rem; font-weight:700; color:var(--emerald-dark); letter-spacing:1px; margin-bottom:4px;">TAM (TOTAL MARKET)</div>
+            <div style="font-size:2.4rem; font-weight:800; color:var(--gray-dark); margin-bottom:4px;">8.500+</div>
+            <h4 style="font-weight:700; font-size:1rem;">Restoran & Cafe Jatim</h4>
+            <p style="font-size:0.82rem; color:var(--gray-text-muted); margin-top:4px; line-height:1.45;">Total potensi bisnis F&B modern dan sentra kuliner wisata di Jawa Timur.</p>
+          </div>
+
+          <div class="card" style="text-align: center; min-height: 220px; justify-content: center; padding: 22px 18px; border-color:var(--emerald-border); background:var(--white);">
+            <div style="font-size:0.85rem; font-weight:700; color:var(--emerald-dark); letter-spacing:1px; margin-bottom:4px;">SAM (SERVICEABLE MARKET)</div>
+            <div style="font-size:2.4rem; font-weight:800; color:var(--emerald-dark); margin-bottom:4px;">440+</div>
+            <h4 style="font-weight:700; font-size:1rem;">Resto Formal Banyuwangi</h4>
+            <p style="font-size:0.82rem; color:var(--gray-text-muted); margin-top:4px; line-height:1.45;">Resto & cafe formal terdata (BPS Banyuwangi Dalam Angka) dengan area meja makan luas.</p>
+          </div>
+
+          <div class="card" style="text-align: center; min-height: 220px; justify-content: center; padding: 22px 18px;">
+            <div style="font-size:0.85rem; font-weight:700; color:var(--emerald-dark); letter-spacing:1px; margin-bottom:4px;">SOM (OBTAINABLE TARGET)</div>
+            <div style="font-size:2.4rem; font-weight:800; color:var(--gray-dark); margin-bottom:4px;">25 Resto</div>
+            <h4 style="font-weight:700; font-size:1rem;">Target Tahun 1 (Pilot + Koridor)</h4>
+            <p style="font-size:0.82rem; color:var(--gray-text-muted); margin-top:4px; line-height:1.45;">Ekspansi tahap awal di koridor Rogojampi, Kota Banyuwangi, dan Glagah.</p>
+          </div>
+        </div>
+
+        <div class="card card--compact" style="background:var(--emerald-soft); border-color:var(--emerald-border); min-height:auto; padding: 16px 24px;">
+          <p style="font-size:0.92rem; color:var(--gray-dark); line-height:1.55; margin:0;">
+            <strong>Validasi Nyata & Target Segmen:</strong> Pilot project aktif di <strong>Cafe & Resto Pringsewu Osing</strong> membuktikan kebutuhan self-order mendesak untuk resto keluarga berkapasitas besar guna melenyapkan bottleneck pesanan di jam sibuk (*peak hours*).
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: BUSINESS MODEL -->
+    <section class="slide slide--expand" id="slide-9">
+      <div class="slide-header">
+        <div class="badge-chip">Model Monetisasi & Nilai Bisnis</div>
+        <h2 class="slide-title">Model Bisnis Berkelanjutan</h2>
+        <p class="slide-subtitle">Solusi Software-as-a-Service (SaaS) yang ramah investasi bagi pemilik resto.</p>
+      </div>
+
+      <div class="slide-content-wrap">
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <h3 class="card-title">Siapa Dilayani</h3>
+            <p class="card-desc">Cafe, resto keluarga, dan sentra kuliner dengan volume pengunjung tinggi dan variasi meja makan luas.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <h3 class="card-title">Siapa Membayar</h3>
+            <p class="card-desc">Owner restoran yang membutuhkan kendali operasional, transparansi pendapatan, dan monitoring staf.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            </div>
+            <h3 class="card-title">Model SaaS</h3>
+            <p class="card-desc">Paket langganan berkala (Bulanan / Tahunan) berjenjang sesuai jumlah meja aktif dan modul analitik.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header-icon">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            </div>
+            <h3 class="card-title">Value Proposition</h3>
+            <p class="card-desc">Mengurangi salah catat hingga 0%, memangkas waktu tunggu meja, dan laporan rekonsiliasi kasir instan.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: COMPETITION & ADVANTAGE -->
+    <section class="slide slide--expand" id="slide-10">
+      <div class="slide-header">
+        <div class="badge-chip">Analisis Komparatif</div>
+        <h2 class="slide-title">Keunggulan Kompetitif PRINGMONI</h2>
+        <p class="slide-subtitle">Perbandingan langsung alur kerja sistem PRINGMONI terhadap metode manual & POS konvensional.</p>
+      </div>
+
+      <div class="slide-content-wrap">
+        <div class="table-container">
+          <table class="comp-table">
+            <thead>
+              <tr>
+                <th>Aspek Operasional</th>
+                <th class="highlight">PRINGMONI</th>
+                <th>Pencatatan Manual</th>
+                <th>Kompetitor POS Umum</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Pemesanan</strong></td>
+                <td class="highlight">
+                  <svg class="icon icon-emerald" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  Mandiri via QR Meja
+                </td>
+                <td>
+                  <svg class="icon icon-danger" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  Antre Waiter / Buku Menu
+                </td>
+                <td>Kasir statis / Input manual staf</td>
+              </tr>
+              <tr>
+                <td><strong>Monitoring</strong></td>
+                <td class="highlight">
+                  <svg class="icon icon-emerald" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  Sinkron Real-Time Multi-Aktor
+                </td>
+                <td>
+                  <svg class="icon icon-danger" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  Manual via Kertas Bon
+                </td>
+                <td>Terbatas di layar kasir saja</td>
+              </tr>
+              <tr>
+                <td><strong>Pembayaran</strong></td>
+                <td class="highlight">
+                  <svg class="icon icon-emerald" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  Kalkulasi Otomatis (Tunai & Non-Tunai)
+                </td>
+                <td>
+                  <svg class="icon icon-danger" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  Kalkulator fisik rawan selisih
+                </td>
+                <td>Kalkulasi terpisah dari alur meja</td>
+              </tr>
+              <tr>
+                <td><strong>Efisiensi Biaya</strong></td>
+                <td class="highlight">
+                  <svg class="icon icon-emerald" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  Terjangkau, tanpa hardware mahal
+                </td>
+                <td>Biaya cetak kertas terus menerus</td>
+                <td>Biaya lisensi & perangkat mesin POS tinggi</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 11: TRACTION / VALIDATION -->
+    <section class="slide slide--expand" id="slide-11">
+      <div class="slide-header">
+        <div class="badge-chip">Validasi Produk & Kesiapan Rekayasa</div>
+        <h2 class="slide-title">Validasi & Kematangan Pengembangan</h2>
+        <p class="slide-subtitle">Fondasi rekayasa perangkat lunak solid, terstruktur, dan siap implementasi operasional.</p>
+      </div>
+
+      <div class="slide-content-wrap">
+        <div class="grid-3" style="margin-bottom: 16px; gap: 20px;">
+          <div class="card" style="min-height: 170px; padding: 20px 20px;">
+            <div class="card-header-icon" style="width: 44px; height: 44px; margin-bottom: 12px; border-radius: 12px;">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <h3 class="card-title" style="font-size: 1.1rem; margin-bottom: 6px;">Spesifikasi Sistem Lengkap</h3>
+            <p class="card-desc" style="font-size: 0.88rem; line-height: 1.5;">Arsitektur sistem dan spesifikasi kebutuhan operasional menyeluruh telah tuntas dianalisis & diverifikasi.</p>
+          </div>
+
+          <div class="card" style="min-height: 170px; padding: 20px 20px;">
+            <div class="card-header-icon" style="width: 44px; height: 44px; margin-bottom: 12px; border-radius: 12px;">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </div>
+            <h3 class="card-title" style="font-size: 1.1rem; margin-bottom: 6px;">23 Alur Fitur Teruji</h3>
+            <p class="card-desc" style="font-size: 0.88rem; line-height: 1.5;">Seluruh skenario interaksi operasional multi-peran terpetakan matang dari pemesanan hingga rekonsiliasi kasir.</p>
+          </div>
+
+          <div class="card" style="min-height: 170px; padding: 20px 20px;">
+            <div class="card-header-icon" style="width: 44px; height: 44px; margin-bottom: 12px; border-radius: 12px;">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </div>
+            <h3 class="card-title" style="font-size: 1.1rem; margin-bottom: 6px;">UI/UX Responsif Siap Pakai</h3>
+            <p class="card-desc" style="font-size: 0.88rem; line-height: 1.5;">Desain antarmuka modern yang intuitif untuk Customer di smartphone dan dashboard Staf/Owner di tablet/desktop.</p>
+          </div>
+        </div>
+
+        <div class="grid-2" style="gap: 20px;">
+          <div class="card" style="min-height: auto; padding: 18px 22px; display:flex; flex-direction:row; align-items:center; gap:16px;">
+            <div class="card-header-icon" style="margin:0; width: 44px; height: 44px; min-width: 44px; border-radius: 12px;">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            </div>
+            <div>
+              <h4 style="font-weight:700; font-size:1.02rem; margin-bottom: 3px;">Stack Modern: Supabase & Vercel</h4>
+              <p style="font-size:0.86rem; color:var(--gray-text-muted); line-height:1.45;">BaaS Supabase (PostgreSQL & Realtime WebSocket) dan hosting Vercel Edge Serverless yang andal & cepat.</p>
+            </div>
+          </div>
+
+          <div class="card" style="min-height: auto; padding: 18px 22px; display:flex; flex-direction:row; align-items:center; gap:16px;">
+            <div class="card-header-icon" style="margin:0; width: 44px; height: 44px; min-width: 44px; border-radius: 12px;">
+              <svg class="icon icon-emerald" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <h4 style="font-weight:700; font-size:1.02rem; margin-bottom: 3px;">Wawancara Mitra Bisnis</h4>
+              <p style="font-size:0.86rem; color:var(--gray-text-muted); line-height:1.45;">Validasi kebutuhan operasional lapangan langsung bersama pengelola Cafe & Resto Pringsewu Osing.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 12: TEAM -->
+    <section class="slide slide--expand" id="slide-12">
+      <div class="slide-header">
+        <div class="badge-chip">Quarta Code — Tim Pengembang</div>
+        <h2 class="slide-title">Tim Ahli Politeknik Negeri Banyuwangi</h2>
+        <p class="slide-subtitle">Kolaborasi lintas disiplin rekayasa perangkat lunak untuk menghadirkan produk berkualitas.</p>
+      </div>
+
+      <div class="slide-content-wrap">
+        <div class="team-grid" style="gap: 16px;">
+          <div class="team-card">
+            <div class="team-avatar">
+              <img src="assets/team/faizatul_izzah.jpeg" alt="Faizatul Izzah">
+            </div>
+            <h4 class="team-name">Faizatul Izzah</h4>
+            <p class="team-role">System Analyst</p>
+            <p class="team-nim">NIM: 362458302002</p>
+          </div>
+
+          <div class="team-card">
+            <div class="team-avatar">
+              <img src="assets/team/muhammad_pandiyani.jpeg" alt="Muhammad Pandiyani">
+            </div>
+            <h4 class="team-name">Muhammad Pandiyani</h4>
+            <p class="team-role">UI/UX Designer</p>
+            <p class="team-nim">NIM: 362458302005</p>
+          </div>
+
+          <div class="team-card">
+            <div class="team-avatar">
+              <img src="assets/team/kevin_maulana_atmaja.jpeg" alt="Kevin Maulana Atmaja">
+            </div>
+            <h4 class="team-name">Kevin Maulana Atmaja</h4>
+            <p class="team-role">Backend Developer</p>
+            <p class="team-nim">NIM: 362458302011</p>
+          </div>
+
+          <div class="team-card">
+            <div class="team-avatar">
+              <img src="assets/team/melandri_fadillah_s..jpeg" alt="Melandri Fadillah S.">
+            </div>
+            <h4 class="team-name">Melandri Fadillah S.</h4>
+            <p class="team-role">Frontend Developer</p>
+            <p class="team-nim">NIM: 362458302113</p>
+          </div>
+
+          <div class="team-card">
+            <div class="team-avatar">
+              <img src="assets/team/maulana_akbar_f..jpeg" alt="Maulana Akbar F.">
+            </div>
+            <h4 class="team-name">Maulana Akbar F.</h4>
+            <p class="team-role">QA & Documentation</p>
+            <p class="team-nim">NIM: 362458302114</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 13: FINANCIALS & THE ASK -->
+    <section class="slide slide--expand" id="slide-13">
+      <div class="slide-header">
+        <div class="badge-chip">Financials & The Ask — Proyeksi & Kebutuhan Dana</div>
+        <h2 class="slide-title">Kebutuhan Pendanaan & Proyeksi Finansial</h2>
+      </div>
+
+      <div class="slide-content-wrap">
+        <div class="grid-2" style="margin-bottom:16px; gap:20px;">
+          <div class="card" style="min-height:auto; padding: 20px 24px;">
+            <h4 style="font-size:1.05rem; font-weight:700; color:var(--gray-dark); margin-bottom:6px;">Kebutuhan Pendanaan</h4>
+            <div style="font-size:2rem; font-weight:800; color:var(--emerald-dark); margin-bottom:6px;">Rp 15.000.000</div>
+            <p style="font-size:0.84rem; color:var(--gray-text-muted); line-height:1.45;">Estimasi kebutuhan modal peluncuran awal: langganan cloud vendor (Supabase Pro & Vercel Pro) 1 tahun, stand akrilik QR meja, dan operasional onboarding mitra.</p>
+          </div>
+
+          <div class="card" style="min-height:auto; padding: 20px 24px;">
+            <h4 style="font-size:1.05rem; font-weight:700; color:var(--gray-dark); margin-bottom:8px;">Alokasi Penggunaan Dana</h4>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; justify-content:space-between; font-size:0.86rem; align-items:center;">
+                <span><strong>40% (Rp 6.000.000)</strong> Cloud Vendor: BaaS Supabase Pro, Hosting Vercel Pro & Domain</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.86rem; align-items:center;">
+                <span><strong>35% (Rp 5.250.000)</strong> Stand Meja QR Akrilik Laser-Cut & Hardware Uji Kasir</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.86rem; align-items:center;">
+                <span><strong>25% (Rp 3.750.000)</strong> Pelatihan Staf, Onboarding Mitra & Sosialisasi Pelanggan</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="min-height:auto; padding: 18px 24px;">
+          <h4 style="font-size:0.98rem; font-weight:700; margin-bottom:10px; color:var(--gray-dark);">Milestone Eksekusi 2026/2027</h4>
+          <div class="timeline" style="margin-top:16px; padding-top:10px; padding-bottom:6px;">
+            <div class="timeline-step">
+              <div class="timeline-dot" style="width:20px; height:20px; margin-bottom:10px;"></div>
+              <div style="font-weight:700; font-size:0.88rem;">Q1</div>
+              <div style="font-size:0.78rem; color:var(--gray-text-muted);">MVP Selesai & Uji Coba Lab</div>
+            </div>
+            <div class="timeline-step">
+              <div class="timeline-dot" style="width:20px; height:20px; margin-bottom:10px;"></div>
+              <div style="font-weight:700; font-size:0.88rem;">Q2</div>
+              <div style="font-size:0.78rem; color:var(--gray-text-muted);">Pilot di Pringsewu Osing</div>
+            </div>
+            <div class="timeline-step">
+              <div class="timeline-dot" style="width:20px; height:20px; margin-bottom:10px;"></div>
+              <div style="font-weight:700; font-size:0.88rem;">Q3</div>
+              <div style="font-size:0.78rem; color:var(--gray-text-muted);">5 Restoran Mitra Aktif</div>
+            </div>
+            <div class="timeline-step">
+              <div class="timeline-dot" style="width:20px; height:20px; margin-bottom:10px;"></div>
+              <div style="font-weight:700; font-size:0.88rem;">Q4</div>
+              <div style="font-size:0.78rem; color:var(--gray-text-muted);">Mencapai Titik Break-Even</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 14: CLOSING + PANTUN -->
+    <section class="slide slide--center" id="slide-14">
+      <div class="slide-header" style="text-align: center; max-width: 900px; margin: 0 auto 24px auto;">
+        <div class="badge-chip">Penutup Presentasi</div>
+        <h2 class="slide-title">Terima Kasih atas Perhatian Anda</h2>
+        <p class="slide-subtitle">Mendorong percepatan transformasi digital layanan kuliner nusantara.</p>
+      </div>
+
+      <div style="max-width: 720px; margin: 0 auto; width: 100%; text-align: center;">
+        <div class="pantun-box" style="margin-bottom: 24px;">
+          "Jalan-jalan ke Banyuwangi,<br>
+          Singgah santai di Pringsewu Osing,<br>
+          Hadirkan inovasi bersama PRINGMONI,<br>
+          Pelayanan cepat, usaha kian hening dan bersaing!"
+        </div>
+
+        <button class="cta-btn">
+          <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          DUKUNG PRINGMONI, DUKUNG UMKM INDONESIA
+        </button>
+
+        <div style="margin-top: 24px; font-size: 0.9rem; color: var(--gray-text-muted);">
+          Hubungi Tim Quarta Code | Program Studi TRPL — Politeknik Negeri Banyuwangi
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // Navigation script - PURE SLIDE TRANSITIONS (NO SCROLL)
+    (function () {
+      const slides = document.querySelectorAll('.slide');
+      const totalSlides = slides.length;
+      let currentIndex = 0;
+
+      const slideCounter = document.getElementById('slideCounter');
+      const dotContainer = document.getElementById('dotContainer');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+
+      // Create dots
+      for (let i = 0; i < totalSlides; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'dot' + (i === 0 ? ' active' : '');
+        dot.title = 'Slide ' + (i + 1);
+        dot.addEventListener('click', () => goToSlide(i));
+        dotContainer.appendChild(dot);
+      }
+
+      const dots = document.querySelectorAll('.dot');
+
+      function updateSlide(index) {
+        slides.forEach((slide, i) => {
+          slide.classList.remove('active', 'prev-slide');
+          if (i === index) {
+            slide.classList.add('active');
+          } else if (i < index) {
+            slide.classList.add('prev-slide');
+          }
+        });
+
+        dots.forEach((dot, i) => {
+          dot.classList.toggle('active', i === index);
+        });
+
+        slideCounter.textContent = (index + 1) + ' / ' + totalSlides;
+      }
+
+      function goToSlide(index) {
+        if (index >= 0 && index < totalSlides) {
+          currentIndex = index;
+          updateSlide(currentIndex);
+        }
+      }
+
+      function nextSlide() {
+        if (currentIndex < totalSlides - 1) {
+          currentIndex++;
+          updateSlide(currentIndex);
+        }
+      }
+
+      function prevSlide() {
+        if (currentIndex > 0) {
+          currentIndex--;
+          updateSlide(currentIndex);
+        }
+      }
+
+      // Event listeners
+      nextBtn.addEventListener('click', nextSlide);
+      prevBtn.addEventListener('click', prevSlide);
+
+      // Fullscreen and Print PDF Functionality
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+      const printPdfBtn = document.getElementById('printPdfBtn');
+
+      function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+            console.warn(`Error enabling full-screen mode: ${err.message}`);
+          });
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      }
+
+      function updateFullscreenButton() {
+        if (!fullscreenBtn) return;
+        if (document.fullscreenElement) {
+          fullscreenBtn.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+            <span>Exit Fullscreen</span>
+          `;
+          fullscreenBtn.title = 'Keluar dari Layar Penuh (Esc)';
+        } else {
+          fullscreenBtn.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            <span>Fullscreen</span>
+          `;
+          fullscreenBtn.title = 'Mode Layar Penuh (F / Esc)';
+        }
+      }
+
+      if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', toggleFullScreen);
+        document.addEventListener('fullscreenchange', updateFullscreenButton);
+      }
+
+      if (printPdfBtn) {
+        printPdfBtn.addEventListener('click', () => {
+          // Trigger print dialog where user can save all slides cleanly as PDF
+          window.print();
+        });
+      }
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === 'Space') {
+          nextSlide();
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          prevSlide();
+        } else if (e.key === 'Home') {
+          goToSlide(0);
+        } else if (e.key === 'End') {
+          goToSlide(totalSlides - 1);
+        } else if (e.key === 'f' || e.key === 'F') {
+          toggleFullScreen();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+          // Allow native Ctrl+P to trigger window.print
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
