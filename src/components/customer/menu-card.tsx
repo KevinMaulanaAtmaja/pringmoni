@@ -101,7 +101,7 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
         <div
           className={`bg-card rounded-2xl overflow-hidden border transition-all cursor-pointer ${
             isDisabled
-              ? "opacity-60"
+              ? "border-destructive/30"
               : "hover:shadow-lg hover:border-primary/20 active:scale-95"
           }`}
         >
@@ -113,16 +113,16 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
                 alt={menu.namaMenu}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-cover"
+                className={`object-cover ${isDisabled ? "opacity-40 grayscale" : ""}`}
                 loading="lazy"
               />
             ) : (
-              <span className="text-4xl">🍽️</span>
+              <span className={`text-4xl ${isDisabled ? "opacity-40 grayscale" : ""}`}>🍽️</span>
             )}
             {isDisabled && (
               <Badge
                 variant="secondary"
-                className="absolute top-2 right-2 rounded-full bg-destructive/10 text-xs text-destructive"
+                className="absolute top-2 right-2 rounded-full bg-background text-xs font-bold text-destructive shadow-sm ring-1 ring-destructive/40"
               >
                 {bahanHabis ? "Stok Habis" : "Habis"}
               </Badge>
@@ -142,7 +142,7 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
             )}
           </div>
 
-          <div className="p-2.5">
+          <div className={`p-2.5 ${isDisabled ? "opacity-60" : ""}`}>
             <h3 className="font-medium text-sm line-clamp-2">{menu.namaMenu}</h3>
             <p className="text-primary font-bold text-sm mt-1">
               Rp {menu.harga.toLocaleString("id-ID")}

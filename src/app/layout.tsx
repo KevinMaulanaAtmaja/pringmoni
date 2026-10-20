@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "./providers";
 import Footer from "@/components/layout/Footer";
+import AgentationToolbar from "@/components/agentation-toolbar";
 
 const geistMonoHeading = Geist_Mono({subsets:['latin'],variable:'--font-heading'});
 
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body suppressHydrationWarning className="min-h-full flex flex-col pb-10">
         <Providers>{children}</Providers>
         <Footer />
+        <AgentationToolbar />
       </body>
     </html>
   );
