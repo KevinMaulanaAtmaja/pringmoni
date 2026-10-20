@@ -133,9 +133,19 @@
 | PBI-9.3 | Pengujian Ramadhan (50 orang) | Todo |
 | PBI-9.4 | Data uji menu (contoh: Abi Coffee) | Todo |
 
+### Modul 10: Voucher & Diskon
+*Fitur prioritas. Detail user story & spesifikasi menyusul.*
+
+| PBI | Deskripsi | Status |
+|-----|----------|--------|
+| PBI-10.1 | Voucher: buat, edit, non-aktifkan (oleh OWNER) | Todo |
+| PBI-10.2 | Voucher diskon % per total pembelian | Todo |
+| PBI-10.3 | Voucher dengan minimal pembelian tertentu | Todo |
+| PBI-10.4 | Tampil voucher di halaman menu (UI mirip kategori menu) | Todo |
+
 ## 4. Definition of Done
 
-- [ ] Semua PBI Modul 1-8 selesai
+- [ ] Semua PBI Modul 1-10 selesai
 - [ ] Database schema dengan 11 model + relasi
 - [ ] Auth system dengan NextAuth v5
 - [ ] Server Actions untuk semua operasi CRUD
