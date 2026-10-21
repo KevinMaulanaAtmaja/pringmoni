@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
-import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, GlassWater, Cookie, Package, ChevronDown, ArrowLeft, Pizza, Hamburger, Sandwich, Carrot, Drumstick, Fish, Shrimp, Soup, Wheat, Salad, IceCream, CakeSlice, Popcorn, CupSoda, Boxes, ChefHat } from "lucide-react";
+import { PindahMejaSheet } from "@/components/customer/pindah-meja-sheet";
+import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, GlassWater, Cookie, Package, ChevronDown, ArrowLeft, ArrowRightLeft, Pizza, Hamburger, Sandwich, Carrot, Drumstick, Fish, Shrimp, Soup, Wheat, Salad, IceCream, CakeSlice, Popcorn, CupSoda, Boxes, ChefHat } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
 import { simpanKeranjangCheckout } from "@/lib/checkout-storage";
@@ -77,6 +78,7 @@ export default function CustomerMenuPage() {
     const [validating, setValidating] = useState(false);
     const [scanResultError, setScanResultError] = useState<string | null>(null);
     const [mejaTerpakaiWarning, setMejaTerpakaiWarning] = useState(false);
+    const [adaPesananAktif, setAdaPesananAktif] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const scannerRef = useRef<{ stream?: MediaStream }>({});
 
@@ -107,7 +109,10 @@ export default function CustomerMenuPage() {
                     setLoading(false);
                     return;
                 }
-                if (data.meja.statusMeja === 'terpakai') {
+                setAdaPesananAktif(statusAktif?.adaPesananAktif ?? false);
+                // Hanya tampilkan peringatan "meja terpakai" jika customer
+                // TIDAK punya pesanan aktif di meja ini (artinya meja dipakai orang lain).
+                if (data.meja.statusMeja === 'terpakai' && !statusAktif?.adaPesananAktif) {
                     setMejaTerpakaiWarning(true);
                 }
                 setMejaData(data.meja);
@@ -406,7 +411,24 @@ return (
                     </div>
 
                     {!loading && !error && (
-                     <CartSheet
+                     <div className="flex items-center gap-2">
+                         {adaPesananAktif && (
+                             <PindahMejaSheet
+                                 tokenMejaSaatIni={tokenMeja}
+                                 nomorMejaSaatIni={mejaData?.nomorMeja || tokenMeja}
+                                 onPindah={(tokenBaru, nomorBaru) => {
+                                     setMejaData({ nomorMeja: nomorBaru, statusMeja: 'terpakai' });
+                                     setMejaTerpakaiWarning(false);
+                                     window.location.href = `/${tokenBaru}`;
+                                 }}
+                             >
+                                 <Button variant="outline" size="sm" className="rounded-full">
+                                     <ArrowRightLeft className="size-4 mr-1.5" />
+                                     Pindah
+                                 </Button>
+                             </PindahMejaSheet>
+                         )}
+                         <CartSheet
                               keranjang={keranjang}
                               onUpdateJumlah={updateJumlah}
                               onHapus={hapusDariKeranjang}
@@ -425,6 +447,7 @@ return (
                                  )}
                              </Button>
                          </CartSheet>
+                     </div>
                      )}
                 </div>
             </header>
