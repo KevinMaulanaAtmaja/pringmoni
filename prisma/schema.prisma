@@ -22,6 +22,7 @@ model Users {
   logs             Logs[]
   kasirPesanan     Pesanan[]     @relation("KasirPesanan")
   waiterPesanan    Pesanan[]     @relation("WaiterPesanan")
+  refundedPesanan  Pesanan[]     @relation("RefundedPesanan")
   riwayatStok      RiwayatStok[]
 
   @@map("users")
@@ -90,6 +91,9 @@ model Pesanan {
   kasirId               Int?              @map("kasir_id")
   statusPesanan         StatusPesanan     @default(menunggu) @map("status_pesanan")
   catatan               String?           @map("catatan")
+  refundCatatan         String?           @map("refund_catatan")
+  refundedAt            DateTime?         @map("refunded_at")
+  refundedById          Int?              @map("refunded_by_id")
   totalHarga            Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
   metodePembayaran      MetodePembayaran? @map("metode_pembayaran")
   jumlahBayar           Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
@@ -108,6 +112,8 @@ model Pesanan {
   kasir                 Users?            @relation("KasirPesanan", fields: [kasirId], references: [id])
   meja                  Meja              @relation(fields: [mejaId], references: [id])
   waiter                Users?            @relation("WaiterPesanan", fields: [waiterId], references: [id])
+  refundedBy            Users?            @relation("RefundedPesanan", fields: [refundedById], references: [id])
+  refundBukti           RefundBukti[]
 
   @@map("pesanan")
 }
@@ -125,6 +131,17 @@ model DetailPesanan {
   pesanan        Pesanan     @relation(fields: [pesananId], references: [id])
 
   @@map("detail_pesanan")
+}
+
+model RefundBukti {
+  id        Int      @id @default(autoincrement())
+  pesananId Int      @map("pesanan_id")
+  fotoUrl   String   @map("foto_url")
+  fileKey   String?  @map("file_key")
+  createdAt DateTime @default(now()) @map("created_at")
+  pesanan   Pesanan  @relation(fields: [pesananId], references: [id])
+
+  @@map("refund_bukti")
 }
 
 model Logs {
@@ -216,6 +233,7 @@ enum StatusPesanan {
   selesai
   dibatalkan
   diproses
+  refund
 }
 
 enum MetodePembayaran {
@@ -228,6 +246,7 @@ enum StatusBayar {
   menunggu
   berhasil
   dibatalkan
+  refund
 }
 
 enum StatusAntar {
@@ -245,6 +264,7 @@ enum JenisAksiLog {
   CANCEL_ORDER_EXPIRED
   CANCEL_ORDER_STALE
   PROCESS_PAYMENT
+  REFUND_ORDER
 }
 
 enum LokasiStok {

@@ -112,7 +112,7 @@
 | PBI-7.2 | Ganti meja (pindah pesanan antar meja) | Todo |
 | PBI-7.3 | Pergantian shift kasir | Todo |
 | PBI-7.4 | Auto-kosongkan meja + pesanan (pesanan selesai / pesanan lama dibayar) | Todo |
-| PBI-7.5 | Refund + bukti foto | Todo |
+| PBI-7.5 | Refund + bukti foto | Done |
 
 ### Modul 8: Notifikasi, QR & Backup
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*
