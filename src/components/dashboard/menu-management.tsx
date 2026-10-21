@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -89,7 +89,7 @@ const statusLabels: Record<StatusMenu, string> = {
 
 const ITEMS_PER_PAGE = 5;
 
-export function MenuManagement() {
+export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
   const [menus, setMenus] = useState<MenuWithKategori[]>([]);
   const [kategoris, setKategoris] = useState<KategoriMenu[]>([]);
 
@@ -143,7 +143,6 @@ export function MenuManagement() {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Price formatting
-  const [priceDisplay, setPriceDisplay] = useState('');
   const [priceValue, setPriceValue] = useState<number | ''>('');
 
   // Photo states
@@ -164,10 +163,6 @@ export function MenuManagement() {
   const [isDeleteFotoOpen, setIsDeleteFotoOpen] = useState(false);
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-
-  const [imageLoading, setImageLoading] = useState<
-    Record<string, boolean>
-  >({});
 
   const totalPhotos =
     existingFotos.length + uploadedFotoUrls.length;
@@ -214,18 +209,6 @@ export function MenuManagement() {
           return;
         }
 
-        const newLoadingState: Record<string, boolean> =
-          {};
-
-        urls.forEach((url) => {
-          newLoadingState[url] = true;
-        });
-
-        setImageLoading((prev) => ({
-          ...prev,
-          ...newLoadingState,
-        }));
-
         setUploadedFotoUrls((prev) => [
           ...prev,
           ...urls,
@@ -253,15 +236,6 @@ export function MenuManagement() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const loadKategoris = async () => {
-    try {
-      const result = await getKategoriMenus();
-      setKategoris(result);
-    } catch {
-      // Handle error
-    }
-  };
 
   // Reset page when filters change
   useEffect(() => {
@@ -317,7 +291,6 @@ export function MenuManagement() {
         statusMenu: 'tersedia',
       });
 
-      setPriceDisplay('');
       setPriceValue('');
       setExistingFotos([]);
     }
@@ -672,10 +645,11 @@ export function MenuManagement() {
 
   return (
     <div className="p-3 space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="space-y-2">
         <h1 className="text-lg font-bold">
           Kelola Menu
         </h1>
+        {tabs}
       </div>
 
       {/* Filters + Tambah Button */}
@@ -787,15 +761,15 @@ export function MenuManagement() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-lg border">
-        <Table>
+      <div className="bg-white rounded-lg border overflow-hidden">
+        <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow className="h-9">
-              <TableHead className="h-9">
+              <TableHead className="h-9 w-10">
                 No
               </TableHead>
 
-              <TableHead className="h-9">
+              <TableHead className="h-9 w-16">
                 Foto
               </TableHead>
 
@@ -803,23 +777,23 @@ export function MenuManagement() {
                 Menu
               </TableHead>
 
-              <TableHead className="h-9">
+              <TableHead className="h-9 w-24">
                 Kategori
               </TableHead>
 
-              <TableHead className="h-9">
+              <TableHead className="h-9 w-28">
                 Ketersediaan
               </TableHead>
 
-              <TableHead className="h-9">
+              <TableHead className="h-9 w-24">
                 Harga
               </TableHead>
 
-              <TableHead className="h-9">
+              <TableHead className="h-9 w-20">
                 Status
               </TableHead>
 
-              <TableHead className="h-9 text-right">
+              <TableHead className="h-9 w-24 text-right">
                 Aksi
               </TableHead>
             </TableRow>
@@ -900,7 +874,8 @@ export function MenuManagement() {
 
                     <TableCell className="py-2">
                       {menu.fotoUrl ? (
-                        <div className="flex gap-1 overflow-x-auto max-w-[120px]">
+                        <div className="flex flex-wrap gap-1">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={menu.fotoUrl}
                             alt={menu.namaMenu}
@@ -927,6 +902,7 @@ export function MenuManagement() {
                                 url,
                                 idx
                               ) => (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                   key={idx}
                                   src={url}
@@ -960,8 +936,8 @@ export function MenuManagement() {
                       )}
                     </TableCell>
 
-                    <TableCell className="py-2">
-                      <div className="max-w-xs">
+                    <TableCell className="py-2 whitespace-normal">
+                      <div className="min-w-0">
                         <p className="font-medium text-sm truncate">
                           {menu.namaMenu}
                         </p>
@@ -980,10 +956,12 @@ export function MenuManagement() {
                     </TableCell>
 
                     <TableCell className="py-2 text-sm">
-                      {
-                        menu.kategori
-                          .namaKategori
-                      }
+                      <p
+                        className="truncate"
+                        title={menu.kategori.namaKategori}
+                      >
+                        {menu.kategori.namaKategori}
+                      </p>
                     </TableCell>
 
                     <TableCell className="py-2">
@@ -1429,6 +1407,7 @@ export function MenuManagement() {
                           key={foto.id}
                           className="relative group flex-shrink-0"
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={
                               foto.fotoUrl
@@ -1470,6 +1449,7 @@ export function MenuManagement() {
                           key={index}
                           className="relative group"
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={url}
                             alt="Preview"
@@ -1871,6 +1851,7 @@ export function MenuManagement() {
           </DialogHeader>
 
           {deleteFotoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={deleteFotoUrl}
               alt="Preview"
@@ -2006,6 +1987,7 @@ export function MenuManagement() {
 
           {previewImage && (
             <div className="flex items-center justify-center p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previewImage}
                 alt="Preview"

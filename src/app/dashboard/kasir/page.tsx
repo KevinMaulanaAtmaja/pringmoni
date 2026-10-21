@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight, Undo2 } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
 import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
+import { RefundDialog } from "@/components/pesanan/refund-dialog"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
@@ -31,6 +32,14 @@ const statusBayarColors: Record<StatusBayar, string> = {
   menunggu: "bg-yellow-100 text-yellow-800 border-yellow-300",
   berhasil: "bg-green-100 text-green-800 border-green-300",
   dibatalkan: "bg-red-100 text-red-800 border-red-300",
+  refund: "bg-purple-100 text-purple-800 border-purple-300",
+}
+
+const statusBayarLabels: Record<StatusBayar, string> = {
+  menunggu: "Menunggu",
+  berhasil: "Berhasil",
+  dibatalkan: "Dibatalkan",
+  refund: "Refund",
 }
 
 const metodeColors: Record<MetodePembayaran, string> = {
@@ -101,6 +110,7 @@ export default function KasirPage() {
   const [showConfirmProcess, setShowConfirmProcess] = useState(false)
   const [showMethodWarning, setShowMethodWarning] = useState(false)
   const pendingMethodAction = useRef<"tunai-step" | null>(null)
+  const [refundTarget, setRefundTarget] = useState<Pesanan | null>(null)
 
   const pesananBelumFiltered = pesananBelum.filter(p => {
     if (filterText) {
@@ -801,8 +811,7 @@ export default function KasirPage() {
                       <TableCell className="font-bold text-lg">{formatRupiah(p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0))}</TableCell>
                         <TableCell>
                           <Badge className={`${statusBayarColors[p.statusPembayaran as StatusBayar]} text-base px-3 py-1`}>
-                            {p.statusPembayaran === 'berhasil' ? 'Berhasil' : 
-                             p.statusPembayaran === 'dibatalkan' ? 'Dibatalkan' : 'Menunggu'}
+                            {statusBayarLabels[p.statusPembayaran as StatusBayar] || p.statusPembayaran}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-base">
@@ -810,6 +819,15 @@ export default function KasirPage() {
                         </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-1.5 justify-end">
+                          {role === 'cashier' && p.statusPembayaran === 'berhasil' && p.statusPesanan !== 'dibatalkan' && (
+                            <Button
+                              variant="outline"
+                              size="lg"
+                              onClick={() => setRefundTarget(p)}
+                            >
+                              <Undo2 className="w-5 h-5 mr-1" />Refund
+                            </Button>
+                          )}
                           {p.statusPembayaran === "berhasil" && (
                             <Button
                               variant="outline"
@@ -1281,6 +1299,22 @@ export default function KasirPage() {
       </Dialog>
 
 
+
+      {/* Refund Dialog (kasir only) */}
+      <RefundDialog
+        open={refundTarget !== null}
+        onOpenChange={(open) => { if (!open) setRefundTarget(null) }}
+        pesanan={refundTarget ? {
+          id: refundTarget.id,
+          nomorMeja: refundTarget.nomorMeja,
+          totalHarga: refundTarget.totalHarga,
+          namaPelanggan: refundTarget.namaPelanggan,
+        } : null}
+        onSuccess={() => {
+          setRefundTarget(null)
+          pollData()
+        }}
+      />
 
       {/* Cancel Confirmation - Step 1 */}
       <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>

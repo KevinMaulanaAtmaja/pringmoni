@@ -31,8 +31,10 @@ Dokumen ini menjelaskan **arsitektur teknis** dari **Pringmoni Resto POS & Monit
 | Menu | Menu makanan/minuman | -> KategoriMenu |
 | MenuFoto | Foto menu (multi-gambar) | -> Menu |
 | KategoriMenu | Kategori menu | - |
-| Pesanan | Pesanan customer | -> Users, Meja, DetailPesanan |
+| Pesanan | Pesanan customer | -> Users, Meja, DetailPesanan, Voucher |
 | DetailPesanan | Item dalam pesanan | -> Pesanan, Menu |
+| RefundBukti | Foto bukti refund pesanan | -> Pesanan |
+| Voucher | Kode voucher + diskon % + minimal belanja (soft delete) | -> Pesanan |
 | StokBahan | Master bahan: lokasi (gudang/dapur), kategori, satuan, stok, minimum, harga, status | -> RiwayatStok, ResepMenu |
 | RiwayatStok | Log pergerakan stok (sebelum/sesudah, jenis, keterangan, user) | -> StokBahan, Users |
 | ResepMenu | Komposisi menu (bahan dapur + jumlah per porsi) | -> Menu, StokBahan |
@@ -46,6 +48,11 @@ Dokumen ini menjelaskan **arsitektur teknis** dari **Pringmoni Resto POS & Monit
 | SatuanStok | kg, pcs, pack, bungkus |
 | StatusStok | tersedia, menipis, habis |
 | JenisPerubahanStok | restock, penggunaan, koreksi, limbah, otomatis, transfer |
+
+### Enums (voucher)
+| Enum | Nilai |
+|------|-------|
+| StatusVoucher | aktif, nonaktif |
 
 ## 3. Route Structure
 

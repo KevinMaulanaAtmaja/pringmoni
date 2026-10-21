@@ -96,9 +96,29 @@ export interface CustomerMenu {
   bahanPembatas?: string[]
 }
 
-export type StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan'
-export type StatusBayar = 'menunggu' | 'berhasil' | 'dibatalkan'
+export type StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan' | 'refund'
+export type StatusBayar = 'menunggu' | 'berhasil' | 'dibatalkan' | 'refund'
 export type MetodePembayaran = 'qris' | 'tunai' | 'transfer'
+
+export type StatusVoucher = 'aktif' | 'nonaktif'
+
+/** Voucher aktif yang bisa dipilih customer */
+export interface VoucherOpsi {
+  id: number
+  kode: string
+  namaVoucher: string
+  deskripsi: string | null
+  diskonPersen: number
+  minimalBelanja: number
+}
+
+/** Voucher yang sedang dipakai pada keranjang (diskon dihitung ulang dari subtotal) */
+export interface VoucherTerpakai {
+  kode: string
+  namaVoucher: string
+  diskonPersen: number
+  minimalBelanja: number
+}
 
 export interface DetailPesananItem {
   id: number

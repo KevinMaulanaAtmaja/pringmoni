@@ -111,8 +111,10 @@
 | PBI-7.1 | Reservasi pesanan (offline) | Todo |
 | PBI-7.2 | Ganti meja (pindah pesanan antar meja) | Todo |
 | PBI-7.3 | Pergantian shift kasir | Todo |
-| PBI-7.4 | Auto-kosongkan meja + pesanan (pesanan selesai / pesanan lama dibayar) | Todo |
+| PBI-7.4 | Auto-kosongkan meja + pesanan (pesanan selesai / pesanan lama dibayar) | Done |
 | PBI-7.5 | Refund + bukti foto | Done |
+
+> Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan).
 
 ### Modul 8: Notifikasi, QR & Backup
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*
@@ -138,10 +140,12 @@
 
 | PBI | Deskripsi | Status |
 |-----|----------|--------|
-| PBI-10.1 | Voucher: buat, edit, non-aktifkan (oleh OWNER) | Todo |
-| PBI-10.2 | Voucher diskon % per total pembelian | Todo |
-| PBI-10.3 | Voucher dengan minimal pembelian tertentu | Todo |
-| PBI-10.4 | Tampil voucher di halaman menu (UI mirip kategori menu) | Todo |
+| PBI-10.1 | Voucher: buat, edit, non-aktifkan (oleh OWNER) | Done |
+| PBI-10.2 | Voucher diskon % per total pembelian | Done |
+| PBI-10.3 | Voucher dengan minimal pembelian tertentu | Done |
+| PBI-10.4 | Tampil voucher di halaman menu (UI mirip kategori menu) | Done |
+
+> Catatan PBI-10.x: Management voucher berada sebagai tab **Voucher** di halaman Menu (`/dashboard/menu`) — tidak menambah menu sidebar. Diskon hanya untuk voucher berstatus aktif, minimal belanja & kode voucher divalidasi ulang di server saat pesanan dibuat (client tidak dipercaya). Nilai diskon disimpan di `pesanan.diskon_voucher` dan `pesanan.voucher_id`.
 
 ## 4. Definition of Done
 

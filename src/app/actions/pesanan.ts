@@ -11,6 +11,7 @@ import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } fro
 import { getKategoriMenus } from "./menu"
 import { potongStokDapur } from "@/lib/stok"
 import { butuhBumbu, hitungKetersediaanResep } from "@/lib/resep"
+import { hitungPotonganDiskon } from "@/lib/voucher"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()
@@ -22,7 +23,7 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
     return { error: "Owner tidak bisa mengubah status pesanan" }
   }
 
-  const validStatuses = [StatusPesanan.menunggu, StatusPesanan.diproses, StatusPesanan.selesai, StatusPesanan.dibatalkan]
+  const validStatuses: StatusPesanan[] = [StatusPesanan.menunggu, StatusPesanan.diproses, StatusPesanan.selesai, StatusPesanan.dibatalkan]
   if (!validStatuses.includes(status)) {
     return { error: "Status tidak valid" }
   }
@@ -68,6 +69,7 @@ export interface CreatePesananData {
   namaPelanggan?: string | null
   catatan?: string | null
   metodePembayaran?: string | null
+  kodeVoucher?: string | null
 }
 
 export async function getMejaByToken(tokenMeja: string) {
@@ -168,7 +170,7 @@ export const getCustomerMenuData = cache(async (tokenMeja: string) => {
 })
 
 export async function createPesanan(data: CreatePesananData) {
-  const { tokenMeja, items, namaPelanggan, catatan, metodePembayaran } = data
+  const { tokenMeja, items, namaPelanggan, catatan, metodePembayaran, kodeVoucher } = data
 
   const session = await auth()
   const kasirId = session?.user?.id ? Number(session.user.id) : null
@@ -267,6 +269,38 @@ export async function createPesanan(data: CreatePesananData) {
     totalHarga += harga * jumlahTotal
   }
 
+  // Voucher divalidasi ulang di server — nilai dari client tidak pernah dipercaya.
+  let voucherTerpakai: { id: number; kode: string; namaVoucher: string; diskonPersen: number } | null = null
+  let diskonVoucher = 0
+
+  if (kodeVoucher?.trim()) {
+    const kode = kodeVoucher.trim().toUpperCase()
+    const voucher = await prisma.voucher.findFirst({
+      where: { kode, deletedAt: null },
+    })
+
+    if (!voucher) {
+      return { error: "Kode voucher tidak ditemukan" }
+    }
+    if (voucher.statusVoucher !== "aktif") {
+      return { error: "Voucher sedang tidak aktif" }
+    }
+    if (totalHarga < Number(voucher.minimalBelanja)) {
+      return {
+        error: `Minimal belanja untuk voucher ${voucher.kode} adalah Rp ${Number(voucher.minimalBelanja).toLocaleString("id-ID")}`,
+      }
+    }
+
+    diskonVoucher = hitungPotonganDiskon(totalHarga, voucher.diskonPersen)
+    totalHarga = Math.max(totalHarga - diskonVoucher, 0)
+    voucherTerpakai = {
+      id: voucher.id,
+      kode: voucher.kode,
+      namaVoucher: voucher.namaVoucher,
+      diskonPersen: voucher.diskonPersen,
+    }
+  }
+
   const publicId = crypto.randomUUID()
 
   const pesanan = await prisma.pesanan.create({
@@ -275,6 +309,8 @@ export async function createPesanan(data: CreatePesananData) {
       kasirId,
       statusPesanan: StatusPesanan.menunggu,
       totalHarga: totalHarga,
+      voucherId: voucherTerpakai?.id ?? null,
+      diskonVoucher: diskonVoucher,
       namaPelanggan: namaPelanggan || null,
       catatan: catatan || null,
       metodePembayaran: (metodePembayaran as MetodePembayaran) || null,
@@ -298,7 +334,10 @@ export async function createPesanan(data: CreatePesananData) {
   })
 
   const itemsSummary = items.map(i => `${i.jumlah}x menu #${i.menuId}`).join(', ')
-  await createLog('CREATE_ORDER', `Pesanan baru #${pesanan.id} dari ${meja.nomorMeja}: ${itemsSummary} (Total: Rp${totalHarga.toLocaleString('id-ID')})`)
+  const voucherSummary = voucherTerpakai
+    ? ` | Voucher ${voucherTerpakai.kode} (${voucherTerpakai.diskonPersen}% - Rp${diskonVoucher.toLocaleString("id-ID")})`
+    : ""
+  await createLog('CREATE_ORDER', `Pesanan baru #${pesanan.id} dari ${meja.nomorMeja}: ${itemsSummary} (Total: Rp${totalHarga.toLocaleString('id-ID')})${voucherSummary}`)
 
   await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.newOrder, {})
 
@@ -413,6 +452,7 @@ export async function getPesananById(id: number) {
       meja: true,
       waiter: true,
       kasir: true,
+      voucher: true,
       detailPesanan: {
         include: {
           menu: {
@@ -437,6 +477,10 @@ export async function getPesananById(id: number) {
     status_pesanan: pesanan.statusPesanan,
     status_pembayaran: pesanan.statusPembayaran,
     total_harga: Number(pesanan.totalHarga),
+    diskon_voucher: Number(pesanan.diskonVoucher || 0),
+    voucher_kode: pesanan.voucher?.kode || null,
+    voucher_nama: pesanan.voucher?.namaVoucher || null,
+    voucher_diskon_persen: pesanan.voucher?.diskonPersen ?? null,
     biaya_admin: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : null,
     ppn: pesanan.ppn ? Number(pesanan.ppn) : null,
     metode_pembayaran: pesanan.metodePembayaran,
@@ -468,12 +512,15 @@ export async function getPesananForCheckout(publicId: string) {
       detailPesanan: {
         include: { menu: true },
       },
+      voucher: true,
     },
   })
 
   if (!pesanan) {
     return null
   }
+
+  const diskon = Number(pesanan.diskonVoucher || 0)
 
   return {
     id: pesanan.id,
@@ -484,8 +531,16 @@ export async function getPesananForCheckout(publicId: string) {
       jumlah: item.jumlah,
       catatan: item.catatanItem,
     })),
-    subtotal: Number(pesanan.totalHarga),
+    subtotal: Number(pesanan.totalHarga) + diskon,
+    diskon,
     total: Number(pesanan.totalHarga),
+    voucher: pesanan.voucher
+      ? {
+          kode: pesanan.voucher.kode,
+          namaVoucher: pesanan.voucher.namaVoucher,
+          diskonPersen: pesanan.voucher.diskonPersen,
+        }
+      : null,
     biayaAdmin: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : null,
     ppn: pesanan.ppn ? Number(pesanan.ppn) : null,
     waktu: pesanan.createdAt.toISOString(),

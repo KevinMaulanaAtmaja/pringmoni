@@ -8,10 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
-import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, UtensilsCrossed, ChevronDown, ArrowLeft } from "lucide-react";
+import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, UtensilsCrossed, ChevronDown, ArrowLeft, Ticket, Tag } from "lucide-react";
 import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
-import { simpanKeranjangCheckout } from "@/lib/checkout-storage";
+import { getVoucherAktif } from "@/app/actions/voucher";
+import { simpanKeranjangCheckout, simpanKodeVoucher } from "@/lib/checkout-storage";
+import { hitungPotonganDiskon } from "@/lib/voucher";
 import type { CustomerMenu } from "@/types";
+import type { VoucherOpsi, VoucherTerpakai } from "@/types";
 import type { KeranjangItem } from "@/components/customer/cart-sheet";
 
 type Menu = CustomerMenu;
@@ -32,7 +35,9 @@ const [error, setError] = useState<string | null>(null);
     const [activeTempat, setActiveTempat] = useState<"resto" | "cafe">("resto");
     const [searchQuery, setSearchQuery] = useState("");
 
-    const [voucher, setVoucher] = useState<Voucher | null>(null);
+    const [voucher, setVoucher] = useState<VoucherTerpakai | null>(null);
+    const [vouchers, setVouchers] = useState<VoucherOpsi[]>([]);
+    const [voucherNotice, setVoucherNotice] = useState<string | null>(null);
     const [itemsToShow, setItemsToShow] = useState(12);
     const [showScanner, setShowScanner] = useState(false);
     const [scanError, setScanError] = useState<string | null>(null);
@@ -44,21 +49,16 @@ const [error, setError] = useState<string | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const scannerRef = useRef<{ stream?: MediaStream }>({});
 
-    interface Voucher {
-        kode: string;
-        potongan: number;
-        minPembelian: number;
-    }
-
     useEffect(() => {
         const loadData = async () => {
             try {
                 setLoading(true);
                 setError(null);
 
-                const [data, statusAktif] = await Promise.all([
+                const [data, statusAktif, voucherAktif] = await Promise.all([
                     getCustomerMenuData(tokenMeja),
                     getStatusPesananAktifMeja(tokenMeja),
+                    getVoucherAktif(),
                 ]);
 
                 if (!data.meja) {
@@ -77,6 +77,7 @@ const [error, setError] = useState<string | null>(null);
                 setMejaData(data.meja);
 
                 setMenus(data.menus);
+                setVouchers(voucherAktif);
                 // Kategori yang tampil: Semua, lalu kategori Resto (Camilan,
                 // Makanan, Minuman, ...). Kategori cafe diatur melalui tab Cafe,
                 // tidak sebagai pill terpisah.
@@ -114,9 +115,29 @@ const [error, setError] = useState<string | null>(null);
     const totalItem = keranjang.reduce((sum, item) => sum + item.jumlah, 0);
     const subtotal = keranjang.reduce((sum, item) => sum + item.harga * item.jumlah, 0);
 
-    // Validasi voucher: reset jika subtotal < minPembelian
-    const effectiveVoucher = voucher && subtotal >= voucher.minPembelian ? voucher : null;
-    const totalHarga = effectiveVoucher ? subtotal - effectiveVoucher.potongan : subtotal;
+    // Validasi voucher: dipakai hanya jika subtotal >= minimal belanja.
+    const effectiveVoucher = voucher && subtotal >= voucher.minimalBelanja ? voucher : null;
+    const potonganVoucher = effectiveVoucher
+        ? hitungPotonganDiskon(subtotal, effectiveVoucher.diskonPersen)
+        : 0;
+    const totalHarga = subtotal - potonganVoucher;
+
+    const handlePilihVoucher = (v: VoucherOpsi) => {
+        if (subtotal < v.minimalBelanja) {
+            setVoucherNotice(
+                `Minimal belanja voucher ${v.kode} adalah Rp ${v.minimalBelanja.toLocaleString("id-ID")}`,
+            );
+        } else {
+            setVoucher({
+                kode: v.kode,
+                namaVoucher: v.namaVoucher,
+                diskonPersen: v.diskonPersen,
+                minimalBelanja: v.minimalBelanja,
+            });
+            setVoucherNotice(`Voucher ${v.kode} diterapkan`);
+        }
+        setTimeout(() => setVoucherNotice(null), 4000);
+    };
 
     const tambahKeranjang = (menu: Menu, jumlah: number = 1, catatan: string | null = null) => {
         // Jaring pengaman: menu habis / resep belum lengkap / porsi habis
@@ -215,11 +236,13 @@ const [error, setError] = useState<string | null>(null);
 
             setKeranjang(keranjangValid);
             simpanKeranjangCheckout(keranjangValid);
+            simpanKodeVoucher(effectiveVoucher?.kode ?? null);
             router.push(`/${tokenMeja}/checkout`);
         } catch {
             // Jika validasi daring gagal, tetap lanjut — createPesanan tetap
             // jadi gerbang terakhir di server.
             simpanKeranjangCheckout(keranjang);
+            simpanKodeVoucher(effectiveVoucher?.kode ?? null);
             router.push(`/${tokenMeja}/checkout`);
         }
     };
@@ -367,6 +390,7 @@ return (
                              totalHarga={totalHarga}
                              voucher={effectiveVoucher}
                              onApplyVoucher={setVoucher}
+                             vouchers={vouchers}
                          >
                              <Button variant="outline" size="icon" className="relative" data-cart-button>
                                  <ShoppingCart className="size-5" />
@@ -566,6 +590,34 @@ return (
                             />
                         </div>
 
+                        {/* Voucher (PBI-10.4) */}
+                        {vouchers.length > 0 && (
+                            <div className="mb-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Ticket className="size-4 text-primary" />
+                                    <p className="text-sm font-semibold">Voucher</p>
+                                    <span className="text-xs text-muted-foreground">
+                                        Min. pembelian Rp{" "}
+                                        {Math.min(...vouchers.map((v) => v.minimalBelanja)).toLocaleString("id-ID")}
+                                    </span>
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                    {vouchers.map((v) => (
+                                        <Button
+                                            key={v.kode}
+                                            variant={effectiveVoucher?.kode === v.kode ? "default" : "outline"}
+                                            size="sm"
+                                            className="rounded-full px-4 shrink-0"
+                                            onClick={() => handlePilihVoucher(v)}
+                                        >
+                                            <Tag className="size-3.5 mr-1.5" />
+                                            {v.kode} · {v.diskonPersen}%
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Kategori - Pill buttons (hanya di tab Resto) */}
                         {activeTempat === "resto" && (
                             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
@@ -651,7 +703,7 @@ return (
                     <div className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">
-                                {totalItem} item{voucher && <span className="text-green-600"> + Voucher</span>}
+                                {totalItem} item{effectiveVoucher && <span className="text-green-600"> + Voucher</span>}
                             </p>
                             <p className="text-lg font-bold">Rp {totalHarga.toLocaleString("id-ID")}</p>
                         </div>
@@ -673,6 +725,17 @@ return (
                     <Card className="bg-primary text-primary-foreground shadow-lg py-2 px-3 rounded-full">
                         <CardContent className="flex items-center gap-2 p-0">
                             <span className="text-xs">Menu ditambahkan</span>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {/* Toast Voucher */}
+            {voucherNotice && (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-2">
+                    <Card className="bg-primary text-primary-foreground shadow-lg py-2 px-3 rounded-full">
+                        <CardContent className="flex items-center gap-2 p-0">
+                            <span className="text-xs">{voucherNotice}</span>
                         </CardContent>
                     </Card>
                 </div>
