@@ -25,6 +25,8 @@ export interface KeranjangItem {
   harga: number;
   jumlah: number;
   catatan: string | null;
+  /** Varian suhu yang dipilih pelanggan: "Panas" / "Dingin" (opsional) */
+  varian?: string | null;
   /** Punya >= 1 bahan di resep → jumlah dibatasi sisa porsi */
   adaResep?: boolean;
   porsiTersedia?: number;

@@ -91,6 +91,7 @@ export async function getMenusForCustomer() {
         select: {
           namaKategori: true,
           lokasi: true,
+          pilihanSuhu: true,
         },
       },
       menuFoto: {
@@ -142,6 +143,8 @@ export async function getMenusForCustomer() {
       harga: Number(menu.harga),
       kategori: menu.kategori.namaKategori,
       lokasi: menu.kategori.lokasi,
+      /** Kategori ini punya pilihan panas/dingin → pelanggan memilih varian */
+      pilihanSuhu: menu.kategori.pilihanSuhu,
       statusMenu: menu.statusMenu as "tersedia" | "habis" | "nonaktif",
       fotoUrl: menu.menuFoto[0]?.fotoUrl || null,
       menuFoto: menu.menuFoto.map(f => ({ id: f.id, fotoUrl: f.fotoUrl })),

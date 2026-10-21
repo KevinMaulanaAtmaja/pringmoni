@@ -85,7 +85,10 @@ export async function getMenus(): Promise<MenuWithKategori[]> {
     orderBy: { createdAt: 'desc' },
   });
   return menus.map((m) => {
-    const bahanAktif = m.resep
+    // `resep` berisi Decimal (jumlah/stokQty) — jangan ikut dikembalikan
+    // ke Client Component (React hanya menerima plain object).
+    const { resep, ...menuTanpaResep } = m;
+    const bahanAktif = resep
       .filter((r) => !r.stokBahan.deletedAt)
       .map((r) => ({
         namaBahan: r.stokBahan.namaBahan,
@@ -101,7 +104,7 @@ export async function getMenus(): Promise<MenuWithKategori[]> {
       butuhBumbu(m.kategori?.namaKategori)
     );
     return {
-      ...m,
+      ...menuTanpaResep,
       harga: Number(m.harga),
       fotoUrl: m.menuFoto[0]?.fotoUrl || null,
       fotoUrls: m.menuFoto.map(f => f.fotoUrl),
@@ -147,7 +150,9 @@ export async function createMenu(data: CreateMenuInput) {
     },
   });
   revalidatePath('/dashboard/menu');
-  return menu;
+  // Jangan return row Prisma mentah: `harga` bertipe Decimal dan tidak bisa
+  // diserialisasi ke Client Component ("Decimal objects are not supported").
+  return { id: menu.id };
 }
 
 export async function updateMenu(data: UpdateMenuInput) {
@@ -203,9 +208,11 @@ export async function toggleStatusMenu(id: number, status: StatusMenu) {
   revalidatePath('/dashboard/menu');
 }
 
-export async function createKategori(data: { namaKategori: string; lokasi?: LokasiMenu }) {
+export async function createKategori(data: { namaKategori: string; lokasi?: LokasiMenu; icon?: string | null; pilihanSuhu?: boolean }) {
   await requireOwner()
   const lokasi = data.lokasi ?? 'resto'
+  const icon = data.icon?.trim() || null
+  const pilihanSuhu = data.pilihanSuhu ?? false
   // Check if kategori with same name exists (including soft-deleted)
   const existing = await prisma.kategoriMenu.findFirst({
     where: {
@@ -222,6 +229,8 @@ export async function createKategori(data: { namaKategori: string; lokasi?: Loka
           deletedAt: null,
           namaKategori: data.namaKategori,
           lokasi,
+          icon,
+          pilihanSuhu,
         },
       });
     } else {
@@ -230,7 +239,7 @@ export async function createKategori(data: { namaKategori: string; lokasi?: Loka
   } else {
     // Create new kategori
     await prisma.kategoriMenu.create({
-      data: { namaKategori: data.namaKategori, lokasi },
+      data: { namaKategori: data.namaKategori, lokasi, icon, pilihanSuhu },
     });
   }
   
@@ -238,7 +247,7 @@ export async function createKategori(data: { namaKategori: string; lokasi?: Loka
   return { success: true };
 }
 
-export async function updateKategori(id: number, data: { namaKategori: string; lokasi?: LokasiMenu }) {
+export async function updateKategori(id: number, data: { namaKategori: string; lokasi?: LokasiMenu; icon?: string | null; pilihanSuhu?: boolean }) {
   await requireOwner()
   // Check if namaKategori already exists (excluding current id, ONLY active ones)
   const existing = await prisma.kategoriMenu.findFirst({
@@ -253,11 +262,14 @@ export async function updateKategori(id: number, data: { namaKategori: string; l
     return { error: "Kategori dengan nama ini sudah ada" };
   }
 
+  const icon = data.icon?.trim() || null
   await prisma.kategoriMenu.update({
     where: { id },
     data: {
       namaKategori: data.namaKategori,
       lokasi: data.lokasi,
+      icon,
+      pilihanSuhu: data.pilihanSuhu ?? false,
     },
   });
   revalidatePath('/dashboard/menu');

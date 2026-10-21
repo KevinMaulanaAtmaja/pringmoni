@@ -61,6 +61,7 @@ export interface KategoriMenu {
   id: number
   namaKategori: string
   lokasi: LokasiMenu
+  pilihanSuhu?: boolean
 }
 
 export interface Menu {
@@ -86,6 +87,8 @@ export interface CustomerMenu {
   menuFoto?: { id: number; fotoUrl: string }[]
   /** Lokasi asal menu (ikut kategori): resto atau cafe */
   lokasi?: LokasiMenu
+  /** Kategorinya punya pilihan panas/dingin → pelanggan memilih varian saat pesan */
+  pilihanSuhu?: boolean
   /** Punya >= 1 bahan di resep → stok dilacak otomatis (mode otomatis) */
   adaResep?: boolean
   /** Resep punya 1 bahan utama + 1 bumbu (indikator kualitas data) */
