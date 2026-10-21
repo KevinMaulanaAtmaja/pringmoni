@@ -165,8 +165,8 @@ export default function KasirPage() {
   const filterPeriodRef = useRef(filterPeriod)
   filterPeriodRef.current = filterPeriod
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const [belumResult, riwayatResult] = await Promise.all([
@@ -191,7 +191,7 @@ export default function KasirPage() {
       console.error("Error fetching data:", error)
       setError("Gagal mengambil data: " + (error?.message || "Koneksi database bermasalah"))
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -460,7 +460,7 @@ export default function KasirPage() {
       <h1 className="text-2xl font-bold text-gray-800">Kelola Kasir</h1>
 
       {!isOwner && (
-        <ShiftKasirPanel onShiftChange={() => { refreshShift(); fetchData() }} />
+        <ShiftKasirPanel onShiftChange={() => { refreshShift(); fetchData(true) }} />
       )}
       {/* Header Tabs */}
       <div className="flex flex-wrap gap-2 items-center justify-between">

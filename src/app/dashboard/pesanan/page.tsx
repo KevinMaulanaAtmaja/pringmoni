@@ -176,8 +176,9 @@ export default function PesananPage() {
       if (filterPeriod === 'today') {
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       } else if (filterPeriod === 'week') {
-        startDate = new Date(now)
-        startDate.setDate(now.getDate() - 7)
+        // "Minggu Ini" = sejak hari Senin minggu berjalan.
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        startDate.setDate(startDate.getDate() - ((startDate.getDay() + 6) % 7))
       } else {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1)
       }

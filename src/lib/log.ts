@@ -15,6 +15,8 @@ type JenisAksiLog =
   | "EMPTY_TABLE"
   | "OPEN_SHIFT"
   | "CLOSE_SHIFT"
+  | "AUTO_CLOSE_SHIFT"
+  | "KAS_KELUAR"
 
 async function getIp(): Promise<string | null> {
   try {

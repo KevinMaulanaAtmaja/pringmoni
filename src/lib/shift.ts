@@ -1,5 +1,13 @@
 import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
+import {
+  cariSlot,
+  deskripsiJadwal,
+  formatJam,
+  hitungUangHarap,
+  JamJadwal,
+  slotSaatIni,
+} from "@/lib/jadwal"
 
 export const PESANAN_TANPA_SHIFT =
   "Shift belum dibuka. Masukkan uang awal dan buka shift terlebih dahulu."
@@ -123,4 +131,58 @@ export function validasiNominal(nilai: unknown): { nilai: number } | { error: st
   }
 
   return { nilai: nominal }
+}
+
+// ── Jadwal slot shift ─────────────────────────────────────────────────────────
+// Helper murni (tanpa prisma) diimpor dari @/jadwal supaya aman dipakai
+// komponen "use client". Di sini hanya yang butuh prisma.
+
+export type { JamJadwal }
+export { cariSlot, deskripsiJadwal, formatJam, hitungUangHarap, slotSaatIni }
+
+/**
+ * Shift ACTIVE pada slot jam sekarang. Dipakai klaim pembayaran customer
+ * (QRIS) supaya transaksi ikut terhitung di shift yang berjalan.
+ * Asumsi: satu kasir per slot. Bila tidak ada atau lebih dari satu -> null
+ * (transaksi masuk laporan "tanpa shift").
+ */
+export async function shiftAktifSlotSekarang(
+  now: Date = new Date()
+): Promise<number | null> {
+  const jadwal = await prisma.jadwalShift.findMany({
+    where: { aktif: true },
+    select: { id: true, jamMulai: true, jamSelesai: true },
+    orderBy: { urutan: "asc" },
+  })
+  const slot = slotSaatIni(jadwal, now)
+  if (!slot) return null
+
+  const shifts = await prisma.shiftKasir.findMany({
+    where: { statusShift: "ACTIVE", jadwalShiftId: (slot as { id: number }).id },
+    select: { id: true },
+    take: 2,
+  })
+  if (shifts.length !== 1) return null
+  return shifts[0].id
+}
+
+/**
+ * Uang yang seharusnya ada di laci.
+ * Uang harap = uang awal + pendapatan tunai - kas keluar.
+ */
+export function uangHarapAkhir(
+  uangAwal: number,
+  totalTunai: number,
+  totalKasKeluar: number
+): number {
+  return hitungUangHarap(uangAwal, totalTunai, totalKasKeluar)
+}
+
+/** Total kas keluar pada sebuah shift. */
+export async function totalKasKeluar(shiftId: number): Promise<number> {
+  const hasil = await prisma.kasKeluar.aggregate({
+    where: { shiftId },
+    _sum: { nominal: true },
+  })
+  return Number(hasil._sum.nominal ?? 0)
 }

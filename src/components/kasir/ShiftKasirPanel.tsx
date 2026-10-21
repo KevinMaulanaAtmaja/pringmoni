@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
+  X,
 } from "lucide-react"
 import { bukaShift, getShiftAktif, tutupShift } from "@/app/actions/shift"
 import type { ShiftAktif } from "@/types"
@@ -35,6 +36,49 @@ type HasilShiftAktif = {
   shift: ShiftAktif | null
   canManage: boolean
   saranUangAwal: SaranUangAwal | null
+}
+
+type RingkasanTutupShift = {
+  totalTransaksi: number
+  totalPendapatan: number
+  totalTunai: number
+  totalNonTunai: number
+  totalKasKeluar: number
+  uangHarapAkhir: number
+  selisihKas: number
+  uangAkhirFisik: number
+  uangAwalShift: number
+}
+
+/**
+ * Key sessionStorage untuk menyimpan ringkasan tutup shift terakhir.
+ * Dipakai supaya catatan tetap tampil walau komponen ter-remount (mis. refresh data).
+ */
+const KEY_RINGKASAN = "pringmoni:ringkasan-tutup-shift"
+
+function bacaRingkasanTersimpan(): RingkasanTutupShift | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = window.sessionStorage.getItem(KEY_RINGKASAN)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as RingkasanTutupShift
+    return typeof parsed?.uangAkhirFisik === "number" ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function simpanRingkasan(ringkasan: RingkasanTutupShift | null) {
+  if (typeof window === "undefined") return
+  try {
+    if (ringkasan) {
+      window.sessionStorage.setItem(KEY_RINGKASAN, JSON.stringify(ringkasan))
+    } else {
+      window.sessionStorage.removeItem(KEY_RINGKASAN)
+    }
+  } catch {
+    // storage penuh / diblokir — abaikan, catatan tetap tampil di memori
+  }
 }
 
 function durasiLabel(dariIso: string): string {
@@ -76,7 +120,21 @@ export function ShiftKasirPanel({
   const [keterangan, setKeterangan] = useState("")
   const [sumberShiftId, setSumberShiftId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [ringkasan, setRingkasan] = useState<RingkasanTutupShift | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const ringkasanSudahInit = useRef(false)
+
+  // Catatan tutup shift hanya hilang saat kasir menekan tombol X.
+  // Disimpan di sessionStorage agar tetap tampil walau komponen ter-remount.
+  useEffect(() => {
+    if (!ringkasanSudahInit.current) {
+      ringkasanSudahInit.current = true
+      const tersimpan = bacaRingkasanTersimpan()
+      if (tersimpan) setRingkasan(tersimpan)
+      return
+    }
+    simpanRingkasan(ringkasan)
+  }, [ringkasan])
 
   const muatShift = useCallback(async () => {
     try {
@@ -131,6 +189,7 @@ export function ShiftKasirPanel({
     setDialogBuka(false)
     setUangAwal("")
     setSumberShiftId(null)
+    setRingkasan(null)
     await muatShift()
     onShiftChange?.()
   }
@@ -144,7 +203,7 @@ export function ShiftKasirPanel({
 
     setSubmitting(true)
     setError(null)
-    const hasil = await tutupShift(nominal, keterangan)
+    const hasil = await tutupShift(nominal, keterangan, true)
     setSubmitting(false)
 
     if ('error' in hasil) {
@@ -152,9 +211,19 @@ export function ShiftKasirPanel({
       return
     }
 
+    if (!('success' in hasil)) {
+      setError("Gagal menutup shift. Silakan coba lagi.")
+      return
+    }
+
+    // Success — shift closed, tampilkan ringkasan sebagai catatan di halaman
     setDialogTutup(false)
-    setUangAkhir("")
     setKeterangan("")
+    setRingkasan({
+      ...hasil.ringkasan,
+      uangAkhirFisik: nominal,
+      uangAwalShift: shift?.uangAwal ?? 0,
+    })
     await muatShift()
     onShiftChange?.()
   }
@@ -170,6 +239,81 @@ export function ShiftKasirPanel({
 
   return (
     <>
+      {ringkasan && (
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+            <Wallet className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-blue-900">Shift Berhasil Ditutup</p>
+            <p className="text-sm text-blue-800 mt-0.5">
+              Berikut ringkasan perhitungan uang kas shift yang baru saja ditutup.
+            </p>
+            <div className="bg-white rounded-lg p-3 mt-2 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Transaksi total</span>
+                <span className="font-medium">{ringkasan.totalTransaksi}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Pendapatan</span>
+                <span className="font-medium">{rupiah(ringkasan.totalPendapatan)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Uang awal</span>
+                <span className="font-medium">{rupiah(ringkasan.uangAwalShift)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Tunai (kas masuk)</span>
+                <span className="font-medium">{rupiah(ringkasan.totalTunai)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Non-tunai</span>
+                <span className="font-medium">{rupiah(ringkasan.totalNonTunai)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Kas keluar</span>
+                <span className="font-medium">{rupiah(ringkasan.totalKasKeluar)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 font-semibold">
+                <span>Seharusnya ada di laci</span>
+                <span>{rupiah(ringkasan.uangHarapAkhir)}</span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span>Uang akhir (fisik)</span>
+                <span>{rupiah(ringkasan.uangAkhirFisik)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 font-semibold">
+                <span>Selisih kas</span>
+                <span
+                  className={
+                    ringkasan.selisihKas === 0
+                      ? "text-green-700"
+                      : ringkasan.selisihKas > 0
+                        ? "text-red-700"
+                        : "text-blue-700"
+                  }
+                >
+                  {ringkasan.selisihKas === 0
+                    ? "Sesuai"
+                    : ringkasan.selisihKas > 0
+                      ? `Lebih ${rupiah(ringkasan.selisihKas)}`
+                      : `Kurang ${rupiah(Math.abs(ringkasan.selisihKas))}`}
+                </span>
+              </div>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setRingkasan(null)}
+            className="text-blue-700 hover:bg-blue-100 hover:text-blue-900 shrink-0"
+            aria-label="Tutup ringkasan"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+
       {shift ? (
         <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
@@ -340,7 +484,7 @@ export function ShiftKasirPanel({
             <DialogTitle className="text-xl">Tutup Shift</DialogTitle>
             <DialogDescription>
               Hitung uang fisik di laci, lalu masukkan nominalnya untuk
-              membandingkan dengan kas yang seharusnya ada.
+              membandingkan dengan kas yang seharunya ada.
             </DialogDescription>
           </DialogHeader>
 

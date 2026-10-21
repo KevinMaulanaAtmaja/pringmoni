@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { cache } from "react"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
-import { requireShiftAktif } from "@/lib/shift"
+import { requireShiftAktif, shiftAktifSlotSekarang } from "@/lib/shift"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
@@ -734,6 +734,11 @@ export async function konfirmasiPembayaranCustomer(
     data.statusPembayaran = StatusBayar.berhasil
     data.jumlahBayar = pesanan.totalHarga
     data.kembalian = 0
+
+    // Rekap shift: tempel ke shift kasir yang sedang berjalan pada slot jam ini
+    // supaya masuk rekap pendapatan shift. Bila tidak ada shift aktif (di luar
+    // jadwal), biarkan null → masuk laporan "tanpa shift".
+    data.shiftId = await shiftAktifSlotSekarang()
   }
 
   await prisma.$transaction(async (tx) => {
