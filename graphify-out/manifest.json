@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   "src/app/actions/login.ts": {
-    "mtime": 1792676988.669044,
-    "seen": 1792679552.4525878,
-    "ast_hash": "8b4f7b1bbfe90f7d065e30cb3aa4b648",
+    "mtime": 1792682648.1962261,
+    "seen": 1792683718.4633508,
+    "ast_hash": "67756bf32ad10fc3265cb999ddf8b93c",
     "semantic_hash": ""
   },
   "src/app/actions/logout.ts": {
@@ -564,9 +564,9 @@
     "semantic_hash": ""
   },
   "src/lib/auth.ts": {
-    "mtime": 1792676961.5803564,
-    "seen": 1792679552.4535854,
-    "ast_hash": "4fa70033e2aa0be686624bb048286f16",
+    "mtime": 1792682616.013731,
+    "seen": 1792683718.464349,
+    "ast_hash": "5f58fdf3566db90700b965d0b7c53fe8",
     "semantic_hash": ""
   },
   "src/lib/email.ts": {
@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   ".opencode/ARCHITECTURE.md": {
-    "mtime": 1792679464.9542556,
-    "seen": 1792679552.4535854,
-    "ast_hash": "9ffd83be9e24dd01cb85bd83f7426ade",
+    "mtime": 1792683675.5632136,
+    "seen": 1792683718.464349,
+    "ast_hash": "5d3e03fa5be26b7949e2cf3b21d00a33",
     "semantic_hash": ""
   },
   ".opencode/CONVENTIONS.md": {
@@ -1194,21 +1194,21 @@
     "semantic_hash": ""
   },
   "src/app/actions/shift.ts": {
-    "mtime": 1792676404.2968001,
-    "seen": 1792679552.4525878,
-    "ast_hash": "7b63bd56f163c10fda5e5442f249fe1b",
+    "mtime": 1792683033.9779868,
+    "seen": 1792683718.4633508,
+    "ast_hash": "0e541ec0a96f07735371df6526f0cd5e",
     "semantic_hash": ""
   },
   "src/app/dashboard/shift/page.tsx": {
-    "mtime": 1792676391.3427503,
-    "seen": 1792679552.4525878,
-    "ast_hash": "92955581866370acc3a2d5a687af1c02",
+    "mtime": 1792683083.545001,
+    "seen": 1792683718.4633508,
+    "ast_hash": "abb0e481e4a17e243e82b1bf781c3da0",
     "semantic_hash": ""
   },
   "src/components/kasir/ShiftKasirPanel.tsx": {
-    "mtime": 1792633440.4173105,
-    "seen": 1792633675.1140966,
-    "ast_hash": "e6c346ac1de88d0fabf196d58a588fad",
+    "mtime": 1792682754.2389956,
+    "seen": 1792683718.4633508,
+    "ast_hash": "0d5bc4f206dc1f3cad889c41aaa0c419",
     "semantic_hash": ""
   },
   "src/components/kasir/ShiftSidebarStatus.tsx": {
@@ -1536,9 +1536,15 @@
     "semantic_hash": ""
   },
   "src/lib/sesi.ts": {
-    "mtime": 1792676855.766997,
-    "seen": 1792679552.4535854,
-    "ast_hash": "8d7563e0e8b4ec627dc7c1c645ec6f3c",
+    "mtime": 1792682589.329672,
+    "seen": 1792683718.464349,
+    "ast_hash": "6959aade5a395b7f0f50848e0e431664",
+    "semantic_hash": ""
+  },
+  "prisma/migrations/20261022140000_add_last_seen_at/migration.sql": {
+    "mtime": 1792682564.1776667,
+    "seen": 1792683718.4633508,
+    "ast_hash": "27c9c2a4112bf3832bb446f37b9b9be7",
     "semantic_hash": ""
   }
 }
