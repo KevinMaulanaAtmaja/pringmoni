@@ -52,6 +52,61 @@ export interface Meja {
   statusMeja: StatusMeja
 }
 
+// ── Shift Kasir ───────────────────────────────────────────────────────────────
+export type StatusShift = 'ACTIVE' | 'CLOSED'
+
+export interface ShiftAktif {
+  id: number
+  kasirId: number
+  kasirUsername: string
+  tanggal: string
+  waktuMasuk: string
+  waktuKeluar: string | null
+  uangAwal: number
+  uangAkhir: number | null
+  statusShift: StatusShift
+  totalTransaksi: number
+  totalPendapatan: number
+  totalTunai: number
+  totalNonTunai: number
+  /** Total kas keluar (pengeluaran tunai) selama shift. */
+  totalKasKeluar: number
+  selisihKas: number | null
+  keterangan: string | null
+  /** Slot jadwal yang dijalani shift ini (null bila dibuka sebelum fitur jadwal). */
+  jadwalShiftId: number | null
+  /** Nama slot jadwal (mis. "Pagi"). */
+  namaJadwal: string | null
+  /** True bila shift ditutup otomatis oleh sistem, bukan oleh kasir. */
+  autoClosed: boolean
+}
+
+export interface ShiftRiwayat extends ShiftAktif {
+  /** Uang kas fisik yang seharusnya ada di laci saat menutup shift. */
+  uangHarapAkhir: number
+  /** Shift yang uang akhirnya berpindah ke shift ini (aturan 7). */
+  sumberShiftId: number | null
+  sumberShiftKasir: string | null
+}
+
+/** Template slot shift harian yang diatur owner. Jam = menit dari tengah malam. */
+export interface JadwalShift {
+  id: number
+  nama: string
+  jamMulai: number
+  jamSelesai: number
+  urutan: number
+  aktif: boolean
+}
+
+export interface KasKeluarItem {
+  id: number
+  nominal: number
+  keterangan: string
+  createdAt: string
+  userName: string | null
+}
+
 export type StatusMenu = 'tersedia' | 'habis' | 'nonaktif'
 
 /** Pringmoni mencakup 2 tempat: Resto dan Cafe */

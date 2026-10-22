@@ -15,9 +15,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Boxes,
+  History,
   CookingPot,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
 
 interface SidebarProps {
   role?: string
@@ -41,6 +43,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Buat Pesanan", icon: ShoppingCart, href: "/dashboard/kasir/pesanan-baru" },
         { name: "Kasir", icon: Receipt, href: "/dashboard/kasir" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
+        { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
     : [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -52,21 +55,22 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Akun", icon: User, href: "/dashboard/users" },
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },
         { name: "Laporan", icon: BarChart3, href: "/dashboard/laporan" },
+        { name: "Shift", icon: History, href: "/dashboard/shift" },
       ]
 
   return (
     <div className={cn(
-      "h-screen bg-gradient-to-br from-green-700 to-green-900 text-white flex flex-col p-4 overflow-hidden rounded-r-2xl shadow-2xl transition-all duration-300",
+      "h-screen bg-gradient-to-br from-green-700 to-green-900 text-white flex flex-col p-4 overflow-y-auto rounded-r-2xl shadow-2xl transition-all duration-300",
       collapsed ? "w-20 items-center" : "w-64"
     )}>
       <div className={cn("flex flex-col", collapsed ? "items-center" : "w-full")}>
         <div className={cn("flex items-center gap-3 mb-6", collapsed && "flex-col")}>
           <div className="w-12 h-12 bg-white/90 rounded-xl flex items-center justify-center text-green-700 font-bold text-lg shrink-0">
-            PM
+            IM
           </div>
           {!collapsed && (
             <div className="overflow-hidden flex-1">
-              <h1 className="text-lg font-semibold whitespace-nowrap">PringMoni</h1>
+              <h1 className="text-lg font-semibold whitespace-nowrap">Dashboard</h1>
             </div>
           )}
           <button
@@ -81,7 +85,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
           </button>
         </div>
 
-        <nav className={cn("space-y-2", collapsed && "flex flex-col items-center")}>
+        <nav className={cn("space-y-2 flex-1 overflow-y-auto pr-2", collapsed && "flex flex-col items-center")}>
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = item.href === '/dashboard'
@@ -117,7 +121,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         </nav>
       </div>
 
-
+      {role === 'cashier' && <ShiftSidebarStatus collapsed={collapsed} />}
     </div>
   )
 }

@@ -13,7 +13,7 @@ import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, Utens
 import type { LucideIcon } from "lucide-react";
 import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
 import { getVoucherAktif } from "@/app/actions/voucher";
-import { simpanKeranjangCheckout, simpanKodeVoucher } from "@/lib/checkout-storage";
+import { simpanKeranjangCheckout, simpanKodeVoucher, ambilKeranjangCheckout } from "@/lib/checkout-storage";
 import { hitungPotonganDiskon } from "@/lib/voucher";
 import type { CustomerMenu } from "@/types";
 import type { VoucherOpsi, VoucherTerpakai } from "@/types";
@@ -153,6 +153,15 @@ export default function CustomerMenuPage() {
             .split(" ")
             .map((kata) => kata.charAt(0).toUpperCase() + kata.slice(1))
             .join(" ");
+
+    // Pulihkan keranjang dari checkout yang belum selesai agar tidak hilang
+    // saat customer kembali dari halaman checkout.
+    useEffect(() => {
+        const saved = ambilKeranjangCheckout();
+        if (saved && saved.length > 0) {
+            setKeranjang(saved);
+        }
+    }, []);
 
     const filteredMenu = menus.filter((menu) => {
         const matchTempat =

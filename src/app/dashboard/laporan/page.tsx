@@ -1,16 +1,23 @@
-import { auth } from "@/lib/auth"
-import { redirect } from "next/navigation"
-import { LaporanClient } from "@/components/dashboard/LaporanClient"
+"use client"
 
-export default async function LaporanPage() {
-  const session = await auth()
-  if (!session || session.user.role !== 'owner') {
-    redirect("/dashboard")
-  }
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { LaporanClient } from "@/components/dashboard/LaporanClient"
+import { useUserRole } from "@/lib/user-context"
+
+export default function LaporanPage() {
+  const role = useUserRole()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (role && role !== "owner") {
+      router.replace("/dashboard")
+    }
+  }, [role, router])
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Laporan & Analitik</h1>
+      <h1 className="text-2xl font-bold mb-6">Laporan &amp; Analitik</h1>
       <LaporanClient />
     </div>
   )

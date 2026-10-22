@@ -17,6 +17,7 @@ const roleRouteAccess: Record<string, RoleUser[]> = {
   "/dashboard/users": ["owner"],
   "/dashboard/laporan": ["owner"],
   "/dashboard/logging": ["owner"],
+  "/dashboard/shift": ["owner", "cashier"],
 }
 
 // Root segments that belong to the app, not to the customer token route

@@ -1,0 +1,1351 @@
+{
+  "communities": {
+    "0": [
+      "src_app_actions_kasir",
+      "src_app_actions_kasir_accpesanan",
+      "src_app_actions_kasir_bank_labels",
+      "src_app_actions_kasir_bank_va_prefix",
+      "src_app_actions_kasir_batalkanpesanankasir",
+      "src_app_actions_kasir_confirmqrispayment",
+      "src_app_actions_kasir_generateqriscode",
+      "src_app_actions_kasir_generatevanumber",
+      "src_app_actions_kasir_getpembayaraninfo",
+      "src_app_actions_kasir_getpesananbelumbayar",
+      "src_app_actions_kasir_getpesananriwayatkasir",
+      "src_app_actions_kasir_kasirpesananitem",
+      "src_app_actions_kasir_prosespembayarantransfer",
+      "src_app_actions_kasir_prosespembayarantunai",
+      "src_app_actions_kasir_selesaikanpesanankasir",
+      "src_app_actions_kasir_updatepesananmeja",
+      "src_app_actions_pesanan_checkmidtransstatusreadonly",
+      "src_app_dashboard_kasir_page",
+      "src_app_dashboard_kasir_page_bank_options",
+      "src_app_dashboard_kasir_page_kasirpage",
+      "src_app_dashboard_kasir_page_kasirpage_formatrupiah",
+      "src_app_dashboard_kasir_page_kasirpage_formatsingkat",
+      "src_app_dashboard_kasir_page_kasirpage_formatwaktu",
+      "src_app_dashboard_kasir_page_kasirpage_getgrandtotal",
+      "src_app_dashboard_kasir_page_kasirpage_handlebatalfinal",
+      "src_app_dashboard_kasir_page_kasirpage_handlebatalstep1",
+      "src_app_dashboard_kasir_page_kasirpage_handlebayar",
+      "src_app_dashboard_kasir_page_kasirpage_handlebayartunaistep",
+      "src_app_dashboard_kasir_page_kasirpage_handlemethodwarningproceed",
+      "src_app_dashboard_kasir_page_kasirpage_handlepaymentconfirm",
+      "src_app_dashboard_kasir_page_kasirpage_handlepaymentexpired",
+      "src_app_dashboard_kasir_page_kasirpage_iswithinminutes",
+      "src_app_dashboard_kasir_page_kasirpage_nomorpesanan",
+      "src_app_dashboard_kasir_page_kasirpage_opencanceldialog",
+      "src_app_dashboard_kasir_page_kasirpage_opendetail",
+      "src_app_dashboard_kasir_page_kasirpage_openpayment",
+      "src_app_dashboard_kasir_page_kasirpage_playnotification",
+      "src_app_dashboard_kasir_page_metodecolors",
+      "src_app_dashboard_kasir_page_metodeicons",
+      "src_app_dashboard_kasir_page_metodelabels",
+      "src_app_dashboard_kasir_page_pesanan",
+      "src_app_dashboard_kasir_page_pesananitem",
+      "src_app_dashboard_kasir_page_statusbayarcolors",
+      "src_app_dashboard_kasir_pesanan_baru_id_page_pesananselesaipage",
+      "src_app_dashboard_kasir_pesanan_baru_id_page_pesananselesaipage_loaddata",
+      "src_lib_midtrans",
+      "src_lib_midtrans_checkmidtranstransaction",
+      "src_lib_midtrans_createcorepayment",
+      "src_lib_midtrans_createmidtranstransaction",
+      "src_lib_midtrans_midtranscore",
+      "src_lib_midtrans_midtranssnap",
+      "src_lib_midtrans_midtranstransactiondata",
+      "src_lib_midtrans_verifymidtranssignature",
+      "src_lib_midtrans_voidmidtranstransaction",
+      "src_types_index_metodepembayaran",
+      "src_types_index_statusbayar"
+    ],
+    "1": [
+      "src_app_actions_menu_getkategorimenus",
+      "src_app_actions_pesanan",
+      "src_app_actions_pesanan_buildpaymentresult",
+      "src_app_actions_pesanan_cancelexpiredorders",
+      "src_app_actions_pesanan_checkmidtranspaymentstatus",
+      "src_app_actions_pesanan_createmidtranspayment",
+      "src_app_actions_pesanan_createpesanan",
+      "src_app_actions_pesanan_createpesanandata",
+      "src_app_actions_pesanan_createpesananitem",
+      "src_app_actions_pesanan_getactivepesananbytoken",
+      "src_app_actions_pesanan_getcustomerpaymentstatus",
+      "src_app_actions_pesanan_getmejabytoken",
+      "src_app_actions_pesanan_getmenusforcustomer",
+      "src_app_actions_pesanan_getpesananbytokenandid",
+      "src_app_actions_pesanan_getpesananforcheckout",
+      "src_app_actions_pesanan_konfirmasipembayarancustomer",
+      "src_app_actions_pesanan_updatenamapelanggan",
+      "src_app_customer_tokenmeja_checkout_page",
+      "src_app_customer_tokenmeja_checkout_page_checkoutdata",
+      "src_app_customer_tokenmeja_checkout_page_checkoutpage",
+      "src_app_customer_tokenmeja_checkout_page_metodeoptions",
+      "src_app_customer_tokenmeja_page",
+      "src_app_customer_tokenmeja_page_createpesananresult",
+      "src_app_customer_tokenmeja_page_customermenupage",
+      "src_app_customer_tokenmeja_page_menu",
+      "src_app_customer_tokenmeja_pembayaran_metode_page",
+      "src_app_customer_tokenmeja_pembayaran_metode_page_pembayaranmetodepage",
+      "src_app_customer_tokenmeja_pesanan_page_detailpesananpage",
+      "src_app_dashboard_kasir_pesanan_baru_page_pesananbarupage",
+      "src_app_dashboard_kasir_pesanan_baru_page_pesananbarupage_handlesubmit",
+      "src_app_dashboard_kasir_pesanan_baru_page_pesananbarupage_hapusdaricart",
+      "src_app_dashboard_kasir_pesanan_baru_page_pesananbarupage_tambahkecart",
+      "src_app_dashboard_kasir_pesanan_baru_page_pesananbarupage_updatecatatan",
+      "src_app_dashboard_kasir_pesanan_baru_page_pesananbarupage_updatejumlah",
+      "src_components_customer_menu_card_menucard",
+      "src_components_ui_bankicon",
+      "src_components_ui_bankicon_bankicon",
+      "src_components_ui_bankicon_bankstyles",
+      "src_components_ui_bankicon_getbankcolor",
+      "src_components_ui_bankicon_getbanklabel",
+      "src_components_ui_bankicon_popular_banks",
+      "src_lib_fee",
+      "src_lib_fee_admin_fee_qris_persen",
+      "src_lib_fee_admin_fee_transfer",
+      "src_lib_fee_expiry_qris_menit",
+      "src_lib_fee_expiry_transfer_menit",
+      "src_lib_fee_hitungadminfee",
+      "src_lib_fee_hitungexpirymenit",
+      "src_types_index_customermenu"
+    ],
+    "2": [
+      "src_components_ui_card_cardaction",
+      "src_components_ui_card_cardfooter",
+      "src_components_ui_checkbox",
+      "src_components_ui_checkbox_checkbox",
+      "src_components_ui_dialog_dialogoverlay",
+      "src_components_ui_dropdown_menu",
+      "src_components_ui_dropdown_menu_dropdownmenu",
+      "src_components_ui_dropdown_menu_dropdownmenucheckboxitem",
+      "src_components_ui_dropdown_menu_dropdownmenucontent",
+      "src_components_ui_dropdown_menu_dropdownmenugroup",
+      "src_components_ui_dropdown_menu_dropdownmenuitem",
+      "src_components_ui_dropdown_menu_dropdownmenulabel",
+      "src_components_ui_dropdown_menu_dropdownmenuportal",
+      "src_components_ui_dropdown_menu_dropdownmenuradiogroup",
+      "src_components_ui_dropdown_menu_dropdownmenuradioitem",
+      "src_components_ui_dropdown_menu_dropdownmenuseparator",
+      "src_components_ui_dropdown_menu_dropdownmenushortcut",
+      "src_components_ui_dropdown_menu_dropdownmenusub",
+      "src_components_ui_dropdown_menu_dropdownmenusubcontent",
+      "src_components_ui_dropdown_menu_dropdownmenusubtrigger",
+      "src_components_ui_dropdown_menu_dropdownmenutrigger",
+      "src_components_ui_select_selectgroup",
+      "src_components_ui_select_selectlabel",
+      "src_components_ui_select_selectscrolldownbutton",
+      "src_components_ui_select_selectscrollupbutton",
+      "src_components_ui_select_selectseparator",
+      "src_components_ui_separator",
+      "src_components_ui_separator_separator",
+      "src_components_ui_table_tablecaption",
+      "src_components_ui_table_tablefooter",
+      "src_components_ui_tabs",
+      "src_components_ui_tabs_tabs",
+      "src_components_ui_tabs_tabscontent",
+      "src_components_ui_tabs_tabslist",
+      "src_components_ui_tabs_tabslistvariants",
+      "src_components_ui_tabs_tabstrigger",
+      "src_lib_utils",
+      "src_lib_utils_cn"
+    ],
+    "3": [
+      "src_app_actions_meja_getmeja",
+      "src_app_actions_menu_getmenus",
+      "src_app_actions_menu_menuwithkategori",
+      "src_app_dashboard_kasir_pesanan_baru_page",
+      "src_app_dashboard_kasir_pesanan_baru_page_cartitem",
+      "src_app_dashboard_logging_page",
+      "src_app_dashboard_logging_page_aksicolors",
+      "src_app_dashboard_logging_page_aksikategori",
+      "src_app_dashboard_logging_page_aksilabels",
+      "src_app_dashboard_logging_page_jenisaksi",
+      "src_app_dashboard_meja_page",
+      "src_app_dashboard_meja_page_statuscolors",
+      "src_app_dashboard_meja_page_statuslabels",
+      "src_app_dashboard_meja_page_tipemejalabels",
+      "src_app_dashboard_menu_page",
+      "src_app_dashboard_menu_page_actionresult",
+      "src_app_dashboard_menu_page_statuscolors",
+      "src_app_dashboard_menu_page_statuslabels",
+      "src_app_dashboard_users_page",
+      "src_app_dashboard_users_page_rolecolors",
+      "src_app_dashboard_users_page_rolelabels",
+      "src_components_ui_badge",
+      "src_components_ui_badge_badge",
+      "src_components_ui_badge_badgevariants",
+      "src_components_ui_select",
+      "src_components_ui_select_select",
+      "src_components_ui_select_selectcontent",
+      "src_components_ui_select_selectitem",
+      "src_components_ui_select_selecttrigger",
+      "src_components_ui_select_selectvalue",
+      "src_components_ui_table",
+      "src_components_ui_table_table",
+      "src_components_ui_table_tablebody",
+      "src_components_ui_table_tablecell",
+      "src_components_ui_table_tablehead",
+      "src_components_ui_table_tableheader",
+      "src_components_ui_table_tablerow"
+    ],
+    "4": [
+      "ref_dom",
+      "ref_dom_iterable",
+      "ref_esnext",
+      "ref_mts",
+      "ref_next_dev_types_ts",
+      "ref_next_env_d_ts",
+      "ref_next_types_ts",
+      "ref_node",
+      "ref_node_modules",
+      "ref_ts",
+      "ref_tsx",
+      "tsconfig",
+      "tsconfig_compileroptions",
+      "tsconfig_compileroptions_allowjs",
+      "tsconfig_compileroptions_esmoduleinterop",
+      "tsconfig_compileroptions_incremental",
+      "tsconfig_compileroptions_isolatedmodules",
+      "tsconfig_compileroptions_jsx",
+      "tsconfig_compileroptions_lib",
+      "tsconfig_compileroptions_module",
+      "tsconfig_compileroptions_moduleresolution",
+      "tsconfig_compileroptions_noemit",
+      "tsconfig_compileroptions_paths",
+      "tsconfig_compileroptions_plugins",
+      "tsconfig_compileroptions_resolvejsonmodule",
+      "tsconfig_compileroptions_skiplibcheck",
+      "tsconfig_compileroptions_strict",
+      "tsconfig_compileroptions_target",
+      "tsconfig_compileroptions_types",
+      "tsconfig_exclude",
+      "tsconfig_include"
+    ],
+    "5": [
+      "src_app_actions_menu",
+      "src_app_actions_menu_createkategori",
+      "src_app_actions_menu_createmenu",
+      "src_app_actions_menu_createmenuinput",
+      "src_app_actions_menu_deletekategori",
+      "src_app_actions_menu_deletemenu",
+      "src_app_actions_menu_foto",
+      "src_app_actions_menu_foto_deleteallmenufotos",
+      "src_app_actions_menu_foto_deletemenufoto",
+      "src_app_actions_menu_foto_getmenufotos",
+      "src_app_actions_menu_foto_requireowner",
+      "src_app_actions_menu_foto_savemenufotourls",
+      "src_app_actions_menu_requireowner",
+      "src_app_actions_menu_togglestatusmenu",
+      "src_app_actions_menu_updatekategori",
+      "src_app_actions_menu_updatemenu",
+      "src_app_actions_menu_updatemenuinput",
+      "src_app_dashboard_menu_page_menupage",
+      "src_app_dashboard_menu_page_menupage_confirmdelete",
+      "src_app_dashboard_menu_page_menupage_confirmdeletefoto",
+      "src_app_dashboard_menu_page_menupage_confirmdeletekategori",
+      "src_app_dashboard_menu_page_menupage_formatharga",
+      "src_app_dashboard_menu_page_menupage_handledelete",
+      "src_app_dashboard_menu_page_menupage_handledeletefoto",
+      "src_app_dashboard_menu_page_menupage_handledeletekategori",
+      "src_app_dashboard_menu_page_menupage_handlekategorisubmit",
+      "src_app_dashboard_menu_page_menupage_handlesubmit",
+      "src_app_dashboard_menu_page_menupage_loaddata",
+      "src_app_dashboard_menu_page_menupage_loadmenufotos",
+      "src_app_dashboard_menu_page_menupage_opendialog",
+      "src_app_dashboard_menu_page_menupage_openkategoridialog"
+    ],
+    "6": [
+      "src_components_laporan_analisistambahan",
+      "src_components_laporan_analisistambahan_analisistambahancard",
+      "src_components_laporan_piekategori",
+      "src_components_laporan_piekategori_category_colors",
+      "src_components_laporan_piekategori_piekategori",
+      "src_components_laporan_piekategori_pietooltip",
+      "src_types_index",
+      "src_types_index_analisistambahan",
+      "src_types_index_bandingdata",
+      "src_types_index_createuserinput",
+      "src_types_index_dashboardstats",
+      "src_types_index_detailpesananitem",
+      "src_types_index_kategorianalisis",
+      "src_types_index_kategorimenu",
+      "src_types_index_laporankasir",
+      "src_types_index_laporanmenuterlaris",
+      "src_types_index_laporanpendapatan",
+      "src_types_index_laporansummary",
+      "src_types_index_meja",
+      "src_types_index_menu",
+      "src_types_index_periodelaporan",
+      "src_types_index_pesanan",
+      "src_types_index_statusmeja",
+      "src_types_index_statusmenu",
+      "src_types_index_statuspesanan",
+      "src_types_index_updateuserinput",
+      "src_types_index_user",
+      "src_types_index_userresponse",
+      "src_types_index_userwithrole"
+    ],
+    "7": [
+      "src_app_dashboard_laporan_page",
+      "src_app_dashboard_laporan_page_laporanpage",
+      "src_components_dashboard_laporanclient",
+      "src_components_dashboard_laporanclient_analisiscard",
+      "src_components_dashboard_laporanclient_currentyear",
+      "src_components_dashboard_laporanclient_datetoweekstr",
+      "src_components_dashboard_laporanclient_filterperiode",
+      "src_components_dashboard_laporanclient_getweekrange",
+      "src_components_dashboard_laporanclient_iscurrentweek",
+      "src_components_dashboard_laporanclient_laporanclient",
+      "src_components_dashboard_laporanclient_laporankasiritem",
+      "src_components_dashboard_laporanclient_loadingstate",
+      "src_components_dashboard_laporanclient_ringkasancard",
+      "src_components_dashboard_laporanclient_tabbanding",
+      "src_components_dashboard_laporanclient_tabbulanan",
+      "src_components_dashboard_laporanclient_tabharian",
+      "src_components_dashboard_laporanclient_tabkasir",
+      "src_components_dashboard_laporanclient_tabmenu",
+      "src_components_dashboard_laporanclient_tabmingguan",
+      "src_components_dashboard_laporanclient_tabskeleton",
+      "src_components_dashboard_laporanclient_tabtahunan",
+      "src_components_dashboard_laporanclient_thismonth",
+      "src_components_dashboard_laporanclient_today",
+      "src_components_dashboard_laporanclient_weekstrtodate",
+      "src_lib_export_laporan_exportlaporanexcel"
+    ],
+    "8": [
+      "types_index",
+      "types_index_customermenu",
+      "types_index_dashboardstats",
+      "types_index_detailpesananitem",
+      "types_index_grafikpoint",
+      "types_index_itemlaporanpesanan",
+      "types_index_kategorimenu",
+      "types_index_laporankasir",
+      "types_index_laporanmenuterlaris",
+      "types_index_laporanpendapatan",
+      "types_index_laporansummary",
+      "types_index_meja",
+      "types_index_menu",
+      "types_index_menuterlaris",
+      "types_index_metodepembayaran",
+      "types_index_perbandingandata",
+      "types_index_periodelaporan",
+      "types_index_pesanan",
+      "types_index_roleuser",
+      "types_index_statusbayar",
+      "types_index_statusmeja",
+      "types_index_statusmenu",
+      "types_index_statuspesanan",
+      "types_index_tipemeja",
+      "types_index_user"
+    ],
+    "9": [
+      "components",
+      "components_aliases",
+      "components_aliases_components",
+      "components_aliases_hooks",
+      "components_aliases_lib",
+      "components_aliases_ui",
+      "components_aliases_utils",
+      "components_iconlibrary",
+      "components_menuaccent",
+      "components_menucolor",
+      "components_registries",
+      "components_rsc",
+      "components_rtl",
+      "components_schema",
+      "components_style",
+      "components_tailwind",
+      "components_tailwind_basecolor",
+      "components_tailwind_config",
+      "components_tailwind_css",
+      "components_tailwind_cssvariables",
+      "components_tailwind_prefix",
+      "components_tsx"
+    ],
+    "10": [
+      "src_app_customer_tokenmeja_pesanan_page",
+      "src_app_customer_tokenmeja_pesanan_page_metodeconfig",
+      "src_app_customer_tokenmeja_pesanan_page_pesanandata",
+      "src_app_customer_tokenmeja_pesanan_page_statuspesanan",
+      "src_app_dashboard_kasir_pesanan_baru_id_page",
+      "src_components_customer_menu_card",
+      "src_components_customer_menu_card_menu",
+      "src_components_customer_menu_card_menucardprops",
+      "src_components_customer_menu_card_menufoto",
+      "src_components_ui_button",
+      "src_components_ui_button_button",
+      "src_components_ui_button_buttonvariants",
+      "src_components_ui_dialog",
+      "src_components_ui_dialog_dialog",
+      "src_components_ui_dialog_dialogclose",
+      "src_components_ui_dialog_dialogcontent",
+      "src_components_ui_dialog_dialogdescription",
+      "src_components_ui_dialog_dialogfooter",
+      "src_components_ui_dialog_dialogheader",
+      "src_components_ui_dialog_dialogportal",
+      "src_components_ui_dialog_dialogtitle",
+      "src_components_ui_dialog_dialogtrigger"
+    ],
+    "11": [
+      "src_app_actions_pesanan_cancelpesanan",
+      "src_app_actions_pesanan_getpesananbyid",
+      "src_app_actions_pesanan_getpesananfordashboard",
+      "src_app_actions_pesanan_markitemdiantar",
+      "src_app_actions_pesanan_markpesananselesai",
+      "src_app_actions_pesanan_updatestatuspesanan",
+      "src_app_dashboard_pesanan_id_page",
+      "src_app_dashboard_pesanan_id_page_pesanandetailpage",
+      "src_app_dashboard_pesanan_id_page_statusbayarcolors",
+      "src_app_dashboard_pesanan_id_page_statuscolors",
+      "src_app_dashboard_pesanan_page",
+      "src_app_dashboard_pesanan_page_pesanandetail",
+      "src_app_dashboard_pesanan_page_pesananitem",
+      "src_app_dashboard_pesanan_page_pesananpage",
+      "src_app_dashboard_pesanan_page_statusbayarcolors",
+      "src_app_dashboard_pesanan_page_statuscolors",
+      "src_lib_print_struk_printstruk",
+      "src_lib_user_context_useuserrole"
+    ],
+    "12": [
+      "src_app_api_auth_nextauth_route",
+      "src_app_api_uploadthing_delete_route",
+      "src_app_api_uploadthing_delete_route_post",
+      "src_app_api_uploadthing_delete_route_utapi",
+      "src_app_dashboard_kasir_pesanan_baru_layout",
+      "src_app_dashboard_kasir_pesanan_baru_layout_pesananbarulayout",
+      "src_app_page",
+      "src_app_page_home",
+      "src_components_dashboard_statcard_statcard",
+      "src_components_dashboard_statgrid",
+      "src_components_dashboard_statgrid_statgrid",
+      "src_components_dashboard_statgrid_statgridprops",
+      "src_lib_auth",
+      "src_lib_auth_customuser",
+      "src_lib_auth_handlers_auth_signin_signout",
+      "src_lib_auth_next_auth",
+      "src_lib_auth_session",
+      "src_types_index_roleuser"
+    ],
+    "13": [
+      "src_app_auth_login_page",
+      "src_app_auth_login_page_initialstate",
+      "src_app_auth_reset_password_page",
+      "src_app_auth_reset_password_page_initialstate",
+      "src_app_auth_reset_password_token_page",
+      "src_app_auth_reset_password_token_page_initialstate",
+      "src_components_dashboard_statcard",
+      "src_components_dashboard_statcard_statcardprops",
+      "src_components_ui_card",
+      "src_components_ui_card_card",
+      "src_components_ui_card_cardcontent",
+      "src_components_ui_card_carddescription",
+      "src_components_ui_card_cardheader",
+      "src_components_ui_card_cardtitle",
+      "src_components_ui_input",
+      "src_components_ui_input_input",
+      "src_components_ui_label",
+      "src_components_ui_label_label"
+    ],
+    "14": [
+      "src_app_dashboard_layout",
+      "src_app_dashboard_layout_dashboardlayout",
+      "src_components_layout_clockdisplay",
+      "src_components_layout_clockdisplay_clockdisplay",
+      "src_components_layout_clockdisplay_pad",
+      "src_components_layout_dashboardclient",
+      "src_components_layout_dashboardclient_dashboardclient",
+      "src_components_layout_dashboardclient_dashboardclientprops",
+      "src_components_layout_header",
+      "src_components_layout_header_header",
+      "src_components_layout_sidebar",
+      "src_components_layout_sidebar_sidebar",
+      "src_components_layout_sidebar_sidebarprops",
+      "src_lib_user_context",
+      "src_lib_user_context_usercontext",
+      "src_lib_user_context_usercontextvalue",
+      "src_lib_user_context_userprovider"
+    ],
+    "15": [
+      "src_app_actions_users",
+      "src_app_actions_users_createuser",
+      "src_app_actions_users_deleteuser",
+      "src_app_actions_users_getkasirusers",
+      "src_app_actions_users_getusers",
+      "src_app_actions_users_requireowner",
+      "src_app_actions_users_toggleuserstatus",
+      "src_app_actions_users_updateuser",
+      "src_app_actions_users_userwithrole",
+      "src_app_dashboard_users_page_userspage",
+      "src_app_dashboard_users_page_userspage_handledeletecancel",
+      "src_app_dashboard_users_page_userspage_handledeleteclick",
+      "src_app_dashboard_users_page_userspage_handledeleteconfirm",
+      "src_app_dashboard_users_page_userspage_handlesubmit",
+      "src_app_dashboard_users_page_userspage_loaddata",
+      "src_app_dashboard_users_page_userspage_opendialog"
+    ],
+    "16": [
+      "babel_plugin_react_compiler",
+      "eslint",
+      "package_devdependencies",
+      "package_devdependencies_babel_plugin_react_compiler",
+      "package_devdependencies_eslint",
+      "package_devdependencies_testing_library_jest_dom",
+      "package_devdependencies_testing_library_user_event",
+      "package_devdependencies_types_node",
+      "package_devdependencies_types_nodemailer",
+      "package_devdependencies_typescript",
+      "testing_library_jest_dom",
+      "testing_library_user_event",
+      "types_node",
+      "types_nodemailer",
+      "typescript"
+    ],
+    "17": [
+      "src_components_customer_cart_sheet",
+      "src_components_customer_cart_sheet_cartsheet",
+      "src_components_customer_cart_sheet_cartsheetprops",
+      "src_components_customer_cart_sheet_getitemkey",
+      "src_components_customer_cart_sheet_keranjangitem",
+      "src_components_customer_cart_sheet_samplevouchers",
+      "src_components_customer_cart_sheet_voucher",
+      "src_components_ui_sheet",
+      "src_components_ui_sheet_sheetcontent",
+      "src_components_ui_sheet_sheetcontentprops",
+      "src_components_ui_sheet_sheetdescription",
+      "src_components_ui_sheet_sheetfooter",
+      "src_components_ui_sheet_sheetheader",
+      "src_components_ui_sheet_sheetoverlay",
+      "src_components_ui_sheet_sheettitle"
+    ],
+    "18": [
+      "src_app_actions_laporan",
+      "src_app_actions_laporan_getanalisistambahan",
+      "src_app_actions_laporan_getdaterange",
+      "src_app_actions_laporan_getgrafikpendapatan",
+      "src_app_actions_laporan_getlaporanall",
+      "src_app_actions_laporan_getlaporanbanding",
+      "src_app_actions_laporan_getlaporankasir",
+      "src_app_actions_laporan_getlaporankategori",
+      "src_app_actions_laporan_getlaporanmenuterlaris",
+      "src_app_actions_laporan_getlaporanpendapatan",
+      "src_app_actions_laporan_getperbandingan",
+      "src_app_actions_laporan_getpreviousdaterange",
+      "src_app_actions_laporan_grouplabel",
+      "src_app_actions_laporan_mappesanantoitem"
+    ],
+    "19": [
+      "src_app_actions_dashboard",
+      "src_app_actions_dashboard_autocancelstaleunpaid",
+      "src_app_actions_dashboard_getdashboardcharts",
+      "src_app_actions_dashboard_getdashboardstats",
+      "src_app_actions_dashboard_getpaidstalewarnings",
+      "src_app_actions_dashboard_getstaleorders",
+      "src_app_actions_dashboard_paidstaleorder",
+      "src_app_actions_dashboard_staleorder",
+      "src_app_dashboard_page",
+      "src_app_dashboard_page_dashboardpage",
+      "src_components_dashboard_staleorderswarning",
+      "src_components_dashboard_staleorderswarning_formatdurasi",
+      "src_components_dashboard_staleorderswarning_staleorderswarning"
+    ],
+    "20": [
+      "src_components_dashboard_dashboardcharts",
+      "src_components_dashboard_dashboardcharts_chartitem",
+      "src_components_dashboard_dashboardcharts_charttooltip",
+      "src_components_dashboard_dashboardcharts_dashboardchartdata",
+      "src_components_dashboard_dashboardcharts_dashboardcharts",
+      "src_components_dashboard_dashboardcharts_ensuredata",
+      "src_components_dashboard_dashboardcharts_ensuremetode",
+      "src_components_dashboard_dashboardcharts_formatrupiah",
+      "src_components_dashboard_dashboardcharts_mejadata",
+      "src_components_dashboard_dashboardcharts_metode_colors",
+      "src_components_dashboard_dashboardcharts_metodeperjam",
+      "src_components_dashboard_dashboardcharts_status_colors",
+      "src_components_dashboard_dashboardcharts_tooltipitem"
+    ],
+    "21": [
+      "src_app_actions_kasir_konfirmasipembayaran",
+      "src_app_actions_kasir_prosespembayaranqris",
+      "src_app_actions_logout",
+      "src_app_actions_logout_logoutaction",
+      "src_app_actions_pesanan_updatepembayaran",
+      "src_app_actions_reset_password_confirm",
+      "src_app_actions_reset_password_confirm_resetpasswordconfirmaction",
+      "src_app_auth_reset_password_token_page_resetpasswordpage",
+      "src_lib_log",
+      "src_lib_log_createlog",
+      "src_lib_log_getip",
+      "src_lib_log_jenisaksilog"
+    ],
+    "22": [
+      "src_app_actions_meja",
+      "src_app_actions_meja_createmeja",
+      "src_app_actions_meja_deletemeja",
+      "src_app_actions_meja_generatenomormeja",
+      "src_app_actions_meja_getnextnomormeja",
+      "src_app_actions_meja_mejaresult",
+      "src_app_actions_meja_updatemeja",
+      "src_app_dashboard_meja_page_mejapage",
+      "src_app_dashboard_meja_page_mejapage_handledeletecancel",
+      "src_app_dashboard_meja_page_mejapage_handledeleteclick",
+      "src_app_dashboard_meja_page_mejapage_handledeleteconfirm",
+      "src_types_index_tipemeja"
+    ],
+    "23": [
+      "bcryptjs",
+      "class_variance_authority",
+      "package_dependencies",
+      "package_dependencies_bcryptjs",
+      "package_dependencies_class_variance_authority",
+      "package_dependencies_pg",
+      "package_dependencies_qrcode_react",
+      "package_dependencies_uuid",
+      "pg",
+      "qrcode_react",
+      "uuid"
+    ],
+    "24": [
+      "src_app_actions_reset_password",
+      "src_app_actions_reset_password_resetpasswordaction",
+      "src_app_actions_upload",
+      "src_app_actions_upload_uploadmenufoto",
+      "src_app_api_midtrans_callback_route",
+      "src_app_api_midtrans_callback_route_post",
+      "src_app_api_midtrans_callback_route_runtime",
+      "src_lib_log_createlognosession",
+      "src_lib_prisma",
+      "src_lib_prisma_createprismaclient",
+      "src_lib_prisma_globalforprisma"
+    ],
+    "25": [
+      "src_app_layout",
+      "src_app_layout_geistmono",
+      "src_app_layout_geistmonoheading",
+      "src_app_layout_geistsans",
+      "src_app_layout_inter",
+      "src_app_layout_metadata",
+      "src_app_layout_rootlayout",
+      "src_app_providers",
+      "src_app_providers_providers",
+      "src_components_layout_footer",
+      "src_components_layout_footer_footer"
+    ],
+    "26": [
+      "src_lib_export_laporan",
+      "src_lib_export_laporan_centertext",
+      "src_lib_export_laporan_exportlaporanpdf",
+      "src_lib_export_laporan_footerlaporan",
+      "src_lib_export_laporan_formatrupiah",
+      "src_lib_export_laporan_headerlaporan",
+      "src_lib_export_laporan_kasirexport",
+      "src_lib_export_laporan_monthpdfdata",
+      "src_lib_export_laporan_renderringkasanpdf",
+      "src_types_index_itemlaporanpesanan",
+      "src_types_index_menuterlaris"
+    ],
+    "27": [
+      "src_lib_print_struk",
+      "src_lib_print_struk_centertext",
+      "src_lib_print_struk_formatrupiah",
+      "src_lib_print_struk_nomorpesanan",
+      "src_lib_print_struk_printstruk58",
+      "src_lib_print_struk_renderallpages",
+      "src_lib_print_struk_renderdoc",
+      "src_lib_print_struk_renderstruk",
+      "src_lib_print_struk_righttext",
+      "src_lib_print_struk_strukdata",
+      "src_lib_print_struk_strukitem"
+    ],
+    "28": [
+      "src_components_laporan_grafikpeakhours",
+      "src_components_laporan_grafikpeakhours_ambergradient",
+      "src_components_laporan_grafikpeakhours_calcticks",
+      "src_components_laporan_grafikpeakhours_customtooltip",
+      "src_components_laporan_grafikpeakhours_grafikpeakhours",
+      "src_components_laporan_grafikpendapatan",
+      "src_components_laporan_grafikpendapatan_customtooltip",
+      "src_components_laporan_grafikpendapatan_formatrupiah",
+      "src_components_laporan_grafikpendapatan_grafikpendapatan",
+      "src_types_index_grafikpoint"
+    ],
+    "29": [
+      "prisma_migrations_20260408053831_init_all_schema_migration",
+      "prisma_migrations_20260408053831_init_all_schema_migration_detail_pesanan",
+      "prisma_migrations_20260408053831_init_all_schema_migration_kategori_menu",
+      "prisma_migrations_20260408053831_init_all_schema_migration_logs",
+      "prisma_migrations_20260408053831_init_all_schema_migration_meja",
+      "prisma_migrations_20260408053831_init_all_schema_migration_menu",
+      "prisma_migrations_20260408053831_init_all_schema_migration_menu_foto",
+      "prisma_migrations_20260408053831_init_all_schema_migration_pesanan",
+      "prisma_migrations_20260408053831_init_all_schema_migration_users"
+    ],
+    "30": [
+      "src_app_actions_login",
+      "src_app_actions_login_loginaction",
+      "src_app_auth_login_page_loginpage",
+      "src_lib_rate_limiter",
+      "src_lib_rate_limiter_checkratelimit",
+      "src_lib_rate_limiter_getkey",
+      "src_lib_rate_limiter_ratelimitentry",
+      "src_lib_rate_limiter_recordfailedattempt",
+      "src_lib_rate_limiter_resetratelimit"
+    ],
+    "31": [
+      "src_app_api_uploadthing_route",
+      "src_app_api_uploadthing_route_get_post",
+      "src_lib_uploadthing",
+      "src_lib_uploadthing_client",
+      "src_lib_uploadthing_client_uploadbutton",
+      "src_lib_uploadthing_client_useuploadthing",
+      "src_lib_uploadthing_f",
+      "src_lib_uploadthing_ourfilerouter",
+      "src_lib_uploadthing_utapi"
+    ],
+    "32": [
+      "package",
+      "package_name",
+      "package_overrides",
+      "package_overrides_effect",
+      "package_prisma",
+      "package_prisma_seed",
+      "package_private",
+      "package_version"
+    ],
+    "33": [
+      "src_app_actions_logs",
+      "src_app_actions_logs_clearlogs",
+      "src_app_actions_logs_getlogcount",
+      "src_app_actions_logs_getlogs",
+      "src_app_actions_logs_getuniqueusers",
+      "src_app_actions_logs_logitem",
+      "src_app_dashboard_logging_page_loggingpage"
+    ],
+    "34": [
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_dev",
+      "package_scripts_lint",
+      "package_scripts_seed_2025",
+      "package_scripts_start"
+    ],
+    "35": [
+      "prisma_seed_2025",
+      "prisma_seed_2025_main",
+      "prisma_seed_2025_prisma",
+      "prisma_seed_2025_randomint",
+      "prisma_seed_2025_randomitem",
+      "prisma_seed_2025_randomtime"
+    ],
+    "36": [
+      "prisma_seed_historical",
+      "prisma_seed_historical_main",
+      "prisma_seed_historical_prisma",
+      "prisma_seed_historical_randomint",
+      "prisma_seed_historical_randomitem",
+      "prisma_seed_historical_randomtime"
+    ],
+    "37": [
+      "src_app_actions_forgot_password",
+      "src_app_actions_forgot_password_forgotpasswordaction",
+      "src_app_auth_reset_password_page_forgotpasswordpage",
+      "src_lib_email",
+      "src_lib_email_sendresetpasswordemail",
+      "src_lib_email_transporter"
+    ],
+    "38": [
+      "src_components_bankicon",
+      "src_components_bankicon_bankicon",
+      "src_components_bankicon_bankstyles",
+      "src_components_bankicon_getbankcolor",
+      "src_components_bankicon_getbanklabel",
+      "src_components_bankicon_popular_banks"
+    ],
+    "39": [
+      "src_components_laporan_piemetode",
+      "src_components_laporan_piemetode_colors",
+      "src_components_laporan_piemetode_formatrupiah",
+      "src_components_laporan_piemetode_piemetode",
+      "src_components_laporan_piemetode_piemetodeprops",
+      "src_components_laporan_piemetode_pietooltip"
+    ],
+    "40": [
+      "src_proxy",
+      "src_proxy_config",
+      "src_proxy_getrouterole",
+      "src_proxy_proxy",
+      "src_proxy_rolerouteaccess",
+      "src_proxy_roleuser"
+    ],
+    "41": [
+      "lightningcss_win32_x64_msvc",
+      "package_optionaldependencies",
+      "package_optionaldependencies_lightningcss_win32_x64_msvc",
+      "package_optionaldependencies_tailwindcss_oxide_win32_x64_msvc",
+      "tailwindcss_oxide_win32_x64_msvc"
+    ],
+    "42": [
+      "opencode_plugin_security_scan",
+      "opencode_plugin_security_scan_issensitivefile",
+      "opencode_plugin_security_scan_securityscanplugin",
+      "opencode_plugin_security_scan_sensitive_files"
+    ],
+    "43": [
+      "src_components_customer_category_icon",
+      "src_components_customer_category_icon_categoryicon",
+      "src_components_customer_category_icon_categoryiconprops",
+      "src_components_customer_category_icon_icons"
+    ],
+    "44": [
+      "src_components_laporan_grafikmenu",
+      "src_components_laporan_grafikmenu_colors",
+      "src_components_laporan_grafikmenu_customtooltip",
+      "src_components_laporan_grafikmenu_grafikmenu"
+    ],
+    "45": [
+      "src_components_laporan_perbandingancard",
+      "src_components_laporan_perbandingancard_formatrupiah",
+      "src_components_laporan_perbandingancard_perbandingancard",
+      "src_types_index_perbandingandata"
+    ],
+    "46": [
+      "opencode_plugin_auto_format",
+      "opencode_plugin_auto_format_autoformatplugin",
+      "opencode_plugin_auto_format_formatters"
+    ],
+    "47": [
+      "opencode_plugin_notifications",
+      "opencode_plugin_notifications_notificationplugin",
+      "opencode_plugin_notifications_windowsnotifycommand"
+    ],
+    "48": [
+      "opencode_plugin_parallel_guard",
+      "opencode_plugin_parallel_guard_parallelguardplugin",
+      "opencode_plugin_parallel_guard_recenttaskcalls"
+    ],
+    "49": [
+      "opencode_plugin_verification",
+      "opencode_plugin_verification_editedfiles",
+      "opencode_plugin_verification_verificationplugin"
+    ],
+    "50": [
+      "opencode_plugins_graphify",
+      "opencode_plugins_graphify_graphifyplugin",
+      "opencode_plugins_graphify_rationale_4"
+    ],
+    "51": [
+      "package_dependencies_prisma",
+      "package_devdependencies_prisma",
+      "prisma"
+    ],
+    "52": [
+      "prisma_seed",
+      "prisma_seed_main",
+      "prisma_seed_prisma"
+    ],
+    "53": [
+      "prisma_testprisma",
+      "prisma_testprisma_main",
+      "prisma_testprisma_prisma"
+    ],
+    "54": [
+      "src_app_api_download_qr_route",
+      "src_app_api_download_qr_route_get",
+      "src_app_api_download_qr_route_runtime"
+    ],
+    "55": [
+      "cloudinary",
+      "package_dependencies_cloudinary"
+    ],
+    "56": [
+      "clsx",
+      "package_dependencies_clsx"
+    ],
+    "57": [
+      "eslint_config",
+      "eslint_config_eslintconfig"
+    ],
+    "58": [
+      "eslint_config_next",
+      "package_devdependencies_eslint_config_next"
+    ],
+    "59": [
+      "exceljs",
+      "package_dependencies_exceljs"
+    ],
+    "60": [
+      "hugeicons_core_free_icons",
+      "package_dependencies_hugeicons_core_free_icons"
+    ],
+    "61": [
+      "hugeicons_react",
+      "package_dependencies_hugeicons_react"
+    ],
+    "62": [
+      "jspdf",
+      "package_dependencies_jspdf"
+    ],
+    "63": [
+      "jsqr",
+      "package_dependencies_jsqr"
+    ],
+    "64": [
+      "lucide_react",
+      "package_dependencies_lucide_react"
+    ],
+    "65": [
+      "midtrans_client",
+      "package_dependencies_midtrans_client"
+    ],
+    "66": [
+      "next",
+      "package_dependencies_next"
+    ],
+    "67": [
+      "next_auth",
+      "package_dependencies_next_auth"
+    ],
+    "68": [
+      "next_config",
+      "next_config_nextconfig"
+    ],
+    "69": [
+      "nodemailer",
+      "package_dependencies_nodemailer"
+    ],
+    "70": [
+      "package_dependencies_prisma_adapter_pg",
+      "prisma_adapter_pg"
+    ],
+    "71": [
+      "package_dependencies_prisma_client",
+      "prisma_client"
+    ],
+    "72": [
+      "package_dependencies_pusher",
+      "pusher"
+    ],
+    "73": [
+      "package_dependencies_pusher_js",
+      "pusher_js"
+    ],
+    "74": [
+      "package_dependencies_qrcode",
+      "qrcode"
+    ],
+    "75": [
+      "package_dependencies_radix_ui",
+      "radix_ui"
+    ],
+    "76": [
+      "package_dependencies_radix_ui_react_dialog",
+      "radix_ui_react_dialog"
+    ],
+    "77": [
+      "package_dependencies_react",
+      "react"
+    ],
+    "78": [
+      "package_dependencies_react_dom",
+      "react_dom"
+    ],
+    "79": [
+      "package_dependencies_react_pdf_renderer",
+      "react_pdf_renderer"
+    ],
+    "80": [
+      "package_dependencies_recharts",
+      "recharts"
+    ],
+    "81": [
+      "package_dependencies_shadcn",
+      "shadcn"
+    ],
+    "82": [
+      "package_dependencies_sharp",
+      "sharp"
+    ],
+    "83": [
+      "package_dependencies_tailwind_merge",
+      "tailwind_merge"
+    ],
+    "84": [
+      "package_dependencies_tw_animate_css",
+      "tw_animate_css"
+    ],
+    "85": [
+      "package_dependencies_types_midtrans_client",
+      "types_midtrans_client"
+    ],
+    "86": [
+      "package_dependencies_uploadthing",
+      "uploadthing"
+    ],
+    "87": [
+      "package_dependencies_uploadthing_react",
+      "uploadthing_react"
+    ],
+    "88": [
+      "package_dependencies_xlsx",
+      "xlsx"
+    ],
+    "89": [
+      "package_dependencies_zod",
+      "zod"
+    ],
+    "90": [
+      "package_devdependencies_tailwindcss",
+      "tailwindcss"
+    ],
+    "91": [
+      "package_devdependencies_tailwindcss_postcss",
+      "tailwindcss_postcss"
+    ],
+    "92": [
+      "package_devdependencies_testing_library_react",
+      "testing_library_react"
+    ],
+    "93": [
+      "package_devdependencies_ts_node",
+      "ts_node"
+    ],
+    "94": [
+      "package_devdependencies_tsx",
+      "tsx"
+    ],
+    "95": [
+      "package_devdependencies_types_bcryptjs",
+      "types_bcryptjs"
+    ],
+    "96": [
+      "package_devdependencies_types_pg",
+      "types_pg"
+    ],
+    "97": [
+      "package_devdependencies_types_react",
+      "types_react"
+    ],
+    "98": [
+      "package_devdependencies_types_react_dom",
+      "types_react_dom"
+    ],
+    "99": [
+      "package_devdependencies_vitest",
+      "vitest"
+    ],
+    "100": [
+      "postcss_config",
+      "postcss_config_config"
+    ],
+    "101": [
+      "prisma_migrations_20260327055635_init_migration",
+      "prisma_migrations_20260327055635_init_migration_user"
+    ],
+    "102": [
+      "src_app_auth_layout",
+      "src_app_auth_layout_authlayout"
+    ],
+    "103": [
+      "src_app_customer_layout",
+      "src_app_customer_layout_customerlayout"
+    ],
+    "104": [
+      "src_app_customer_tokenmeja_pembayaran_langkah_metode_page",
+      "src_app_customer_tokenmeja_pembayaran_langkah_metode_page_pembayaranlangkahredirect"
+    ],
+    "105": [
+      "src_app_customer_tokenmeja_pembayaran_page",
+      "src_app_customer_tokenmeja_pembayaran_page_pembayaranredirectpage"
+    ],
+    "106": [
+      "prisma_migrations_20260407103015_remove_user_migration"
+    ],
+    "107": [
+      "prisma_migrations_20260504103321_add_filekey_to_menu_foto_migration"
+    ],
+    "108": [
+      "prisma_migrations_20260508092031_add_reset_password_fields_migration"
+    ],
+    "109": [
+      "prisma_migrations_20260513000001_add_diproses_status_migration"
+    ],
+    "110": [
+      "prisma_migrations_20260516000001_add_status_antar_migration"
+    ],
+    "111": [
+      "prisma_migrations_20260517000001_add_biaya_admin_ppn_migration"
+    ],
+    "112": [
+      "prisma_migrations_20260526000001_simplify_log_enum_migration"
+    ],
+    "113": [
+      "src_app_api_auth_nextauth_route_get_post"
+    ],
+    "114": [
+      "vitest_config"
+    ]
+  },
+  "cohesion": {
+    "0": 0.05584415584415584,
+    "1": 0.0858843537414966,
+    "2": 0.08108108108108109,
+    "3": 0.15165165165165165,
+    "4": 0.06451612903225806,
+    "5": 0.12258064516129032,
+    "6": 0.07389162561576355,
+    "7": 0.12333333333333334,
+    "8": 0.08,
+    "9": 0.09090909090909091,
+    "10": 0.19480519480519481,
+    "11": 0.19607843137254902,
+    "12": 0.13071895424836602,
+    "13": 0.3006535947712418,
+    "14": 0.16176470588235295,
+    "15": 0.21666666666666667,
+    "16": 0.13333333333333333,
+    "17": 0.17142857142857143,
+    "18": 0.3626373626373626,
+    "19": 0.3076923076923077,
+    "20": 0.19230769230769232,
+    "21": 0.24242424242424243,
+    "22": 0.24242424242424243,
+    "23": 0.18181818181818182,
+    "24": 0.2,
+    "25": 0.21818181818181817,
+    "26": 0.32727272727272727,
+    "27": 0.32727272727272727,
+    "28": 0.24444444444444444,
+    "29": 0.4166666666666667,
+    "30": 0.4444444444444444,
+    "31": 0.2777777777777778,
+    "32": 0.25,
+    "33": 0.38095238095238093,
+    "34": 0.3333333333333333,
+    "35": 0.6,
+    "36": 0.6,
+    "37": 0.4666666666666667,
+    "38": 0.3333333333333333,
+    "39": 0.4,
+    "40": 0.4,
+    "41": 0.4,
+    "42": 0.6666666666666666,
+    "43": 0.5,
+    "44": 0.5,
+    "45": 0.6666666666666666,
+    "46": 0.6666666666666666,
+    "47": 1.0,
+    "48": 0.6666666666666666,
+    "49": 0.6666666666666666,
+    "50": 0.6666666666666666,
+    "51": 0.6666666666666666,
+    "52": 0.6666666666666666,
+    "53": 0.6666666666666666,
+    "54": 0.6666666666666666,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0,
+    "71": 1.0,
+    "72": 1.0,
+    "73": 1.0,
+    "74": 1.0,
+    "75": 1.0,
+    "76": 1.0,
+    "77": 1.0,
+    "78": 1.0,
+    "79": 1.0,
+    "80": 1.0,
+    "81": 1.0,
+    "82": 1.0,
+    "83": 1.0,
+    "84": 1.0,
+    "85": 1.0,
+    "86": 1.0,
+    "87": 1.0,
+    "88": 1.0,
+    "89": 1.0,
+    "90": 1.0,
+    "91": 1.0,
+    "92": 1.0,
+    "93": 1.0,
+    "94": 1.0,
+    "95": 1.0,
+    "96": 1.0,
+    "97": 1.0,
+    "98": 1.0,
+    "99": 1.0,
+    "100": 1.0,
+    "101": 1.0,
+    "102": 1.0,
+    "103": 1.0,
+    "104": 1.0,
+    "105": 1.0,
+    "106": 1.0,
+    "107": 1.0,
+    "108": 1.0,
+    "109": 1.0,
+    "110": 1.0,
+    "111": 1.0,
+    "112": 1.0,
+    "113": 1.0,
+    "114": 1.0
+  },
+  "gods": [
+    {
+      "id": "src_lib_utils_cn",
+      "label": "cn()",
+      "degree": 72
+    },
+    {
+      "id": "src_lib_log_createlog",
+      "label": "createLog()",
+      "degree": 29
+    },
+    {
+      "id": "src_app_dashboard_kasir_page_kasirpage",
+      "label": "KasirPage()",
+      "degree": 23
+    },
+    {
+      "id": "src_components_ui_button_button",
+      "label": "Button()",
+      "degree": 23
+    },
+    {
+      "id": "src_components_ui_card_card",
+      "label": "Card()",
+      "degree": 18
+    },
+    {
+      "id": "src_components_ui_card_cardcontent",
+      "label": "CardContent()",
+      "degree": 18
+    },
+    {
+      "id": "tsconfig_compileroptions",
+      "label": "compilerOptions",
+      "degree": 17
+    },
+    {
+      "id": "src_components_ui_input_input",
+      "label": "Input()",
+      "degree": 15
+    },
+    {
+      "id": "src_components_ui_badge_badge",
+      "label": "Badge()",
+      "degree": 15
+    },
+    {
+      "id": "src_app_dashboard_menu_page_menupage",
+      "label": "MenuPage()",
+      "degree": 15
+    }
+  ],
+  "surprises": [
+    {
+      "source": "SheetFooter()",
+      "target": "cn()",
+      "source_files": [
+        "src/components/ui/sheet.tsx",
+        "src/lib/utils.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities; peripheral node `SheetFooter()` unexpectedly reaches hub `cn()`"
+    },
+    {
+      "source": "RootLayout()",
+      "target": "cn()",
+      "source_files": [
+        "src/app/layout.tsx",
+        "src/lib/utils.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities; peripheral node `RootLayout()` unexpectedly reaches hub `cn()`"
+    },
+    {
+      "source": "SheetDescription",
+      "target": "cn()",
+      "source_files": [
+        "src/components/ui/sheet.tsx",
+        "src/lib/utils.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities; peripheral node `SheetDescription` unexpectedly reaches hub `cn()`"
+    },
+    {
+      "source": "SheetOverlay",
+      "target": "cn()",
+      "source_files": [
+        "src/components/ui/sheet.tsx",
+        "src/lib/utils.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities; peripheral node `SheetOverlay` unexpectedly reaches hub `cn()`"
+    },
+    {
+      "source": "LoginPage()",
+      "target": "loginAction()",
+      "source_files": [
+        "src/app/(auth)/login/page.tsx",
+        "src/app/actions/login.ts"
+      ],
+      "confidence": "INFERRED",
+      "relation": "indirect_call",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `LoginPage()` unexpectedly reaches hub `loginAction()`"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `cn()` connect `cn` to `menu/page.tsx`, `button.tsx`, `card.tsx`, `dashboard/layout.tsx`, `cart-sheet.tsx`, `app/layout.tsx`?",
+      "why": "High betweenness centrality (0.070) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `KasirPage()` connect `kasir/page.tsx` to `dashboard/pesanan/page.tsx`?",
+      "why": "High betweenness centrality (0.021) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `dependencies` connect `dependencies` to `package.json`, `prisma`, `cloudinary`, `clsx`, `exceljs`, `@hugeicons/core-free-icons`, `@hugeicons/react`, `jspdf`, `jsqr`, `lucide-react`, `midtrans-client`, `next`, `next-auth`, `nodemailer`, `@prisma/adapter-pg`, `@prisma/client`, `pusher`, `pusher-js`, `qrcode`, `radix-ui`, `@radix-ui/react-dialog`, `react`, `react-dom`, `@react-pdf/renderer`, `recharts`, `shadcn`, `sharp`, `tailwind-merge`, `tw-animate-css`, `@types/midtrans-client`, `uploadthing`, `@uploadthing/react`, `xlsx`, `zod`?",
+      "why": "High betweenness centrality (0.019) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `KasirPesananItem`, `Pesanan`, `PesananItem` to the rest of the system?",
+      "why": "272 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `kasir/page.tsx` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.05584415584415584 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `pesanan.ts` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.0858843537414966 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `cn` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.08108108108108109 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

@@ -27,7 +27,8 @@ type JenisAksi =
   | 'LOGIN' | 'LOGOUT' | 'RESET_PASSWORD'
   | 'CREATE_ORDER' | 'UPDATE_ORDER_STATUS'
   | 'CANCEL_ORDER_KASIR' | 'CANCEL_ORDER_EXPIRED' | 'CANCEL_ORDER_STALE'
-  | 'PROCESS_PAYMENT'
+  | 'PROCESS_PAYMENT' | 'EMPTY_TABLE'
+  | 'OPEN_SHIFT' | 'CLOSE_SHIFT'
 
 const aksiColors: Record<JenisAksi, string> = {
   LOGIN: 'bg-blue-100 text-blue-800',
@@ -39,6 +40,9 @@ const aksiColors: Record<JenisAksi, string> = {
   CANCEL_ORDER_EXPIRED: 'bg-yellow-100 text-yellow-800',
   CANCEL_ORDER_STALE: 'bg-yellow-100 text-yellow-800',
   PROCESS_PAYMENT: 'bg-green-100 text-green-800',
+  EMPTY_TABLE: 'bg-slate-100 text-slate-700',
+  OPEN_SHIFT: 'bg-teal-100 text-teal-800',
+  CLOSE_SHIFT: 'bg-indigo-100 text-indigo-800',
 }
 
 const aksiLabels: Record<JenisAksi, string> = {
@@ -51,6 +55,9 @@ const aksiLabels: Record<JenisAksi, string> = {
   CANCEL_ORDER_EXPIRED: 'Batal (Expired)',
   CANCEL_ORDER_STALE: 'Batal (Stale)',
   PROCESS_PAYMENT: 'Pembayaran',
+  EMPTY_TABLE: 'Kosongkan Meja',
+  OPEN_SHIFT: 'Buka Shift',
+  CLOSE_SHIFT: 'Tutup Shift',
 }
 
 const aksiKategori: Record<string, JenisAksi[]> = {
@@ -59,6 +66,8 @@ const aksiKategori: Record<string, JenisAksi[]> = {
   Pesanan: ['CREATE_ORDER', 'UPDATE_ORDER_STATUS'],
   Pembatalan: ['CANCEL_ORDER_KASIR', 'CANCEL_ORDER_EXPIRED', 'CANCEL_ORDER_STALE'],
   Pembayaran: ['PROCESS_PAYMENT'],
+  Meja: ['EMPTY_TABLE'],
+  Shift: ['OPEN_SHIFT', 'CLOSE_SHIFT'],
 }
 
 export default function LoggingPage() {

@@ -24,8 +24,90 @@ model Users {
   waiterPesanan    Pesanan[]     @relation("WaiterPesanan")
   refundedPesanan  Pesanan[]     @relation("RefundedPesanan")
   riwayatStok      RiwayatStok[]
+  shiftKasir       ShiftKasir[]
+  kasKeluar        KasKeluar[]
 
   @@map("users")
+}
+
+/// Template slot shift harian yang diatur owner (mis. Pagi 08:00-16:00).
+/// Jam disimpan sebagai menit dari tengah malam agar mudah dibandingkan:
+/// 480 = 08:00, 960 = 16:00, 1440 = 24:00. Pola sama setiap hari.
+model JadwalShift {
+  id         Int         @id @default(autoincrement())
+  nama       String      @map("nama")
+  jamMulai   Int         @map("jam_mulai")
+  jamSelesai Int         @map("jam_selesai")
+  urutan     Int         @default(1) @map("urutan")
+  aktif      Boolean     @default(true) @map("aktif")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime?   @map("updated_at")
+  shiftKasir ShiftKasir[]
+
+  @@index([urutan])
+  @@map("jadwal_shift")
+}
+
+model ShiftKasir {
+  id             Int         @id @default(autoincrement())
+  kasirId        Int         @map("kasir_id")
+  tanggal        DateTime    @map("tanggal") @db.Date
+  waktuMasuk     DateTime    @default(now()) @map("waktu_masuk")
+  waktuKeluar    DateTime?   @map("waktu_keluar")
+  uangAwal       Decimal     @map("uang_awal") @db.Decimal(15, 2)
+  uangAkhir      Decimal?    @map("uang_akhir") @db.Decimal(15, 2)
+  statusShift    StatusShift @default(ACTIVE) @map("status_shift")
+  /// Nyika ACTIVE -> berisi kasirId (mencegah satu kasir punya 2 shift aktif).
+  /// Nyika CLOSED -> NULL, sehingga banyak shift tertutup per kasir tetap diizinkan.
+  aktifKey       Int?        @unique @map("aktif_key")
+  totalTransaksi Int         @default(0) @map("total_transaksi")
+  totalPendapatan Decimal    @default(0) @map("total_pendapatan") @db.Decimal(15, 2)
+  totalTunai     Decimal     @default(0) @map("total_tunai") @db.Decimal(15, 2)
+  totalNonTunai  Decimal     @default(0) @map("total_non_tunai") @db.Decimal(15, 2)
+  selisihKas     Decimal?    @map("selisih_kas") @db.Decimal(15, 2)
+  keterangan     String?
+  /// Shift tertutup milik kasir lain yang uang akhirnya jadi uang awal shift ini
+  /// (aturan 7). Tetap dua shift terpisah, tapi serah terima uangnya terlacak.
+  sumberShiftId  Int?        @map("sumber_shift_id")
+  /// Slot jadwal yang sedang dijalani shift ini (null bila dibuka sebelum fitur jadwal).
+  jadwalShiftId  Int?        @map("jadwal_shift_id")
+  /// Nyika ACTIVE -> berisi "slot:<jadwalShiftId>" (mencegah 2 shift aktif pada slot
+  /// yang sama). Nyika CLOSED -> NULL.
+  slotAktifKey   String?     @unique @map("slot_aktif_key")
+  /// True bila shift ditutup otomatis oleh sistem (auto-close tengah malam),
+  /// bukan oleh kasir. Uang akhir diisi = uang harap akhir.
+  autoClosed     Boolean     @default(false) @map("auto_closed")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime?   @map("updated_at")
+
+  kasir          Users         @relation(fields: [kasirId], references: [id])
+  pesanan        Pesanan[]
+  kasKeluar      KasKeluar[]
+  jadwalShift    JadwalShift?  @relation(fields: [jadwalShiftId], references: [id])
+  sumberShift    ShiftKasir?   @relation("SerahTerimaShift", fields: [sumberShiftId], references: [id], onDelete: SetNull)
+  dipakaiUntuk   ShiftKasir[]  @relation("SerahTerimaShift")
+
+  @@index([kasirId, tanggal])
+  @@index([statusShift])
+  @@index([sumberShiftId])
+  @@index([jadwalShiftId])
+  @@map("shift_kasir")
+}
+
+/// Pengeluaran tunai selama shift (mis. beli gas). Mengurangi uang yang
+/// seharusnya ada di laci: uang harap = uang awal + total tunai - kas keluar.
+model KasKeluar {
+  id         Int        @id @default(autoincrement())
+  shiftId    Int        @map("shift_id")
+  nominal    Decimal    @map("nominal") @db.Decimal(15, 2)
+  keterangan String     @map("keterangan")
+  userId     Int?       @map("user_id")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  shift      ShiftKasir @relation(fields: [shiftId], references: [id])
+  user       Users?     @relation(fields: [userId], references: [id])
+
+  @@index([shiftId])
+  @@map("kas_keluar")
 }
 
 model Meja {
@@ -113,6 +195,7 @@ model Pesanan {
   midtransTransactionId String?           @map("midtrans_transaction_id")
   biayaAdmin            Decimal?          @map("biaya_admin") @db.Decimal(10, 2)
   ppn                   Decimal?          @map("ppn") @db.Decimal(10, 2)
+  shiftId               Int?              @map("shift_id")
   detailPesanan         DetailPesanan[]
   kasir                 Users?            @relation("KasirPesanan", fields: [kasirId], references: [id])
   meja                  Meja              @relation(fields: [mejaId], references: [id])
@@ -120,7 +203,9 @@ model Pesanan {
   refundedBy            Users?            @relation("RefundedPesanan", fields: [refundedById], references: [id])
   refundBukti           RefundBukti[]
   voucher               Voucher?          @relation(fields: [voucherId], references: [id])
+  shift                 ShiftKasir?       @relation(fields: [shiftId], references: [id])
 
+  @@index([shiftId])
   @@map("pesanan")
 }
 
@@ -276,6 +361,11 @@ enum StatusAntar {
   diantar
 }
 
+enum StatusShift {
+  ACTIVE
+  CLOSED
+}
+
 enum JenisAksiLog {
   LOGIN
   LOGOUT
@@ -289,6 +379,11 @@ enum JenisAksiLog {
   PROCESS_PAYMENT
   REFUND_ORDER
   MANAGE_VOUCHER
+  EMPTY_TABLE
+  OPEN_SHIFT
+  CLOSE_SHIFT
+  AUTO_CLOSE_SHIFT
+  KAS_KELUAR
 }
 
 enum StatusVoucher {

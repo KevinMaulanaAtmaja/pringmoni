@@ -14,6 +14,7 @@ import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, ba
 import { RefundDialog } from "@/components/pesanan/refund-dialog"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
+import { ShiftKasirPanel, useShiftAktif } from "@/components/kasir/ShiftKasirPanel"
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 
 const metodeLabels: Record<MetodePembayaran, string> = {
@@ -112,6 +113,10 @@ export default function KasirPage() {
   const pendingMethodAction = useRef<"tunai-step" | null>(null)
   const [refundTarget, setRefundTarget] = useState<Pesanan | null>(null)
 
+  // Gate shift: kasir tidak boleh bertransaksi sebelum shift-nya sendiri dibuka.
+  const { shift: shiftAktif, ready: shiftReady, refreshShift } = useShiftAktif()
+  const belumAdaShift = shiftReady && !shiftAktif
+
   const pesananBelumFiltered = pesananBelum.filter(p => {
     if (filterText) {
       const q = filterText.toLowerCase()
@@ -170,8 +175,8 @@ export default function KasirPage() {
   const filterPeriodRef = useRef(filterPeriod)
   filterPeriodRef.current = filterPeriod
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const [belumResult, riwayatResult] = await Promise.all([
@@ -196,7 +201,7 @@ export default function KasirPage() {
       console.error("Error fetching data:", error)
       setError("Gagal mengambil data: " + (error?.message || "Koneksi database bermasalah"))
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -463,6 +468,10 @@ export default function KasirPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Kelola Kasir</h1>
+
+      {!isOwner && (
+        <ShiftKasirPanel onShiftChange={() => { refreshShift(); fetchData(true) }} />
+      )}
       {/* Header Tabs */}
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex gap-2">
@@ -683,6 +692,12 @@ export default function KasirPage() {
                           <Button
                             className="text-base min-h-[52px]"
                             onClick={() => openPayment(p)}
+                            disabled={belumAdaShift}
+                            title={
+                              belumAdaShift
+                                ? "Buka shift terlebih dahulu sebelum bertransaksi"
+                                : undefined
+                            }
                             aria-label="Proses pembayaran"
                           >
                             <CreditCard className="w-6 h-6" />

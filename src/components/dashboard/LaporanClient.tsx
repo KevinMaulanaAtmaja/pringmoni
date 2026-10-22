@@ -111,7 +111,7 @@ export function LaporanClient() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
 
   const [data, setData] = useState(loadingState)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const prevMonth = () => {
     const d = new Date()
@@ -246,10 +246,10 @@ export function LaporanClient() {
               {tab === "bandingkan" ? (
                 <span className="flex items-center gap-1">
                   <GitCompareArrows className="w-3 h-3" />
-                  Bandingkan
+                  <span>Bandingkan</span>
                 </span>
               ) : (
-                tab.charAt(0).toUpperCase() + tab.slice(1)
+                <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
               )}
             </button>
           ))}
@@ -260,11 +260,11 @@ export function LaporanClient() {
             <>
               <Button variant="outline" size="sm" onClick={handleDownloadExcel} disabled={loading}>
                 <FileSpreadsheet className="w-3 h-3 mr-1" />
-                Excel
+                <span>Excel</span>
               </Button>
               <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={loading}>
                 <FileText className="w-3 h-3 mr-1" />
-                PDF
+                <span>PDF</span>
               </Button>
             </>
           )}
