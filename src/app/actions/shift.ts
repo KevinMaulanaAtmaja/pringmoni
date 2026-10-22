@@ -424,7 +424,9 @@ export async function getRiwayatShift(filter?: {
 }): Promise<{ shifts: ShiftRiwayat[] } | { error: string }> {
   const session = await auth()
   if (!session?.user) return { error: "Unauthorized" }
-  if (session.user.role === "waiter") return { error: "Unauthorized" }
+  if (session.user.role !== "owner" && session.user.role !== "cashier") {
+    return { error: "Riwayat shift hanya untuk kasir dan owner" }
+  }
 
   await autoCloseShifts()
 
@@ -432,7 +434,9 @@ export async function getRiwayatShift(filter?: {
   const where: Record<string, unknown> = {}
 
   if (!isOwner) {
-    where.kasirId = parseInt(session.user.id, 10)
+    const kasirId = parseInt(session.user.id, 10)
+    if (Number.isNaN(kasirId)) return { error: "Unauthorized" }
+    where.kasirId = kasirId
   } else if (filter?.kasirUsername && filter.kasirUsername !== "all") {
     where.kasir = { username: filter.kasirUsername }
   }

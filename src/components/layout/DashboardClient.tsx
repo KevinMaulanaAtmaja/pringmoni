@@ -20,7 +20,6 @@ import {
   History,
   Boxes,
   CookingPot,
-  Clock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
@@ -130,8 +129,7 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
         { name: "Akun", icon: User, href: "/dashboard/users" },
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },
         { name: "Laporan", icon: BarChart3, href: "/dashboard/laporan" },
-        { name: "Jadwal Shift", icon: Clock, href: "/dashboard/jadwal-shift" },
-        { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
+        { name: "Shift", icon: History, href: "/dashboard/shift" },
       ]
 
   return (

@@ -96,9 +96,10 @@ export default function ShiftPage() {
   }, [period, filterKasir, isOwner])
 
   useEffect(() => {
-    fetchJadwal()
+    // Jadwal shift hanya boleh diakses owner — kasir tidak perlu memanggilnya.
+    if (isOwner) fetchJadwal()
     fetchRiwayat()
-  }, [fetchJadwal, fetchRiwayat])
+  }, [fetchJadwal, fetchRiwayat, isOwner])
 
   useEffect(() => {
     if (!isOwner) return
@@ -411,7 +412,7 @@ export default function ShiftPage() {
 
             {!isOwner && (
               <p className="text-sm text-gray-600">
-                Riwayat shift milikmu sendiri.
+                Riwayat shift milikmu sendiri. Membuka/menutup shift hanya bisa dilakukan lewat halaman Kasir.
               </p>
             )}
 
