@@ -77,3 +77,8 @@ Branch convention:
 - `feature/fe-{nama}` - Frontend
 - `feature/be-{nama}` - Backend
 - `test/{type}-{nama}` - Testing
+
+Branch terlindungi (JANGAN dihapus tanpa perintah eksplisit user):
+- `main` - Produksi
+- `develop` - Integrasi/staging
+- `feature/be-midtrans-qris-dinamis` - Arsip kode Midtrans/QRIS dinamis (commit `df12fb2`), bukan fitur aktif

@@ -162,6 +162,18 @@ Project ini menggunakan **OpenCode Workflow** dengan konfigurasi di folder `.ope
 | Install dependencies baru | Hanya BE yang boleh |
 | Mengosongkan database | **HANYA atas perintah eksplisit user** |
 
+### Branch Terlindungi (JANGAN DIHAPUS)
+
+Branch berikut **DILARANG** dihapus (lokal maupun remote) kecuali atas perintah eksplisit user:
+
+| Branch | Alasan |
+|--------|--------|
+| `main` | Branch produksi |
+| `develop` | Branch integrasi/staging |
+| `feature/be-midtrans-qris-dinamis` | **Arsip** integrasi Midtrans + QRIS dinamis (di `df12fb2`, sebelum diganti QRIS statis). Disimpan untuk referensi masa depan, bukan fitur aktif. |
+
+Branch arsip `feature/be-midtrans-qris-dinamis` berisi kode Midtrans lama (`src/lib/midtrans.ts`, `src/app/api/midtrans/callback/route.ts`, `src/app/api/download-qr/route.ts`) yang sengaja dinonaktifkan. Jangan merge ke `main`/`develop` tanpa permintaan eksplisit user.
+
 ## Kompatibilitas Shell (PowerShell & Git Bash)
 
 Project ini dijalankan baik di **PowerShell** maupun **Git Bash** (Windows). Semua agent, command, dan plugin WAJIB menulis perintah yang aman di kedua shell. Gunakan panduan ini selalu:
