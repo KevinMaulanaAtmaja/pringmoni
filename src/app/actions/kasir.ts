@@ -135,7 +135,7 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
   const isOwner = session.user.role === 'owner'
   
   const whereClause: Prisma.PesananWhereInput = {
-    statusPembayaran: { in: ['berhasil', 'dibatalkan'] },
+    statusPembayaran: { in: ['berhasil', 'dibatalkan', 'refund'] },
     deletedAt: null,
   }
 

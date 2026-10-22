@@ -19,12 +19,14 @@ const statusColors: Record<string, string> = {
   diproses: "bg-chart-5/15 text-chart-5",
   selesai: "bg-green-100 text-green-800",
   dibatalkan: "bg-red-100 text-red-800",
+  refund: "bg-purple-100 text-purple-800",
 }
 
 const statusBayarColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
   berhasil: "bg-green-100 text-green-800",
   dibatalkan: "bg-red-100 text-red-800",
+  refund: "bg-purple-100 text-purple-800",
 }
 
 export default function PesananDetailPage() {
@@ -38,9 +40,12 @@ export default function PesananDetailPage() {
   interface PesananDetailView {
     id: number
     mejaId: number
-    statusPesanan: "menunggu" | "diproses" | "selesai" | "dibatalkan"
-    statusPembayaran: "menunggu" | "berhasil" | "dibatalkan"
+    statusPesanan: "menunggu" | "diproses" | "selesai" | "dibatalkan" | "refund"
+    statusPembayaran: "menunggu" | "berhasil" | "dibatalkan" | "refund"
     totalHarga: number
+    diskonVoucher: number
+    voucherKode: string | null
+    voucherNama: string | null
     biayaAdmin: number | null
     ppn: number | null
     metodePembayaran?: "qris" | "tunai" | "transfer"
@@ -87,9 +92,12 @@ export default function PesananDetailPage() {
         const mappedResult: PesananDetailView = {
           id: result.id,
           mejaId: result.meja_id,
-          statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "selesai" | "dibatalkan",
-          statusPembayaran: result.status_pembayaran as "menunggu" | "berhasil" | "dibatalkan",
+          statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "selesai" | "dibatalkan" | "refund",
+          statusPembayaran: result.status_pembayaran as "menunggu" | "berhasil" | "dibatalkan" | "refund",
           totalHarga: Number(result.total_harga),
+          diskonVoucher: Number(result.diskon_voucher ?? 0),
+          voucherKode: result.voucher_kode ?? null,
+          voucherNama: result.voucher_nama ?? null,
           biayaAdmin: result.biaya_admin ? Number(result.biaya_admin) : null,
           ppn: result.ppn ? Number(result.ppn) : null,
           metodePembayaran: (result.metode_pembayaran || undefined) as "qris" | "tunai" | "transfer" | undefined,
@@ -200,8 +208,9 @@ export default function PesananDetailPage() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Status Bayar</span>
               <Badge className={statusBayarColors[pesanan.statusPembayaran]}>
-                {pesanan.statusPembayaran === 'menunggu' ? 'Menunggu' : 
-                 pesanan.statusPembayaran === 'berhasil' ? 'Berhasil' : 'Dibatalkan'}
+                {pesanan.statusPembayaran === 'menunggu' ? 'Menunggu' :
+                 pesanan.statusPembayaran === 'berhasil' ? 'Berhasil' :
+                 pesanan.statusPembayaran === 'refund' ? 'Refund' : 'Dibatalkan'}
               </Badge>
             </div>
             <div className="flex justify-between">
@@ -244,8 +253,20 @@ export default function PesananDetailPage() {
           <CardContent className="space-y-4">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">Rp {pesanan.totalHarga.toLocaleString("id-ID")}</span>
+              <span className="font-medium">
+                Rp {(pesanan.totalHarga + pesanan.diskonVoucher).toLocaleString("id-ID")}
+              </span>
             </div>
+            {pesanan.diskonVoucher > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Diskon Voucher{pesanan.voucherKode ? ` (${pesanan.voucherKode})` : ""}
+                </span>
+                <span className="font-medium text-green-600">
+                  -Rp {pesanan.diskonVoucher.toLocaleString("id-ID")}
+                </span>
+              </div>
+            )}
             {(pesanan.biayaAdmin ?? 0) > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Biaya Admin</span>
@@ -258,10 +279,12 @@ export default function PesananDetailPage() {
                 <span className="font-medium">Rp {pesanan.ppn!.toLocaleString("id-ID")}</span>
               </div>
             )}
-            <div className="flex justify-between border-t pt-4">
-              <span className="font-bold">Total</span>
-              <span className="font-bold text-lg">Rp {(pesanan.totalHarga + (pesanan.biayaAdmin ?? 0) + (pesanan.ppn ?? 0)).toLocaleString("id-ID")}</span>
-            </div>
+          <div className="flex justify-between border-t pt-4">
+            <span className="font-bold">Total</span>
+            <span className="font-bold text-lg">
+              Rp {pesanan.totalHarga.toLocaleString("id-ID")}
+            </span>
+          </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Metode</span>
               <span className="font-medium">
@@ -284,6 +307,15 @@ export default function PesananDetailPage() {
               <span className="text-muted-foreground">Kembalian</span>
               <span className="font-medium">Rp {pesanan.kembalian.toLocaleString("id-ID")}</span>
             </div>
+            {pesanan.voucherKode && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Voucher</span>
+                <span className="font-medium">
+                  {pesanan.voucherKode}
+                  {pesanan.voucherNama ? ` — ${pesanan.voucherNama}` : ""}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Waiter</span>
               <span className="font-medium">{pesanan.waiterUsername || '-'}</span>

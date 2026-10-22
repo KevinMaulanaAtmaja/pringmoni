@@ -22,6 +22,7 @@ model Users {
   logs             Logs[]
   kasirPesanan     Pesanan[]     @relation("KasirPesanan")
   waiterPesanan    Pesanan[]     @relation("WaiterPesanan")
+  refundedPesanan  Pesanan[]     @relation("RefundedPesanan")
   riwayatStok      RiwayatStok[]
 
   @@map("users")
@@ -90,7 +91,12 @@ model Pesanan {
   kasirId               Int?              @map("kasir_id")
   statusPesanan         StatusPesanan     @default(menunggu) @map("status_pesanan")
   catatan               String?           @map("catatan")
+  refundCatatan         String?           @map("refund_catatan")
+  refundedAt            DateTime?         @map("refunded_at")
+  refundedById          Int?              @map("refunded_by_id")
   totalHarga            Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
+  voucherId             Int?              @map("voucher_id")
+  diskonVoucher         Decimal           @default(0) @map("diskon_voucher") @db.Decimal(10, 2)
   metodePembayaran      MetodePembayaran? @map("metode_pembayaran")
   jumlahBayar           Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
   kembalian             Decimal           @default(0) @map("kembalian") @db.Decimal(10, 2)
@@ -108,6 +114,9 @@ model Pesanan {
   kasir                 Users?            @relation("KasirPesanan", fields: [kasirId], references: [id])
   meja                  Meja              @relation(fields: [mejaId], references: [id])
   waiter                Users?            @relation("WaiterPesanan", fields: [waiterId], references: [id])
+  refundedBy            Users?            @relation("RefundedPesanan", fields: [refundedById], references: [id])
+  refundBukti           RefundBukti[]
+  voucher               Voucher?          @relation(fields: [voucherId], references: [id])
 
   @@map("pesanan")
 }
@@ -125,6 +134,33 @@ model DetailPesanan {
   pesanan        Pesanan     @relation(fields: [pesananId], references: [id])
 
   @@map("detail_pesanan")
+}
+
+model RefundBukti {
+  id        Int      @id @default(autoincrement())
+  pesananId Int      @map("pesanan_id")
+  fotoUrl   String   @map("foto_url")
+  fileKey   String?  @map("file_key")
+  createdAt DateTime @default(now()) @map("created_at")
+  pesanan   Pesanan  @relation(fields: [pesananId], references: [id])
+
+  @@map("refund_bukti")
+}
+
+model Voucher {
+  id             Int           @id @default(autoincrement())
+  kode           String        @unique @map("kode")
+  namaVoucher    String        @map("nama_voucher")
+  deskripsi      String?       @map("deskripsi")
+  diskonPersen   Int           @map("diskon_persen")
+  minimalBelanja Decimal       @default(0) @map("minimal_belanja") @db.Decimal(10, 2)
+  statusVoucher  StatusVoucher @default(aktif) @map("status_voucher")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime?     @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+  pesanan        Pesanan[]
+
+  @@map("voucher")
 }
 
 model Logs {
@@ -216,6 +252,7 @@ enum StatusPesanan {
   selesai
   dibatalkan
   diproses
+  refund
 }
 
 enum MetodePembayaran {
@@ -228,6 +265,7 @@ enum StatusBayar {
   menunggu
   berhasil
   dibatalkan
+  refund
 }
 
 enum StatusAntar {
@@ -245,6 +283,13 @@ enum JenisAksiLog {
   CANCEL_ORDER_EXPIRED
   CANCEL_ORDER_STALE
   PROCESS_PAYMENT
+  REFUND_ORDER
+  MANAGE_VOUCHER
+}
+
+enum StatusVoucher {
+  aktif
+  nonaktif
 }
 
 enum LokasiStok {

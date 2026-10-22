@@ -1,5 +1,5 @@
-import { MenuManagement } from '@/components/dashboard/menu-management';
+import { MenuTabs } from '@/components/dashboard/menu-tabs';
 
 export default function MenuPage() {
-  return <MenuManagement />;
+  return <MenuTabs />;
 }

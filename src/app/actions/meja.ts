@@ -173,7 +173,12 @@ export async function deleteMeja(id: number) {
 
 export async function kosongkanMeja(id: number) {
   const session = await auth()
-  if (!session?.user || (session.user.role !== 'owner' && session.user.role !== 'cashier')) {
+  if (
+    !session?.user ||
+    (session.user.role !== 'owner' &&
+      session.user.role !== 'cashier' &&
+      session.user.role !== 'waiter')
+  ) {
     return { error: "Unauthorized" }
   }
 

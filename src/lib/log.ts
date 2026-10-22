@@ -12,6 +12,8 @@ type JenisAksiLog =
   | "CANCEL_ORDER_EXPIRED"
   | "CANCEL_ORDER_STALE"
   | "PROCESS_PAYMENT"
+  | "REFUND_ORDER"
+  | "MANAGE_VOUCHER"
 
 async function getIp(): Promise<string | null> {
   try {

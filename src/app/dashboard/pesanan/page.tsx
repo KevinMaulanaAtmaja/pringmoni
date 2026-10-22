@@ -35,12 +35,14 @@ const statusColors: Record<string, string> = {
   diproses: "bg-chart-5/15 text-chart-5",
   selesai: "bg-green-100 text-green-800",
   dibatalkan: "bg-red-100 text-red-800",
+  refund: "bg-purple-100 text-purple-800",
 }
 
 const statusBayarColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
   berhasil: "bg-green-100 text-green-800",
   dibatalkan: "bg-red-100 text-red-800",
+  refund: "bg-purple-100 text-purple-800",
 }
 
 interface PesananItem {
@@ -525,7 +527,7 @@ export default function PesananPage() {
                       <Badge className="bg-green-500 text-white text-xs px-2 py-0.5">Baru Dibayar</Badge>
                     )}
                     <Badge className={`${p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'bg-orange-100 text-orange-800 border-orange-300' : statusBayarColors[p.statusBayar]} text-sm px-3 py-1.5`}>
-                      {p.statusBayar === 'menunggu' ? 'Belum Bayar' : p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'Menunggu Konfirmasi' : p.statusBayar === 'berhasil' ? 'Lunas' : 'Dibatalkan'}
+                      {p.statusBayar === 'menunggu' ? 'Belum Bayar' : p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'Menunggu Konfirmasi' : p.statusBayar === 'berhasil' ? 'Lunas' : p.statusBayar === 'refund' ? 'Refund' : 'Dibatalkan'}
                     </Badge>
                     </div>
                   </div>
