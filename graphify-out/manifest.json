@@ -90,9 +90,9 @@
     "semantic_hash": ""
   },
   "src/app/(auth)/login/page.tsx": {
-    "mtime": 1792215016.5207975,
-    "seen": 1792633675.1130586,
-    "ast_hash": "082e142d6703f3142b6107ddc1459f39",
+    "mtime": 1792678366.4360907,
+    "seen": 1792679552.4525878,
+    "ast_hash": "78a014867c95a5e2910a8344461e24b4",
     "semantic_hash": ""
   },
   "src/app/(auth)/reset-password/[token]/page.tsx": {
@@ -174,10 +174,10 @@
     "semantic_hash": ""
   },
   "src/app/actions/login.ts": {
-    "mtime": 1781106003.8341122,
-    "seen": 1792633675.1140966,
-    "ast_hash": "148aef348cd1efeeda729a0cd7cf5456",
-    "semantic_hash": "148aef348cd1efeeda729a0cd7cf5456"
+    "mtime": 1792676988.669044,
+    "seen": 1792679552.4525878,
+    "ast_hash": "8b4f7b1bbfe90f7d065e30cb3aa4b648",
+    "semantic_hash": ""
   },
   "src/app/actions/logout.ts": {
     "mtime": 1781106003.8356538,
@@ -456,9 +456,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/DashboardClient.tsx": {
-    "mtime": 1792633440.4213114,
-    "seen": 1792633675.1140966,
-    "ast_hash": "81aef89d0bad555391ae9652203b4fe3",
+    "mtime": 1792676369.1490853,
+    "seen": 1792679552.4535854,
+    "ast_hash": "9b311eb928a21bab05750d01609db2c9",
     "semantic_hash": ""
   },
   "src/components/layout/Footer.tsx": {
@@ -564,9 +564,9 @@
     "semantic_hash": ""
   },
   "src/lib/auth.ts": {
-    "mtime": 1792631313.6543179,
-    "seen": 1792633675.1140966,
-    "ast_hash": "1fd3e7e0c3223a4f6925198a771a4932",
+    "mtime": 1792676961.5803564,
+    "seen": 1792679552.4535854,
+    "ast_hash": "4fa70033e2aa0be686624bb048286f16",
     "semantic_hash": ""
   },
   "src/lib/email.ts": {
@@ -636,9 +636,9 @@
     "semantic_hash": ""
   },
   "src/proxy.ts": {
-    "mtime": 1792633440.4323149,
-    "seen": 1792633675.1150556,
-    "ast_hash": "c4d7bedd2eb93e6d21bc3f8a6e35235d",
+    "mtime": 1792678242.4228835,
+    "seen": 1792679552.4535854,
+    "ast_hash": "475baaa4d147d909b377d15eb5b93557",
     "semantic_hash": ""
   },
   "src/types/index.ts": {
@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   ".opencode/ARCHITECTURE.md": {
-    "mtime": 1792675387.676475,
-    "seen": 1792675463.9657595,
-    "ast_hash": "c284b935486cdacf58cdbb93419ba701",
+    "mtime": 1792679464.9542556,
+    "seen": 1792679552.4535854,
+    "ast_hash": "9ffd83be9e24dd01cb85bd83f7426ade",
     "semantic_hash": ""
   },
   ".opencode/CONVENTIONS.md": {
@@ -744,9 +744,9 @@
     "semantic_hash": ""
   },
   ".opencode/PRD.md": {
-    "mtime": 1792675411.4916995,
-    "seen": 1792675463.9657595,
-    "ast_hash": "1af15bf9837b45898f5ac656e1e460d0",
+    "mtime": 1792679424.1396055,
+    "seen": 1792679552.4535854,
+    "ast_hash": "7c11b8968f1aa8f755c485523a419dd3",
     "semantic_hash": ""
   },
   ".opencode/SECURITY.md": {
@@ -1194,15 +1194,15 @@
     "semantic_hash": ""
   },
   "src/app/actions/shift.ts": {
-    "mtime": 1792633440.399311,
-    "seen": 1792633675.1140966,
-    "ast_hash": "0b2b24abba652dd3ba48b917626ea480",
+    "mtime": 1792676404.2968001,
+    "seen": 1792679552.4525878,
+    "ast_hash": "7b63bd56f163c10fda5e5442f249fe1b",
     "semantic_hash": ""
   },
   "src/app/dashboard/shift/page.tsx": {
-    "mtime": 1792633440.4113142,
-    "seen": 1792633675.1140966,
-    "ast_hash": "7f31cff1f480be7882c113ce92dae501",
+    "mtime": 1792676391.3427503,
+    "seen": 1792679552.4525878,
+    "ast_hash": "92955581866370acc3a2d5a687af1c02",
     "semantic_hash": ""
   },
   "src/components/kasir/ShiftKasirPanel.tsx": {
@@ -1527,6 +1527,18 @@
     "mtime": 1792674906.4665408,
     "seen": 1792675463.9657595,
     "ast_hash": "3690e43ac4d6dee9cea1fd71a9900593",
+    "semantic_hash": ""
+  },
+  "prisma/migrations/20261022120000_add_session_takeover/migration.sql": {
+    "mtime": 1792676593.136236,
+    "seen": 1792679552.4525878,
+    "ast_hash": "fb91d1e7780f176a30a30c9a42aae2ce",
+    "semantic_hash": ""
+  },
+  "src/lib/sesi.ts": {
+    "mtime": 1792676855.766997,
+    "seen": 1792679552.4535854,
+    "ast_hash": "8d7563e0e8b4ec627dc7c1c645ec6f3c",
     "semantic_hash": ""
   }
 }
