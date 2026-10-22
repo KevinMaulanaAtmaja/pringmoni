@@ -114,7 +114,7 @@
 | PBI-7.4 | Auto-kosongkan meja + pesanan (pesanan selesai / pesanan lama dibayar) | Done |
 | PBI-7.5 | Refund + bukti foto | Done |
 
-> Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan).
+> Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan). Ditambah lagi, saat lewat tengah malam (00:00) sisa pesanan aktif yang belum dibayar ikut dibatalkan otomatis oleh `getNotifikasiTerlambat()` — lihat PBI-8.4.
 
 ### Modul 8: Notifikasi, QR & Backup
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*
@@ -124,6 +124,20 @@
 | PBI-8.1 | Download QR meja | Todo |
 | PBI-8.2 | Notifikasi perubahan status pesanan ke customer | Todo |
 | PBI-8.3 | Backup data | Todo |
+| PBI-8.4 | Notifikasi pesanan terlambat di dashboard (lonceng + badge) | Done |
+
+> Catatan PBI-8.4: Lonceng notifikasi **selalu tampil** di header dashboard untuk
+> **OWNER, CASHIER, dan WAITER** (semua halaman dashboard). Badge menampilkan jumlah
+> pesanan yang **sudah >30 menit belum ditangani** — status `menunggu` (belum di-acknowledge)
+> maupun `diproses` (sudah bayar, belum diantar). Klik lonceng untuk melihat daftar
+> pesanan terlambat + tautan ke detail pesanan; bunyi/voice alert baru saat ada pesanan
+> terlambat **baru** terdeteksi. **Reset tiap tengah malam (00:00):** notifikasi hanya
+> berlaku untuk pesanan yang dibuat **hari ini**, dan sisa pesanan yang **belum dibayar**
+> otomatis dibatalkan + mejanya dikosongkan (`CANCEL_ORDER_EXPIRED`), sehingga tidak
+> menggantung selamanya seperti sebelumnya. Pesanan yang **sudah dibayar** tidak
+> dibatalkan otomatis (perlu refund manual) — hanya dikeluarkan dari daftar notifikasi.
+> Sumber data tunggal: `src/app/actions/notifikasi.ts` → `getNotifikasiTerlambat()`
+> (dipakai bersama oleh lonceng header dan banner `StaleOrdersWarning` di `/dashboard`).
 
 ### Modul 9: Non-Fungsional & Pengujian
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*

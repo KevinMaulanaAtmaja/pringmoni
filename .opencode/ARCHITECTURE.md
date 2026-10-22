@@ -80,10 +80,11 @@ src/app/
 
 | File | Fungsi |
 |------|--------|
-| `src/app/actions/meja.ts` | getMejas, createMeja, updateMeja, getMejaByToken |
+| `src/app/actions/meja.ts` | getMejas, createMeja, updateMeja, getMejaByToken, kosongkanMeja |
 | `src/app/actions/menu.ts` | getMenus, createMenu, updateMenu, deleteMenu |
 | `src/app/actions/stok-bahan.ts` | getStokBahanList, createStokBahan, updateStokBahan, deleteStokBahan, restockBahan, transferStokBahan, getRiwayatStok, getDaftarMenuResep, getResepMenu, saveResepMenu |
 | `src/app/actions/pesanan.ts` | getPesanan, createPesanan, updateStatusPesanan, prosesPembayaran |
+| `src/app/actions/notifikasi.ts` | getNotifikasiTerlambat (daftar pesanan >30 menit belum ditangani + sweep tengah malam) |
 
 ## 5. Auth Flow
 

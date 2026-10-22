@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { LogOut } from "lucide-react"
 import { logoutAction } from "@/app/actions/logout"
 import { ClockDisplay } from "./ClockDisplay"
+import { StaleNotificationBell } from "./StaleNotificationBell"
 
 export async function Header() {
   const session = await auth()
@@ -20,7 +21,8 @@ export async function Header() {
       <div className="flex-1 flex justify-center">
         <ClockDisplay />
       </div>
-      <div className="flex justify-end shrink-0">
+      <div className="flex justify-end shrink-0 items-center gap-1">
+        <StaleNotificationBell />
         <form action={logoutAction}>
           <button
             type="submit"
