@@ -26,6 +26,9 @@ model Users {
   lastLoginAt     DateTime?     @map("last_login_at")
   /// ID perangkat (cookie) yang melakukan login terakhir.
   lastLoginDevice String?       @map("last_login_device")
+  /// Waktu terakhir sesi akun ini masih dipakai (request terautentikasi).
+  /// Dipakai untuk mendeteksi sesi lain yang benar-benar masih aktif.
+  lastSeenAt      DateTime?     @map("last_seen_at")
   logs             Logs[]
   kasirPesanan     Pesanan[]     @relation("KasirPesanan")
   waiterPesanan    Pesanan[]     @relation("WaiterPesanan")

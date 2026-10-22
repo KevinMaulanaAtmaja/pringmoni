@@ -86,7 +86,14 @@ src/app/
 | `src/app/actions/stok-bahan.ts` | getStokBahanList, createStokBahan, updateStokBahan, deleteStokBahan, restockBahan, transferStokBahan, getRiwayatStok, getDaftarMenuResep, getResepMenu, saveResepMenu |
 | `src/app/actions/pesanan.ts` | getPesanan, createPesanan, updateStatusPesanan, prosesPembayaran |
 | `src/app/actions/notifikasi.ts` | getNotifikasiTerlambat (daftar pesanan >30 menit belum ditangani + sweep tengah malam) |
-| `src/app/actions/shift.ts` | getJadwalShift/simpan/update/hapus (owner), bukaShift/tutupShift/tambahKasKeluar (kasir), getRiwayatShift (owner semua / kasir miliknya), getShiftAktif |
+| `src/app/actions/shift.ts` | getJadwalShift/simpan/update/hapus (owner), bukaShift/tutupShift/tambahKasKeluar (kasir), getRiwayatShift (owner semua / kasir miliknya), getShiftAktif (termasuk saran uang awal dari shift kasir lain) |
+
+### 4.1 Shift Kasir & Serah Terima Kas
+
+- Satu slot jadwal hanya boleh diisi **satu kasir**; kasir hanya membuka/menutup shift miliknya (owner hanya mengatur jadwal + monitoring).
+- `getShiftAktif` menawarkan `saranUangAwal` = uang akhir shift `CLOSED` terakhir **milik kasir lain**, sebagai dasar serah terima kas antar shift.
+- Saat `bukaShift` memakai saran itu, `sumberShiftId` disimpan sehingga riwayat menampilkan "Modal dari {kasir}".
+- `uangHarapAkhir = uangAwal + totalTunai - totalKasKeluar`; `selisihKas = uangAkhir(fisik) - uangHarapAkhir`.
 | `src/app/actions/login.ts` | loginAction (validasi kredensial + deteksi sesi di perangkat lain sebelum membuat sesi) |
 
 ## 5. Auth Flow
@@ -105,11 +112,12 @@ Roles:
 
 ```
 Login -> validasi kredensial (bcrypt, tanpa buat sesi)
-      -> cek sesi lain aktif? (last_login_at < 10 menit & device berbeda)
+      -> cek sesi lain aktif? (last_seen_at/last_login_at < 15 menit & device berbeda)
          -> ya: konfirmasi "Ambil Alih & Masuk" -> baru buat sesi
          -> tidak: langsung buat sesi
 Buat sesi -> users.session_version naik -> JWT membawa versi itu
 Request berikutnya -> jwt callback bandingkan versi token vs DB
+      -> sama: users.last_seen_at diperbarui (throttle 2 menit) -> sesi masih hidup
       -> beda: token.takenOver = true -> proxy redirect /login?takenOver=1
 ```
 
@@ -117,10 +125,15 @@ Request berikutnya -> jwt callback bandingkan versi token vs DB
 |--------|--------|
 | `users.session_version` | Penanda versi sesi per akun (naik tiap login) |
 | `users.last_login_at` / `users.last_login_device` | Deteksi login dari perangkat lain |
+| `users.last_seen_at` | Aktivitas terakhir sesi yang sah (diperbarui `jwt` callback, throttle 2 menit) |
 | cookie `pm_device` | ID perangkat (httpOnly, dibuat proxy) |
-| `src/lib/sesi.ts` | Cache versi sesi (3 detik), deteksi sesi lain, format waktu |
-| `src/lib/auth.ts` | `authorize` naikkan versi; `jwt` cek versi; `session` expose `takenOver` |
+| `src/lib/sesi.ts` | Cache versi sesi (3 detik), deteksi sesi lain, catat aktivitas, format waktu |
+| `src/lib/auth.ts` | `authorize` naikkan versi; `jwt` cek versi + catat aktivitas; `session` expose `takenOver` |
 | `src/proxy.ts` | Enforcement: `takenOver` -> `/login?takenOver=1`; set cookie `pm_device` |
+
+Catatan: deteksi memakai `last_seen_at` (fallback `last_login_at`) sehingga sesi
+lama yang masih benar-benar dipakai tetap memicu konfirmasi walau loginnya sudah
+lebih dari 15 menit lalu.
 
 Catatan: enforcement dilakukan di **proxy** sehingga request lama (termasuk POST
 server action) dialihkan ke login **sebelum** aksi dieksekusi. Role yang sudah

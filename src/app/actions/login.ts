@@ -23,7 +23,14 @@ const STATE_AWAL: LoginState = {
 }
 
 type HasilValidasi =
-  | { user: { id: number; lastLoginAt: Date | null; lastLoginDevice: string | null } }
+  | {
+      user: {
+        id: number
+        lastLoginAt: Date | null
+        lastSeenAt: Date | null
+        lastLoginDevice: string | null
+      }
+    }
   | { databaseError: true }
   | null
 
@@ -46,6 +53,7 @@ async function validasiKredensial(username: string, password: string): Promise<H
         password: true,
         status: true,
         lastLoginAt: true,
+        lastSeenAt: true,
         lastLoginDevice: true,
       },
     })
@@ -59,6 +67,7 @@ async function validasiKredensial(username: string, password: string): Promise<H
       user: {
         id: user.id,
         lastLoginAt: user.lastLoginAt,
+        lastSeenAt: user.lastSeenAt,
         lastLoginDevice: user.lastLoginDevice,
       },
     }
@@ -108,10 +117,12 @@ export async function loginAction(
 
   // Ada sesi lain yang kemungkinan masih hidup (login dari perangkat lain).
   // Minta konfirmasi dulu sebelum sesi tersebut dibatalkan.
+  // `lastSeenAt` diutamakan: sesi yang masih dipakai akan terus diperbarui,
+  // jadi login lama yang masih aktif juga terdeteksi (bukan hanya <15 menit).
   if (
     !ambilAlih &&
     sesiLainKemungkinanAktif(
-      hasilValidasi.user.lastLoginAt,
+      hasilValidasi.user.lastSeenAt ?? hasilValidasi.user.lastLoginAt,
       hasilValidasi.user.lastLoginDevice,
       deviceId
     )

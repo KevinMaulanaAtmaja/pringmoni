@@ -2,7 +2,7 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import prisma from "@/lib/prisma"
-import { ambilVersiSesi, catatVersiSesi } from "@/lib/sesi"
+import { ambilVersiSesi, catatAktivitasSesi, catatVersiSesi } from "@/lib/sesi"
 import type { RoleUser } from "@/types"
 
 
@@ -119,6 +119,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const versiDb = await ambilVersiSesi(userId)
         if (versiDb !== null && versiDb !== versiToken) {
           token.takenOver = true
+        } else {
+          // Sesi ini masih sah -> tandai masih aktif (throttled) supaya login
+          // dari perangkat lain tahu ada sesi yang benar-benar sedang dipakai.
+          await catatAktivitasSesi(userId)
         }
       }
       return token

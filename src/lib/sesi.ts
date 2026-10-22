@@ -16,12 +16,16 @@ export const COOKIE_PERANGKAT = "pm_device"
 const TTL_CACHE_MS = 3000
 
 /**
- * Rentang waktu login terakhir yang masih dianggap "sesi aktif" (10 menit).
+ * Rentang waktu aktivitas terakhir yang masih dianggap "sesi aktif" (15 menit).
  * Dipakai untuk mendeteksi login dari perangkat lain sebelum sesi dibuat.
  */
-export const AMBANG_SESI_AKTIF_MS = 10 * 60 * 1000
+export const AMBANG_SESI_AKTIF_MS = 15 * 60 * 1000
+
+/** Jarak minimal antar penulisan `last_seen_at` per user (ms). */
+const TTL_AKTIVITAS_MS = 2 * 60 * 1000
 
 const cacheVersi = new Map<string, { versi: number; pada: number }>()
+const terakhirCatatAktivitas = new Map<number, number>()
 
 /** Simpan versi sesi terbaru ke cache (dipanggil setelah login berhasil). */
 export function catatVersiSesi(userId: number, versi: number): void {
@@ -52,16 +56,37 @@ export async function ambilVersiSesi(userId: number): Promise<number | null> {
 }
 
 /**
- * True bila ada kemungkinan sesi lain masih hidup: login terakhir masih
- * dalam ambang waktu dan dilakukan dari perangkat yang berbeda.
+ * Tandai bahwa sesi akun ini masih dipakai (dipanggil dari jwt callback).
+ * Ditulis maksimal sekali per TTL_AKTIVITAS_MS per user supaya tidak
+ * menambah satu UPDATE pada setiap request.
+ */
+export async function catatAktivitasSesi(userId: number): Promise<void> {
+  const sekarang = Date.now()
+  const terakhir = terakhirCatatAktivitas.get(userId) ?? 0
+  if (sekarang - terakhir < TTL_AKTIVITAS_MS) return
+
+  terakhirCatatAktivitas.set(userId, sekarang)
+  try {
+    await prisma.users.update({
+      where: { id: userId },
+      data: { lastSeenAt: new Date(sekarang) },
+    })
+  } catch {
+    // best effort — kegagalan pencatatan aktivitas tidak boleh menggagalkan request
+  }
+}
+
+/**
+ * True bila ada kemungkinan sesi lain masih hidup: sesi terakhir masih
+ * aktif dalam ambang waktu dan dipakai dari perangkat yang berbeda.
  */
 export function sesiLainKemungkinanAktif(
-  lastLoginAt: Date | null,
+  terakhirAktif: Date | null,
   lastLoginDevice: string | null,
   deviceId: string | null
 ): boolean {
-  if (!lastLoginAt) return false
-  if (Date.now() - lastLoginAt.getTime() > AMBANG_SESI_AKTIF_MS) return false
+  if (!terakhirAktif) return false
+  if (Date.now() - terakhirAktif.getTime() > AMBANG_SESI_AKTIF_MS) return false
   if (lastLoginDevice && deviceId && lastLoginDevice === deviceId) return false
   return true
 }
