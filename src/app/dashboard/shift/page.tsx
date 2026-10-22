@@ -26,13 +26,11 @@ function tanggalLabel(iso: string): string {
   })
 }
 
-function waktuLabel(iso: string | null): string {
+function jamSingkat(iso: string | null): string {
   if (!iso) return "-"
-  return new Date(iso).toLocaleString("id-ID", {
+  return new Date(iso).toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
-    day: "2-digit",
-    month: "short",
   })
 }
 
@@ -402,9 +400,9 @@ export default function ShiftPage() {
       {activeTab === "riwayat" && (
         <div className="space-y-6">
           {isOwner && (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-semibold">Riwayat Shift Kasir</h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 sm:max-w-md sm:text-right">
                 Monitoring shift seluruh kasir. Buka/tutup shift hanya bisa dilakukan oleh kasir yang bersangkutan.
               </p>
             </div>
@@ -467,16 +465,27 @@ export default function ShiftPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Kasir</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Masuk</TableHead>
-                      <TableHead>Keluar</TableHead>
-                      <TableHead className="text-right">Durasi</TableHead>
-                      <TableHead className="text-right">Uang Awal</TableHead>
-                      <TableHead className="text-right">Trx</TableHead>
-                      <TableHead className="text-right">Tunai</TableHead>
-                      <TableHead className="text-right">Uang Akhir</TableHead>
-                      <TableHead className="text-right">Selisih</TableHead>
+                      <TableHead className="whitespace-nowrap px-3 text-xs uppercase tracking-wide text-gray-500">
+                        Kasir
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap px-3 text-xs uppercase tracking-wide text-gray-500">
+                        Waktu
+                      </TableHead>
+                      <TableHead
+                        className="whitespace-nowrap px-3 text-right text-xs uppercase tracking-wide text-gray-500"
+                        title="Uang awal (modal) dan kas tunai masuk"
+                      >
+                        Kas (awal / tunai)
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap px-3 text-right text-xs uppercase tracking-wide text-gray-500">
+                        Transaksi
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap px-3 text-right text-xs uppercase tracking-wide text-gray-500">
+                        Uang Akhir
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap px-3 text-right text-xs uppercase tracking-wide text-gray-500">
+                        Selisih
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -488,56 +497,87 @@ export default function ShiftPage() {
                       ) / 60000)
                       const durasiJam = Math.floor(durasiMenit / 60)
                       const durasiMenitSisa = durasiMenit % 60
+                      const aktif = s.statusShift === "ACTIVE"
 
                       return (
                         <TableRow key={s.id}>
-                          <TableCell>
-                            <span className="font-medium">{s.kasirUsername}</span>
-                            {s.sumberShiftKasir && (
-                              <p className="text-xs text-gray-500">
+                          <TableCell className="px-3 py-3 align-top">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">{s.kasirUsername}</span>
+                              {aktif ? (
+                                <Badge className="border-green-300 bg-green-100 px-1.5 py-0 text-[10px] text-green-800">
+                                  Aktif
+                                </Badge>
+                              ) : (
+                                <Badge className="border-gray-300 bg-gray-100 px-1.5 py-0 text-[10px] text-gray-600">
+                                  Tutup
+                                </Badge>
+                              )}
+                            </div>
+                            {s.sumberShiftKasir ? (
+                              <p className="mt-1 whitespace-nowrap text-xs font-medium text-amber-700">
                                 Modal dari {s.sumberShiftKasir}
                               </p>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {s.statusShift === 'ACTIVE' ? (
-                              <Badge className="bg-green-100 text-green-800 border-green-300">
-                                Aktif
-                              </Badge>
                             ) : (
-                              <Badge className="bg-gray-100 text-gray-700 border-gray-300">
-                                Tutup
-                              </Badge>
+                              <p className="mt-1 text-xs text-gray-400">Modal sendiri</p>
                             )}
                           </TableCell>
-                          <TableCell className="text-sm">
-                            <p>{waktuLabel(s.waktuMasuk)}</p>
-                            <p className="text-xs text-gray-500">{tanggalLabel(s.tanggal)}</p>
+                          <TableCell className="px-3 py-3 align-top">
+                            <p className="whitespace-nowrap text-sm">
+                              {tanggalLabel(s.tanggal)} · {jamSingkat(s.waktuMasuk)}
+                            </p>
+                            <p className="whitespace-nowrap text-xs text-gray-500">
+                              {aktif ? "→ sekarang" : `→ ${jamSingkat(s.waktuKeluar)}`}
+                              {" · "}
+                              {durasiJam}j {durasiMenitSisa}m
+                            </p>
                           </TableCell>
-                          <TableCell className="text-sm">{waktuLabel(s.waktuKeluar)}</TableCell>
-                          <TableCell className="text-right text-sm">
-                            {s.statusShift === 'ACTIVE' ? "-" : `${durasiJam}j ${durasiMenitSisa}m`}
+                          <TableCell className="px-3 py-3 text-right align-top">
+                            <p className="whitespace-nowrap text-sm">{rupiah(s.uangAwal)}</p>
+                            <p className="whitespace-nowrap text-xs text-green-700">
+                              +{rupiah(s.totalTunai)}
+                            </p>
                           </TableCell>
-                          <TableCell className="text-right text-sm">{rupiah(s.uangAwal)}</TableCell>
-                          <TableCell className="text-right text-sm">{s.totalTransaksi}</TableCell>
-                          <TableCell className="text-right text-sm">{rupiah(s.totalTunai)}</TableCell>
-                          <TableCell className="text-right text-sm">
-                            {s.statusShift === 'CLOSED' ? (
+                          <TableCell className="px-3 py-3 text-right align-top">
+                            <p className="text-sm">{s.totalTransaksi}</p>
+                            <p className="whitespace-nowrap text-xs text-gray-500">
+                              {rupiah(s.totalPendapatan)}
+                            </p>
+                          </TableCell>
+                          <TableCell className="px-3 py-3 text-right align-top">
+                            {aktif ? (
+                              <p className="text-sm text-gray-400">-</p>
+                            ) : (
                               <>
-                                <p>{rupiah(s.uangAkhir ?? 0)}</p>
-                                <p className="text-xs text-gray-500">({rupiah(s.uangHarapAkhir)})</p>
+                                <p className="whitespace-nowrap text-sm font-medium">
+                                  {rupiah(s.uangAkhir ?? 0)}
+                                </p>
+                                <p className="whitespace-nowrap text-xs text-gray-500">
+                                  harusnya {rupiah(s.uangHarapAkhir)}
+                                </p>
                               </>
-                            ) : "-"}
+                            )}
                           </TableCell>
-                          <TableCell className="text-right text-sm">
-                            {s.statusShift === 'CLOSED' ? (
-                              <span className={
-                                selisih === 0 ? "text-green-700" :
-                                selisih > 0 ? "text-blue-600" : "text-red-600"
-                              }>
-                                {selisih === 0 ? "Sesuai" : selisih > 0 ? `+${rupiah(selisih)}` : `-${rupiah(Math.abs(selisih))}`}
+                          <TableCell className="px-3 py-3 text-right align-top">
+                            {aktif ? (
+                              <span className="text-sm text-gray-400">-</span>
+                            ) : (
+                              <span
+                                className={`whitespace-nowrap text-sm font-medium ${
+                                  selisih === 0
+                                    ? "text-green-700"
+                                    : selisih > 0
+                                      ? "text-blue-600"
+                                      : "text-red-600"
+                                }`}
+                              >
+                                {selisih === 0
+                                  ? "Sesuai"
+                                  : selisih > 0
+                                    ? `+${rupiah(selisih)}`
+                                    : `-${rupiah(Math.abs(selisih))}`}
                               </span>
-                            ) : "-"}
+                            )}
                           </TableCell>
                         </TableRow>
                       )

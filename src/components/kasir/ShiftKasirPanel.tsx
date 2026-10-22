@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Banknote,
+  CheckCircle2,
   Clock,
+  HandCoins,
+  Loader2,
   LogOut,
   Timer,
   TrendingDown,
@@ -163,11 +166,20 @@ export function ShiftKasirPanel({
     return () => clearInterval(interval)
   }, [data?.shift, muatShift])
 
-  if (!sudahMuat && loading) return null
+  if (!sudahMuat && loading) {
+    return (
+      <div className="bg-white border-2 border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <p className="text-sm text-gray-500">Memuat data shift...</p>
+      </div>
+    )
+  }
   if (!data?.canManage) return null
 
   const shift = data.shift
   const uangHarapAkhir = shift ? shift.uangAwal + shift.totalTunai : 0
+  const saran = data.saranUangAwal
+  const modalDariSaran = saran !== null && sumberShiftId === saran.shiftId
 
   async function submitBuka() {
     const nominal = Number(uangAwal.replace(/\D/g, ""))
@@ -233,6 +245,19 @@ export function ShiftKasirPanel({
     setKeterangan("")
     setError(null)
     setDialogTutup(true)
+  }
+
+  function bukaDialogBuka(pakaiSaran = false) {
+    setUangAwal(pakaiSaran && saran ? String(saran.nominal) : "")
+    setSumberShiftId(pakaiSaran && saran ? saran.shiftId : null)
+    setError(null)
+    setDialogBuka(true)
+  }
+
+  function pilihSaran() {
+    if (!saran) return
+    setUangAwal(String(saran.nominal))
+    setSumberShiftId(saran.shiftId)
   }
 
   const selisihPreview = Number(uangAkhir.replace(/\D/g, "")) - uangHarapAkhir
@@ -363,31 +388,54 @@ export function ShiftKasirPanel({
           </Button>
         </div>
       ) : (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
-              <Banknote className="w-5 h-5" />
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+                <Banknote className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-amber-900">Shift belum dibuka</p>
+                <p className="text-sm text-amber-800 mt-0.5">
+                  Masukkan uang awal yang ada di laci kas sebelum mulai bertransaksi.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-amber-900">Shift belum dibuka</p>
-              <p className="text-sm text-amber-800 mt-0.5">
-                Masukkan uang awal yang ada di laci kas sebelum mulai bertransaksi.
-              </p>
-            </div>
+            <Button
+              size="lg"
+              onClick={() => bukaDialogBuka(false)}
+              className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+            >
+              <Wallet className="w-5 h-5 mr-2" />
+              Buka Shift
+            </Button>
           </div>
-          <Button
-            size="lg"
-            onClick={() => {
-              setUangAwal("")
-              setSumberShiftId(null)
-              setError(null)
-              setDialogBuka(true)
-            }}
-            className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
-          >
-            <Wallet className="w-5 h-5 mr-2" />
-            Buka Shift
-          </Button>
+
+          {saran && (
+            <div className="flex flex-col gap-3 rounded-lg border-2 border-amber-400 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5">
+                <HandCoins className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                <div>
+                  <p className="text-sm font-bold text-amber-900">
+                    Ambil uang kas dari kasir sebelumnya
+                  </p>
+                  <p className="text-sm text-amber-800">
+                    Kasir <span className="font-semibold">{saran.dariKasir}</span>{" "}
+                    menutup shift dengan uang akhir{" "}
+                    <span className="font-semibold">{rupiah(saran.nominal)}</span>.
+                    Ambil uang tersebut dari laci sebagai uang awal shift Anda.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => bukaDialogBuka(true)}
+                className="shrink-0 bg-amber-600 text-white hover:bg-amber-700"
+              >
+                <Banknote className="mr-2 h-4 w-4" />
+                Ambil {rupiah(saran.nominal)}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -432,23 +480,59 @@ export function ShiftKasirPanel({
               )}
             </div>
 
-            {data?.saranUangAwal && (
-              <button
-                type="button"
-                onClick={() => {
-                  setUangAwal(String(data.saranUangAwal!.nominal))
-                  setSumberShiftId(data.saranUangAwal!.shiftId)
-                }}
-                className="w-full text-left text-sm bg-blue-50 border border-blue-200 rounded-lg p-3 hover:bg-blue-100 transition-colors"
+            {saran && (
+              <div
+                className={`space-y-3 rounded-xl border-2 p-3 ${
+                  modalDariSaran
+                    ? "border-green-500 bg-green-50"
+                    : "border-amber-400 bg-amber-50"
+                }`}
               >
-                <span className="text-blue-900 font-medium">
-                  Gunakan uang kas dari shift sebelumnya
-                </span>
-                <span className="block text-blue-700 mt-0.5">
-                  {rupiah(data.saranUangAwal.nominal)} dari{" "}
-                  {data.saranUangAwal.dariKasir}
-                </span>
-              </button>
+                <div className="flex items-start gap-2.5">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${
+                      modalDariSaran ? "bg-green-600" : "bg-amber-500"
+                    }`}
+                  >
+                    <HandCoins className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {modalDariSaran
+                        ? "Uang kas diambil dari shift sebelumnya"
+                        : "Serah terima kas dari kasir sebelumnya"}
+                    </p>
+                    <p className="mt-0.5 text-sm text-gray-700">
+                      Kasir <span className="font-semibold">{saran.dariKasir}</span>{" "}
+                      menutup shift dengan uang akhir{" "}
+                      <span className="font-semibold">{rupiah(saran.nominal)}</span>.
+                      Ambil uang tersebut dari laci, hitung, lalu masukkan sebagai
+                      uang awal.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={pilihSaran}
+                  className={`w-full ${
+                    modalDariSaran
+                      ? "bg-green-700 hover:bg-green-800"
+                      : "bg-amber-600 hover:bg-amber-700"
+                  }`}
+                >
+                  {modalDariSaran ? (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Modal dari {saran.dariKasir} terpasang
+                    </>
+                  ) : (
+                    <>
+                      <Banknote className="mr-2 h-4 w-4" />
+                      Ambil {rupiah(saran.nominal)} dari {saran.dariKasir}
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
 
             {error && (

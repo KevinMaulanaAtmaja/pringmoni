@@ -189,7 +189,12 @@ export async function getShiftAktif(): Promise<HasilShiftAktif | { error: string
   const slot = slotSaatIni(jadwal)
 
   const shiftTertutupTerakhir = await prisma.shiftKasir.findFirst({
-    where: { statusShift: "CLOSED", uangAkhir: { not: null } },
+    where: {
+      statusShift: "CLOSED",
+      uangAkhir: { not: null },
+      // Hanya kasir lain: serah terima kas antar shift, bukan shift milik sendiri.
+      kasirId: { not: kasirId },
+    },
     select: {
       id: true,
       uangAkhir: true,
