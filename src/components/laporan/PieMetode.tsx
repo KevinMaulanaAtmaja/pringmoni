@@ -21,7 +21,12 @@ function formatRupiah(v: number) {
   return `Rp${v}`
 }
 
-function PieTooltip({ active, payload }: any) {
+interface PieTooltipPayload {
+  name: string
+  value: number
+}
+
+function PieTooltip({ active, payload }: { active?: boolean; payload?: PieTooltipPayload[] }) {
   if (!active || !payload?.length) return null
   const d = payload[0]
   return (

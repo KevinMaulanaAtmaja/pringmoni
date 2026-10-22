@@ -10,7 +10,7 @@ const VerificationPlugin = async ({}) => {
   return {
     event: async ({ event }) => {
       if (event.type === "file.edited") {
-        const filePath = (event as any).path || ""
+        const filePath = (event as { path?: string }).path || ""
         if (filePath && !filePath.includes("node_modules")) {
           editedFiles.push(filePath)
         }

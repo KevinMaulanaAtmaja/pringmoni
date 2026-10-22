@@ -426,7 +426,7 @@ export async function updatePesananMeja(tokenMeja: string, updates: {
   const pesanan = await prisma.pesanan.findFirst({
     where: {
       mejaId: meja.id,
-      statusPesanan: { in: ['menunggu', 'selesai'] as any },
+      statusPesanan: { in: ['menunggu', 'selesai'] as StatusPesanan[] },
       deletedAt: null,
     },
     orderBy: { createdAt: 'desc' },
@@ -436,9 +436,9 @@ export async function updatePesananMeja(tokenMeja: string, updates: {
     return { error: "Pesanan aktif tidak ditemukan untuk meja ini" }
   }
 
-  const updateData: any = {}
+  const updateData: Prisma.PesananUpdateInput = {}
   if (updates.statusPesanan) {
-    updateData.statusPesanan = updates.statusPesanan
+    updateData.statusPesanan = updates.statusPesanan as StatusPesanan
   }
   if (updates.catatan !== undefined) {
     updateData.catatan = updates.catatan
@@ -487,7 +487,7 @@ export async function konfirmasiPembayaran(pesananId: number) {
       where: { id: pesananId },
       data: {
         statusPembayaran: 'berhasil',
-        statusPesanan: 'diproses' as any,
+        statusPesanan: 'diproses' as StatusPesanan,
         kasirId: parseInt(session.user.id),
         shiftId: shift.shiftId,
         updatedAt: new Date(),
@@ -570,7 +570,7 @@ export async function accPesanan(pesananId: number) {
   await prisma.pesanan.update({
     where: { id: pesananId },
     data: {
-      statusPesanan: 'diproses' as any,
+      statusPesanan: 'diproses' as StatusPesanan,
       kasirId: parseInt(session.user.id),
       updatedAt: new Date(),
     },

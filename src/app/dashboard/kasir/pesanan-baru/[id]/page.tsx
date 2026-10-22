@@ -9,11 +9,28 @@ import { QRCodeSVG } from "qrcode.react"
 import { getPembayaranInfo, confirmQrisPayment } from "@/app/actions/kasir"
 import { useState, useEffect } from "react"
 
+interface PembayaranInfo {
+  id: number
+  midtransOrderId: string | null
+  nomorMeja: string
+  namaPelanggan: string | null
+  totalHarga: number
+  biayaAdmin: number
+  ppn: number
+  metodePembayaran: "qris" | "tunai" | "transfer" | null
+  statusPembayaran: string
+  jumlahBayar: number
+  kembalian: number
+  createdAt: string
+  items: { id: number; namaMenu: string; jumlah: number; hargaSaatPesan: number }[]
+  qrUrl: string
+}
+
 export default function PesananSelesaiPage() {
   const params = useParams()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [paymentInfo, setPaymentInfo] = useState<any>(null)
+  const [paymentInfo, setPaymentInfo] = useState<PembayaranInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showExitDialog, setShowExitDialog] = useState(false)
 

@@ -197,9 +197,9 @@ export default function KasirPage() {
       } else {
         setPesananRiwayat(riwayatResult.pesanan as unknown as Pesanan[])
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching data:", error)
-      setError("Gagal mengambil data: " + (error?.message || "Koneksi database bermasalah"))
+      setError("Gagal mengambil data: " + (error instanceof Error ? error.message : "Koneksi database bermasalah"))
     } finally {
       if (!silent) setLoading(false)
     }
@@ -240,7 +240,7 @@ export default function KasirPage() {
       } else {
         setPesananRiwayat(riwayatResult.pesanan as unknown as Pesanan[])
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching riwayat:", error)
     }
   }, [])
@@ -850,7 +850,7 @@ export default function KasirPage() {
                               onClick={() => printStruk({
                                 id: p.id,
                                 nomorMeja: p.nomorMeja,
-                                items: p.items.map((i: any) => ({
+                                items: p.items.map((i) => ({
                                   nama: i.namaMenu,
                                   jumlah: i.jumlah,
                                   harga: Number(i.hargaSaatPesan),
