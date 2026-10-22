@@ -15,11 +15,13 @@ import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
   SelectLabel,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -29,16 +31,38 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  ImageIcon,
-  Upload,
-  CookingPot,
-} from 'lucide-react';
+  import {
+    Plus,
+    Pencil,
+    Trash2,
+    ChevronLeft,
+    ChevronRight,
+    ImageIcon,
+    Upload,
+    CookingPot,
+    Utensils,
+    GlassWater,
+    Coffee,
+    Cookie,
+    Pizza,
+    Sandwich,
+    Soup,
+    Drumstick,
+    Fish,
+    Shrimp,
+    IceCream,
+    CakeSlice,
+    Popcorn,
+    Hamburger,
+    Carrot,
+    Wheat,
+    ChefHat,
+    Package,
+    Boxes,
+    CupSoda,
+    Salad,
+  } from 'lucide-react';
+  import type { LucideIcon } from 'lucide-react';
 
 import {
   getMenus,
@@ -71,6 +95,8 @@ type KategoriMenu = {
   id: number;
   namaKategori: string;
   lokasi: LokasiMenu;
+  icon?: string | null;
+  pilihanSuhu?: boolean;
   createdAt: Date;
   deletedAt: Date | null;
 };
@@ -88,6 +114,54 @@ const statusLabels: Record<StatusMenu, string> = {
 };
 
 const ITEMS_PER_PAGE = 5;
+
+const CATEGORY_ICON_OPTIONS = [
+  { key: 'Utensils', label: 'Umum', Icon: Utensils },
+  { key: 'GlassWater', label: 'Minuman', Icon: GlassWater },
+  { key: 'Coffee', label: 'Kopi/Teh', Icon: Coffee },
+  { key: 'Cookie', label: 'Camilan', Icon: Cookie },
+  { key: 'Pizza', label: 'Pizza', Icon: Pizza },
+  { key: 'Hamburger', label: 'Burger', Icon: Hamburger },
+  { key: 'Sandwich', label: 'Sandwich', Icon: Sandwich },
+  { key: 'Carrot', label: 'Sayuran/Gorengan', Icon: Carrot },
+  { key: 'Drumstick', label: 'Ayam', Icon: Drumstick },
+  { key: 'Fish', label: 'Ikan/Seafood', Icon: Fish },
+  { key: 'Shrimp', label: 'Udang', Icon: Shrimp },
+  { key: 'Soup', label: 'Sup', Icon: Soup },
+  { key: 'Wheat', label: 'Mie/Roti', Icon: Wheat },
+  { key: 'Salad', label: 'Salad', Icon: Salad },
+  { key: 'IceCream', label: 'Es Krim', Icon: IceCream },
+  { key: 'CakeSlice', label: 'Kue/Dessert', Icon: CakeSlice },
+  { key: 'Popcorn', label: 'Popcorn', Icon: Popcorn },
+  { key: 'CupSoda', label: 'Soda/Jus', Icon: CupSoda },
+  { key: 'Package', label: 'Paket', Icon: Package },
+  { key: 'Boxes', label: 'Paket Hemat', Icon: Boxes },
+  { key: 'ChefHat', label: 'Spesial', Icon: ChefHat },
+] as const;
+
+const CATEGORY_ICON_MAP: Record<string, LucideIcon> = Object.fromEntries(
+  CATEGORY_ICON_OPTIONS.map((o) => [o.key, o.Icon])
+);
+
+function suggestKategoriIcon(nama: string): string {
+  const n = nama.toLowerCase();
+  if (n.includes('paket') || n.includes('set') || n.includes('bundle')) return 'Package';
+  if (n.includes('minum') || n.includes('drink') || n.includes('jus') || n.includes('teh') || n.includes('soda')) return 'GlassWater';
+  if (n.includes('kopi') || n.includes('coffee')) return 'Coffee';
+  if (n.includes('camil') || n.includes('snack') || n.includes('goreng') || n.includes('kentang')) return 'FrenchFries';
+  if (n.includes('kue') || n.includes('cake') || n.includes('dessert') || n.includes('es krim') || n.includes('ice cream')) return 'CakeSlice';
+  if (n.includes('pizza')) return 'Pizza';
+  if (n.includes('burger')) return 'Burger';
+  if (n.includes('roti') || n.includes('sandwich')) return 'Sandwich';
+  if (n.includes('ayam') || n.includes('chicken')) return 'Drumstick';
+  if (n.includes('ikan') || n.includes('seafood')) return 'Fish';
+  if (n.includes('udang') || n.includes('shrimp')) return 'Shrimp';
+  if (n.includes('mie') || n.includes('noodle')) return 'Noodles';
+  if (n.includes('sup') || n.includes('soup') || n.includes('kuah')) return 'Soup';
+  if (n.includes('salad')) return 'Salad';
+  if (n.includes('makan')) return 'Utensils';
+  return 'Utensils';
+}
 
 export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
   const [menus, setMenus] = useState<MenuWithKategori[]>([]);
@@ -126,6 +200,9 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
   const [kategoriForm, setKategoriForm] = useState({
     namaKategori: '',
     lokasi: 'resto' as LokasiMenu,
+    icon: null as string | null,
+    /** Menu di kategori ini bisa dipesan panas atau dingin (opsional) */
+    pilihanSuhu: false,
   });
 
   const [deleteKategoriId, setDeleteKategoriId] = useState<number | null>(
@@ -485,6 +562,8 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
       setKategoriForm({
         namaKategori: kategori.namaKategori,
         lokasi: kategori.lokasi ?? 'resto',
+        icon: kategori.icon ?? null,
+        pilihanSuhu: kategori.pilihanSuhu ?? false,
       });
     } else {
       setEditingKategori(null);
@@ -492,6 +571,8 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
       setKategoriForm({
         namaKategori: '',
         lokasi: 'resto',
+        icon: null,
+        pilihanSuhu: false,
       });
     }
 
@@ -741,24 +822,26 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
           </SelectContent>
         </Select>
 
-        <Button
-          onClick={() => openDialog()}
-          className="h-8 ml-auto"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Tambah Menu
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            onClick={() => openDialog()}
+            className="h-8"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Tambah Menu
+          </Button>
 
-        <Button
-          onClick={() =>
-            openKategoriDialog()
-          }
-          variant="outline"
-          className="h-8"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Tambah Kategori
-        </Button>
+          <Button
+            onClick={() =>
+              openKategoriDialog()
+            }
+            variant="outline"
+            className="h-8"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Tambah Kategori
+          </Button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border overflow-hidden">
@@ -1320,28 +1403,32 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
                       </SelectTrigger>
 
                       <SelectContent>
-                        <SelectLabel>Resto</SelectLabel>
-                        {kategoris
-                          .filter((k) => k.lokasi === 'resto')
-                          .map((kat) => (
-                            <SelectItem
-                              key={kat.id}
-                              value={kat.id.toString()}
-                            >
-                              {kat.namaKategori}
-                            </SelectItem>
-                          ))}
-                        <SelectLabel>Cafe</SelectLabel>
-                        {kategoris
-                          .filter((k) => k.lokasi === 'cafe')
-                          .map((kat) => (
-                            <SelectItem
-                              key={kat.id}
-                              value={kat.id.toString()}
-                            >
-                              {kat.namaKategori}
-                            </SelectItem>
-                          ))}
+                        <SelectGroup>
+                          <SelectLabel>Resto</SelectLabel>
+                          {kategoris
+                            .filter((k) => k.lokasi === 'resto')
+                            .map((kat) => (
+                              <SelectItem
+                                key={kat.id}
+                                value={kat.id.toString()}
+                              >
+                                {kat.namaKategori}
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>Cafe</SelectLabel>
+                          {kategoris
+                            .filter((k) => k.lokasi === 'cafe')
+                            .map((kat) => (
+                              <SelectItem
+                                key={kat.id}
+                                value={kat.id.toString()}
+                              >
+                                {kat.namaKategori}
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1669,14 +1756,16 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
 
           if (!open) {
             setEditingKategori(null);
-            setKategoriForm({
-              namaKategori: '',
-              lokasi: 'resto',
-            });
-            setError(null);
-          }
-        }}
-      >
+      setKategoriForm({
+        namaKategori: '',
+        lokasi: 'resto',
+        icon: null,
+        pilihanSuhu: false,
+      });
+      setError(null);
+    }
+  }}
+>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -1691,12 +1780,17 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
                 Belum ada kategori
               </p>
             ) : (
-              kategoris.map((kat) => (
+              kategoris.map((kat) => {
+                const CatIcon = kat.icon && CATEGORY_ICON_MAP[kat.icon] ? CATEGORY_ICON_MAP[kat.icon] : CATEGORY_ICON_MAP[suggestKategoriIcon(kat.namaKategori)] || Utensils;
+                return (
                 <div
                   key={kat.id}
                   className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
                 >
                   <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 rounded-md bg-white border flex items-center justify-center shrink-0">
+                      <CatIcon className="w-3.5 h-3.5 text-gray-600" />
+                    </div>
                     <span className="text-sm font-medium truncate">
                       {
                         kat.namaKategori
@@ -1745,7 +1839,8 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
                     </Button>
                   </div>
                 </div>
-              ))
+              );
+              })
             )}
           </div>
 
@@ -1765,23 +1860,32 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
                   : 'Tambah Kategori Baru'}
               </Label>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <Input
                   id="namaKategori"
                   value={
                     kategoriForm.namaKategori
                   }
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const val = e.target.value;
                     setKategoriForm((prev) => ({
                       ...prev,
-                      namaKategori:
-                        e.target.value,
-                    }))
-                  }
-                  placeholder="Nama kategori..."
-                  className="h-8 text-xs"
+                      namaKategori: val,
+                      icon: prev.icon || suggestKategoriIcon(val),
+                    }));
+                  }}
+                  placeholder="Nama kategori... (contoh: Paket Hemat, Minuman)"
+                  className="h-8 text-xs flex-1"
                   required
                 />
+                {(() => {
+                  const IconSel = kategoriForm.icon && CATEGORY_ICON_MAP[kategoriForm.icon] ? CATEGORY_ICON_MAP[kategoriForm.icon] : (kategoriForm.namaKategori ? CATEGORY_ICON_MAP[suggestKategoriIcon(kategoriForm.namaKategori)] : Utensils);
+                  return (
+                    <div className="w-8 h-8 rounded-md border bg-white flex items-center justify-center">
+                      <IconSel className="w-4 h-4 text-gray-700" />
+                    </div>
+                  );
+                })()}
 
                 <Select
                   value={kategoriForm.lokasi}
@@ -1819,6 +1923,72 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
                       : 'Tambah'}
                 </Button>
               </div>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-gray-600">Pilih Icon (saran otomatis)</Label>
+                <div className="flex flex-wrap gap-1">
+                  {CATEGORY_ICON_OPTIONS.map((opt) => {
+                    const OptIcon = opt.Icon;
+                    const isSelected = kategoriForm.icon === opt.key;
+                    return (
+                      <button
+                        type="button"
+                        key={opt.key}
+                        title={opt.label}
+                        onClick={() =>
+                          setKategoriForm((prev) => ({ ...prev, icon: opt.key }))
+                        }
+                        className={`w-7 h-7 rounded-md border flex items-center justify-center ${
+                          isSelected
+                            ? 'bg-primary/10 border-primary'
+                            : 'bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        <OptIcon className="w-3.5 h-3.5" />
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setKategoriForm((prev) => ({
+                        ...prev,
+                        icon: suggestKategoriIcon(prev.namaKategori || ''),
+                      }))
+                    }
+                    className="px-2 h-7 text-[10px] rounded-md border bg-white hover:bg-gray-50"
+                  >
+                    Pakai Saran
+                  </button>
+                </div>
+              </div>
+
+              {/* Pilihan panas/dingin (opsional) */}
+              <label
+                htmlFor="pilihanSuhu"
+                className="flex items-start gap-2 rounded-lg border bg-gray-50 px-3 py-2 cursor-pointer"
+              >
+                <Checkbox
+                  id="pilihanSuhu"
+                  checked={kategoriForm.pilihanSuhu}
+                  onCheckedChange={(checked) =>
+                    setKategoriForm((prev) => ({
+                      ...prev,
+                      pilihanSuhu: checked === true,
+                    }))
+                  }
+                  className="mt-0.5"
+                />
+                <span className="grid gap-0.5">
+                  <span className="text-xs font-medium">
+                    Bisa disajikan panas atau dingin
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Menu di kategori ini akan tampil pilihan Panas / Dingin
+                    untuk pelanggan (opsional).
+                  </span>
+                </span>
+              </label>
 
               {error && (
                 <p className="text-xs text-red-500">

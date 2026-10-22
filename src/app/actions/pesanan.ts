@@ -93,6 +93,7 @@ export async function getMenusForCustomer() {
         select: {
           namaKategori: true,
           lokasi: true,
+          pilihanSuhu: true,
         },
       },
       menuFoto: {
@@ -144,6 +145,8 @@ export async function getMenusForCustomer() {
       harga: Number(menu.harga),
       kategori: menu.kategori.namaKategori,
       lokasi: menu.kategori.lokasi,
+      /** Kategori ini punya pilihan panas/dingin → pelanggan memilih varian */
+      pilihanSuhu: menu.kategori.pilihanSuhu,
       statusMenu: menu.statusMenu as "tersedia" | "habis" | "nonaktif",
       fotoUrl: menu.menuFoto[0]?.fotoUrl || null,
       menuFoto: menu.menuFoto.map(f => ({ id: f.id, fotoUrl: f.fotoUrl })),
@@ -909,6 +912,121 @@ export async function cancelExpiredOrders() {
   }
 
   return { success: true }
+}
+
+export interface MejaTersediaPindah {
+  id: number
+  nomorMeja: string
+  tipeMeja: "lesehan" | "kursi"
+  kapasitas: number
+  tokenMeja: string
+}
+
+export async function getMejaTersediaPindah(tokenMejaSaatIni: string): Promise<
+  { mejaSaatIni: { nomorMeja: string; kapasitas: number }; daftar: MejaTersediaPindah[] } | { error: string }
+> {
+  const meja = await getMejaByToken(tokenMejaSaatIni)
+  if (!meja) return { error: "Token meja tidak valid" }
+
+  // Hanya boleh pindah jika ada pesanan aktif yang BELUM dibayar
+  const pesananAktif = await prisma.pesanan.findFirst({
+    where: {
+      mejaId: meja.id,
+      statusPembayaran: StatusBayar.menunggu,
+      deletedAt: null,
+    },
+    select: { id: true },
+  })
+  if (!pesananAktif) {
+    return { error: "Tidak ada pesanan aktif yang bisa dipindah di meja ini" }
+  }
+
+  const mejaTersedia = await prisma.meja.findMany({
+    where: {
+      statusMeja: "kosong",
+      deletedAt: null,
+      id: { not: meja.id },
+    },
+    select: {
+      id: true,
+      nomorMeja: true,
+      kapasitas: true,
+      tokenMeja: true,
+    },
+    orderBy: { nomorMeja: "asc" },
+  })
+
+  return {
+    mejaSaatIni: { nomorMeja: meja.nomorMeja, kapasitas: meja.kapasitas },
+    daftar: mejaTersedia.map((m) => ({
+      id: m.id,
+      nomorMeja: m.nomorMeja,
+      tipeMeja: m.nomorMeja.startsWith("L") ? ("lesehan" as const) : ("kursi" as const),
+      kapasitas: m.kapasitas,
+      tokenMeja: m.tokenMeja!,
+    })),
+  }
+}
+
+export async function pindahMeja(
+  tokenMejaSaatIni: string,
+  tokenMejaBaru: string
+): Promise<
+  { success: true; nomorMejaBaru: string; tokenMejaBaru: string } | { error: string }
+> {
+  if (!tokenMejaBaru?.trim()) return { error: "Meja tujuan belum dipilih" }
+  if (tokenMejaBaru === tokenMejaSaatIni) {
+    return { error: "Tidak bisa pindah ke meja yang sama" }
+  }
+
+  const mejaLama = await getMejaByToken(tokenMejaSaatIni)
+  if (!mejaLama) return { error: "Token meja asal tidak valid" }
+
+  const mejaBaru = await getMejaByToken(tokenMejaBaru)
+  if (!mejaBaru) return { error: "Meja tujuan tidak ditemukan" }
+  if (mejaBaru.statusMeja !== "kosong") {
+    return { error: "Meja tujuan sudah terpakai, silahkan pilih meja lain" }
+  }
+
+  // Hanya boleh pindah jika pesanan aktif BELUM dibayar.
+  // Setelah pembayaran berhasil, meja terkunci → harus konfirmasi kasir.
+  const pesananAktif = await prisma.pesanan.findFirst({
+    where: {
+      mejaId: mejaLama.id,
+      statusPembayaran: StatusBayar.menunggu,
+      deletedAt: null,
+    },
+  })
+  if (!pesananAktif) {
+    return { error: "Tidak ada pesanan aktif yang bisa dipindah" }
+  }
+
+  await prisma.$transaction([
+    prisma.pesanan.update({
+      where: { id: pesananAktif.id },
+      data: { mejaId: mejaBaru.id },
+    }),
+    prisma.meja.update({
+      where: { id: mejaLama.id },
+      data: { statusMeja: "kosong" },
+    }),
+    prisma.meja.update({
+      where: { id: mejaBaru.id },
+      data: { statusMeja: "terpakai" },
+    }),
+  ])
+
+  await createLog(
+    "PINDAH_MEJA",
+    `Pesanan #${pesananAktif.id} dipindah dari meja ${mejaLama.nomorMeja} ke meja ${mejaBaru.nomorMeja}`
+  )
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
+  revalidatePath("/dashboard/pesanan")
+  revalidatePath(`/${tokenMejaSaatIni}`)
+  revalidatePath(`/${tokenMejaBaru}`)
+
+  return { success: true, nomorMejaBaru: mejaBaru.nomorMeja, tokenMejaBaru }
 }
 
 export async function updateNamaPelanggan(publicId: string, tokenMeja: string, nama: string) {

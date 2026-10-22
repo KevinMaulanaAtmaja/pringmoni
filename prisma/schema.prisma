@@ -46,6 +46,9 @@ model KategoriMenu {
   id           Int        @id @default(autoincrement())
   namaKategori String     @unique @map("nama_kategori")
   lokasi       LokasiMenu @default(resto) @map("lokasi")
+  icon         String?    @map("icon")
+  /// Menu di kategori ini bisa dipesan panas ATAU dingin (opsional)
+  pilihanSuhu  Boolean    @default(false) @map("pilihan_suhu")
   createdAt    DateTime   @default(now()) @map("created_at")
   deletedAt    DateTime?  @map("deleted_at")
   menus        Menu[]
@@ -101,7 +104,7 @@ model Pesanan {
   jumlahBayar           Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
   kembalian             Decimal           @default(0) @map("kembalian") @db.Decimal(10, 2)
   statusPembayaran      StatusBayar       @default(menunggu) @map("status_pembayaran")
-  stokDeducted          Boolean          @default(false) @map("stok_deducted")
+  stokDeducted          Boolean           @default(false) @map("stok_deducted")
   createdAt             DateTime          @default(now()) @map("created_at")
   updatedAt             DateTime?         @map("updated_at")
   deletedAt             DateTime?         @map("deleted_at")
@@ -176,19 +179,19 @@ model Logs {
 }
 
 model StokBahan {
-  id             Int             @id @default(autoincrement())
-  namaBahan      String          @map("nama_bahan")
-  tipe           LokasiStok      @map("tipe")
-  kategori       KategoriBahan   @map("kategori")
-  stokQty        Decimal         @map("stok_qty") @db.Decimal(10, 2)
-  satuan         SatuanStok      @map("satuan")
-  stokMinimum    Decimal         @map("stok_minimum") @db.Decimal(10, 2)
-  hargaPerSatuan Decimal         @map("harga_per_satuan") @db.Decimal(10, 2)
-  statusStok     StatusStok      @default(tersedia) @map("status_stok")
-  keterangan     String?         @map("keterangan")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime?       @map("updated_at")
-  deletedAt      DateTime?       @map("deleted_at")
+  id             Int           @id @default(autoincrement())
+  namaBahan      String        @map("nama_bahan")
+  tipe           LokasiStok    @map("tipe")
+  kategori       KategoriBahan @map("kategori")
+  stokQty        Decimal       @map("stok_qty") @db.Decimal(10, 2)
+  satuan         SatuanStok    @map("satuan")
+  stokMinimum    Decimal       @map("stok_minimum") @db.Decimal(10, 2)
+  hargaPerSatuan Decimal       @map("harga_per_satuan") @db.Decimal(10, 2)
+  statusStok     StatusStok    @default(tersedia) @map("status_stok")
+  keterangan     String?       @map("keterangan")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime?     @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
   riwayatStok    RiwayatStok[]
   resep          ResepMenu[]
 
@@ -279,6 +282,7 @@ enum JenisAksiLog {
   RESET_PASSWORD
   CREATE_ORDER
   UPDATE_ORDER_STATUS
+  PINDAH_MEJA
   CANCEL_ORDER_KASIR
   CANCEL_ORDER_EXPIRED
   CANCEL_ORDER_STALE

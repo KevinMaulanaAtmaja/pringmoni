@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
-import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, UtensilsCrossed, ChevronDown, ArrowLeft, Ticket, Tag } from "lucide-react";
+import { PindahMejaSheet } from "@/components/customer/pindah-meja-sheet";
+import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, UtensilsCrossed, GlassWater, Cookie, Package, ChevronDown, ArrowLeft, ArrowRightLeft, Ticket, Tag, Pizza, Hamburger, Sandwich, Carrot, Drumstick, Fish, Shrimp, Soup, Wheat, Salad, IceCream, CakeSlice, Popcorn, CupSoda, Boxes, ChefHat } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
 import { getVoucherAktif } from "@/app/actions/voucher";
 import { simpanKeranjangCheckout, simpanKodeVoucher } from "@/lib/checkout-storage";
@@ -23,11 +25,11 @@ export default function CustomerMenuPage() {
     const router = useRouter();
     const params = useParams();
     const tokenMeja = params.tokenMeja as string;
-const [menus, setMenus] = useState<Menu[]>([]);
-const [mejaData, setMejaData] = useState<{ nomorMeja: string; statusMeja: string } | null>(null);
-    const [kategoris, setKategoris] = useState<{ id: number; nama: string; lokasi: "resto" | "cafe" }[]>([]);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState<string | null>(null);
+    const [menus, setMenus] = useState<Menu[]>([]);
+    const [mejaData, setMejaData] = useState<{ nomorMeja: string; statusMeja: string } | null>(null);
+    const [kategoris, setKategoris] = useState<{ id: number; nama: string; lokasi: "resto" | "cafe"; icon?: string | null }[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [keranjang, setKeranjang] = useState<KeranjangItem[]>([]);
     const [showToastBerhasil, setShowToastBerhasil] = useState(false);
     const [menuHabisTerhapus, setMenuHabisTerhapus] = useState<string[]>([]);
@@ -38,6 +40,42 @@ const [error, setError] = useState<string | null>(null);
     const [voucher, setVoucher] = useState<VoucherTerpakai | null>(null);
     const [vouchers, setVouchers] = useState<VoucherOpsi[]>([]);
     const [voucherNotice, setVoucherNotice] = useState<string | null>(null);
+
+    const CATEGORY_ICON_MAP_CUSTOMER: Record<string, LucideIcon> = {
+        Utensils,
+        GlassWater,
+        Coffee,
+        Cookie,
+        Pizza,
+        Hamburger,
+        Sandwich,
+        Carrot,
+        Drumstick,
+        Fish,
+        Shrimp,
+        Soup,
+        Wheat,
+        Salad,
+        IceCream,
+        CakeSlice,
+        Popcorn,
+        CupSoda,
+        Package,
+        Boxes,
+        ChefHat,
+    };
+
+    const getKategoriIcon = (nama: string, iconKey?: string | null) => {
+        if (iconKey && CATEGORY_ICON_MAP_CUSTOMER[iconKey]) return CATEGORY_ICON_MAP_CUSTOMER[iconKey];
+        const n = nama.toLowerCase();
+        if (n.includes("minum") || n.includes("drink") || n.includes("jus") || n.includes("teh") || n.includes("soda")) return GlassWater;
+        if (n.includes("kopi") || n.includes("coffee")) return Coffee;
+        if (n.includes("camilan") || n.includes("snack") || n.includes("goreng") || n.includes("kentang") || n.includes("kue") || n.includes("dessert") || n.includes("es krim")) return Cookie;
+        if (n.includes("paket") || n.includes("set") || n.includes("bundle")) return Package;
+        if (n.includes("makan")) return Utensils;
+        return Utensils;
+    };
+
     const [itemsToShow, setItemsToShow] = useState(12);
     const [showScanner, setShowScanner] = useState(false);
     const [scanError, setScanError] = useState<string | null>(null);
@@ -46,6 +84,7 @@ const [error, setError] = useState<string | null>(null);
     const [validating, setValidating] = useState(false);
     const [scanResultError, setScanResultError] = useState<string | null>(null);
     const [mejaTerpakaiWarning, setMejaTerpakaiWarning] = useState(false);
+    const [adaPesananAktif, setAdaPesananAktif] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const scannerRef = useRef<{ stream?: MediaStream }>({});
 
@@ -71,22 +110,27 @@ const [error, setError] = useState<string | null>(null);
                     setLoading(false);
                     return;
                 }
-                if (data.meja.statusMeja === 'terpakai') {
+                setAdaPesananAktif(statusAktif?.adaPesananAktif ?? false);
+                // Hanya tampilkan peringatan "meja terpakai" jika customer
+                // TIDAK punya pesanan aktif di meja ini (artinya meja dipakai orang lain).
+                if (data.meja.statusMeja === 'terpakai' && !statusAktif?.adaPesananAktif) {
                     setMejaTerpakaiWarning(true);
                 }
                 setMejaData(data.meja);
 
                 setMenus(data.menus);
                 setVouchers(voucherAktif);
-                // Kategori yang tampil: Semua, lalu kategori Resto (Camilan,
-                // Makanan, Minuman, ...). Kategori cafe diatur melalui tab Cafe,
-                // tidak sebagai pill terpisah.
-                setKategoris([
-                    { id: 0, nama: "Semua", lokasi: "resto" as const },
-                    ...data.kategoris
-                        .filter((kat) => kat.lokasi === "resto")
-                        .map((kat) => ({ id: kat.id, nama: kat.namaKategori, lokasi: "resto" as const })),
-                ]);
+                // Semua kategori (resto + cafe) disimpan. Pill kategori
+                // untuk tab aktif dihitung ulang saat tab berubah, supaya
+                // kategori cafe (mis. "Paket Ramadhan") ikut terlihat.
+                setKategoris(
+                    data.kategoris.map((kat) => ({
+                        id: kat.id,
+                        nama: kat.namaKategori,
+                        lokasi: kat.lokasi,
+                        icon: kat.icon ?? null,
+                    })),
+                );
                 setLoading(false);
             } catch {
                 setError("Terjadi kesalahan saat memuat data");
@@ -96,15 +140,25 @@ const [error, setError] = useState<string | null>(null);
         loadData();
     }, [tokenMeja]);
 
+    // Pill kategori untuk tab aktif (resto/cafe) + opsi "Semua"
+    const kategoriPill = useMemo(() => {
+        const list = kategoris.filter((kat) => kat.lokasi === activeTempat);
+        return [{ id: 0, nama: "Semua", lokasi: activeTempat, icon: null }, ...list];
+    }, [kategoris, activeTempat]);
+
+    // Nama kategori di DB bisa lowercase (mis. "paket ramadhan"),
+    // ditampilkan dengan huruf awal kapital.
+    const formatKategoriNama = (nama: string) =>
+        nama
+            .split(" ")
+            .map((kata) => kata.charAt(0).toUpperCase() + kata.slice(1))
+            .join(" ");
+
     const filteredMenu = menus.filter((menu) => {
         const matchTempat =
             activeTempat === "cafe" ? menu.lokasi === "cafe" : menu.lokasi !== "cafe";
         const matchKategori =
-            activeTempat === "cafe"
-                ? true
-                : activeKategori === "Semua"
-                ? true
-                : menu.kategori === activeKategori;
+            activeKategori === "Semua" ? true : menu.kategori === activeKategori;
         const matchSearch = menu.namaMenu.toLowerCase().includes(searchQuery.toLowerCase());
         return matchTempat && matchKategori && matchSearch;
     });
@@ -381,7 +435,24 @@ return (
                     </div>
 
                     {!loading && !error && (
-                     <CartSheet
+                     <div className="flex items-center gap-2">
+                         {adaPesananAktif && (
+                             <PindahMejaSheet
+                                 tokenMejaSaatIni={tokenMeja}
+                                 nomorMejaSaatIni={mejaData?.nomorMeja || tokenMeja}
+                                 onPindah={(tokenBaru, nomorBaru) => {
+                                     setMejaData({ nomorMeja: nomorBaru, statusMeja: 'terpakai' });
+                                     setMejaTerpakaiWarning(false);
+                                     window.location.href = `/${tokenBaru}`;
+                                 }}
+                             >
+                                 <Button variant="outline" size="sm" className="rounded-full">
+                                     <ArrowRightLeft className="size-4 mr-1.5" />
+                                     Pindah
+                                 </Button>
+                             </PindahMejaSheet>
+                         )}
+                         <CartSheet
                               keranjang={keranjang}
                               onUpdateJumlah={updateJumlah}
                               onHapus={hapusDariKeranjang}
@@ -401,6 +472,7 @@ return (
                                  )}
                              </Button>
                          </CartSheet>
+                     </div>
                      )}
                 </div>
             </header>
@@ -618,26 +690,32 @@ return (
                             </div>
                         )}
 
-                        {/* Kategori - Pill buttons (hanya di tab Resto) */}
-                        {activeTempat === "resto" && (
-                            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                                {kategoris.map((kat) => (
+                        {/* Kategori - Pill buttons (sesuai tab aktif: Resto / Cafe) */}
+                        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                            {kategoriPill.map((kat) => {
+                                const Icon = kat.nama === "Semua" ? null : getKategoriIcon(kat.nama, kat.icon);
+                                const aktif = activeKategori === kat.nama;
+                                return (
                                     <Button
                                         key={kat.id}
-                                        variant={activeKategori === kat.nama ? "default" : "outline"}
+                                        variant={aktif ? "default" : "outline"}
                                         size="sm"
-                                        className="rounded-full px-4 shrink-0"
+                                        className={`rounded-full px-4 shrink-0 ${
+                                            aktif && activeTempat === "cafe"
+                                                ? "bg-amber-600 text-white hover:bg-amber-700"
+                                                : ""
+                                        }`}
                                         onClick={() => {
                                             setActiveKategori(kat.nama);
                                             setItemsToShow(12);
                                         }}
                                     >
-                                        <UtensilsCrossed className="size-3.5 mr-1.5" />
-                                        {kat.nama}
+                                        {Icon && <Icon className="size-3.5 mr-1.5" />}
+                                        {formatKategoriNama(kat.nama)}
                                     </Button>
-                                ))}
-                            </div>
-                        )}
+                                );
+                            })}
+                        </div>
 
                         {/* Menu Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
@@ -675,7 +753,11 @@ return (
                         {filteredMenu.length === 0 && (
                             <Card className="py-12">
                                 <CardContent className="text-center text-muted-foreground">
-                                    <p>Menu tidak ditemukan</p>
+                                    <p>
+                                        {activeKategori !== "Semua"
+                                            ? `Belum ada menu di kategori ${formatKategoriNama(activeKategori)}`
+                                            : "Menu tidak ditemukan"}
+                                    </p>
                                     {activeTempat === "cafe" && (
                                         <Button
                                             variant="ghost"

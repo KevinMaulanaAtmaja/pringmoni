@@ -11,6 +11,7 @@ interface CustomUser {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   session: { strategy: "jwt", maxAge: 43200 }, // 12 jam
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
