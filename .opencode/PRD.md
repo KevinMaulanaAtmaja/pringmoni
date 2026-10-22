@@ -60,8 +60,19 @@
 | PBI-1.2 | CRUD User | Done |
 | PBI-1.3 | CRUD Meja (token unik) | Done |
 | PBI-1.4 | CRUD Menu (kategori, foto) | Done |
+| PBI-1.5 | Ambil alih sesi login antar perangkat (dengan konfirmasi) | Done |
 
 > Catatan PBI-1.4: Menu tidak lagi punya "mode manual" — ketersediaan mengacu pada resep (lihat Modul 6).
+>
+> Catatan PBI-1.5: Saat akun yang sama login lagi dari perangkat lain, sistem
+> **minta konfirmasi dulu** ("Sesi aktif terdeteksi") sebelum sesi lama
+> dibatalkan. Setiap akun punya `users.session_version` yang naik tiap login;
+> JWT lama yang versinya tidak cocok otomatis ditandai `takenOver` dan
+> **proxy** mengalihkan perangkat lama ke `/login?takenOver=1`. Deteksi
+> "perangkat lain" memakai cookie `pm_device` + `users.last_login_at`
+> (ambang 10 menit) — sehingga login ulang di perangkat yang sama tidak
+> menghasilkan prompt. Sumber: `src/lib/sesi.ts`, `src/lib/auth.ts`,
+> `src/app/actions/login.ts`, `src/proxy.ts`.
 
 ### Modul 2: Pesanan
 | PBI | Deskripsi | Status |
@@ -110,11 +121,17 @@
 |-----|----------|--------|
 | PBI-7.1 | Reservasi pesanan (offline) | Todo |
 | PBI-7.2 | Ganti meja (pindah pesanan antar meja) | Todo |
-| PBI-7.3 | Pergantian shift kasir | Todo |
+| PBI-7.3 | Pergantian shift kasir | Done |
 | PBI-7.4 | Auto-kosongkan meja + pesanan (pesanan selesai / pesanan lama dibayar) | Done |
 | PBI-7.5 | Refund + bukti foto | Done |
 
 > Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan). Ditambah lagi, saat lewat tengah malam (00:00) sisa pesanan aktif yang belum dibayar ikut dibatalkan otomatis oleh `getNotifikasiTerlambat()` — lihat PBI-8.4.
+>
+> Catatan PBI-7.3 (pembagian hak akses shift):
+> - **CASHIER** — hanya boleh **buka/tutup shift sendiri** dan **melihat riwayat shift sendiri** (read-only). Tidak bisa mengatur jadwal shift maupun melihat/mengubah shift kasir lain.
+> - **OWNER** — configuring jadwal shift (tambah/edit/hapus slot) + monitoring seluruh riwayat shift (read-only, termasuk filter per kasir). Tidak membuka/menutup shift kasir.
+> - **WAITER** — **tidak punya akses shift sama sekali** (menu disembunyikan, route `/dashboard/shift` diblokir proxy, aksi shift menolak role ini). Alasan: shift melacak uang awal/akhir kas (drawer) yang dipegang kasir.
+> - Jadwal shift & riwayat shift berada di satu halaman `/dashboard/shift` (tab terpisah). Menu sidebar owner: "Shift" (mobile & desktop) — sebelumnya ada link `/dashboard/jadwal-shift` yang **404**.
 
 ### Modul 8: Notifikasi, QR & Backup
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*

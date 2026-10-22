@@ -72,6 +72,7 @@ src/app/
 │   ├── stok-bahan/page.tsx          # Kelola stok bahan (gudang/dapur)
 │   ├── meja/page.tsx                # Kelola meja
 │   ├── user/page.tsx                # Kelola user
+│   ├── shift/page.tsx               # Shift (tab jadwal [owner] + riwayat shift)
 │   └── laporan/page.tsx             # Laporan
 └── api/auth/[...nextauth]/route.ts   # Auth API
 ```
@@ -85,6 +86,8 @@ src/app/
 | `src/app/actions/stok-bahan.ts` | getStokBahanList, createStokBahan, updateStokBahan, deleteStokBahan, restockBahan, transferStokBahan, getRiwayatStok, getDaftarMenuResep, getResepMenu, saveResepMenu |
 | `src/app/actions/pesanan.ts` | getPesanan, createPesanan, updateStatusPesanan, prosesPembayaran |
 | `src/app/actions/notifikasi.ts` | getNotifikasiTerlambat (daftar pesanan >30 menit belum ditangani + sweep tengah malam) |
+| `src/app/actions/shift.ts` | getJadwalShift/simpan/update/hapus (owner), bukaShift/tutupShift/tambahKasKeluar (kasir), getRiwayatShift (owner semua / kasir miliknya), getShiftAktif |
+| `src/app/actions/login.ts` | loginAction (validasi kredensial + deteksi sesi di perangkat lain sebelum membuat sesi) |
 
 ## 5. Auth Flow
 
@@ -97,6 +100,31 @@ Roles:
 - `OWNER` - Full access
 - `CASHIER` - Kasir + Pesanan
 - `WAITER` - Pesanan only
+
+### 5.1 Ambil alih sesi (takeover antar perangkat)
+
+```
+Login -> validasi kredensial (bcrypt, tanpa buat sesi)
+      -> cek sesi lain aktif? (last_login_at < 10 menit & device berbeda)
+         -> ya: konfirmasi "Ambil Alih & Masuk" -> baru buat sesi
+         -> tidak: langsung buat sesi
+Buat sesi -> users.session_version naik -> JWT membawa versi itu
+Request berikutnya -> jwt callback bandingkan versi token vs DB
+      -> beda: token.takenOver = true -> proxy redirect /login?takenOver=1
+```
+
+| Elemen | Fungsi |
+|--------|--------|
+| `users.session_version` | Penanda versi sesi per akun (naik tiap login) |
+| `users.last_login_at` / `users.last_login_device` | Deteksi login dari perangkat lain |
+| cookie `pm_device` | ID perangkat (httpOnly, dibuat proxy) |
+| `src/lib/sesi.ts` | Cache versi sesi (3 detik), deteksi sesi lain, format waktu |
+| `src/lib/auth.ts` | `authorize` naikkan versi; `jwt` cek versi; `session` expose `takenOver` |
+| `src/proxy.ts` | Enforcement: `takenOver` -> `/login?takenOver=1`; set cookie `pm_device` |
+
+Catatan: enforcement dilakukan di **proxy** sehingga request lama (termasuk POST
+server action) dialihkan ke login **sebelum** aksi dieksekusi. Role yang sudah
+login tapi tidak punya akses route diarahkan ke `/dashboard` (bukan `/login`).
 
 ## 6. Real-time Flow
 

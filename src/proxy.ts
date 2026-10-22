@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
+import { COOKIE_PERANGKAT } from "@/lib/sesi"
 import type { RoleUser } from "@/types"
 
 const ALL_ROLES: readonly RoleUser[] = ["owner", "cashier", "waiter"]
@@ -81,6 +82,13 @@ export async function proxy(request: NextRequest) {
   const rawRole = session?.user?.role
   const userRole: RoleUser | undefined = isRoleUser(rawRole) ? rawRole : undefined
   const hasValidRole = userRole !== undefined
+  const takenOver = session?.user?.takenOver === true
+
+  // Sesi ini sudah digantikan login dari perangkat lain -> arahkan ke login.
+  // Dikecualikan untuk halaman login itu sendiri supaya tidak terjadi redirect loop.
+  if (takenOver && pathname !== "/login") {
+    return NextResponse.redirect(new URL("/login?takenOver=1", request.url))
+  }
 
   // Belum login dan bukan route publik -> ke halaman login
   if (!isLoggedIn && !isPublicRoute(pathname)) {
@@ -88,7 +96,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Sudah login dengan role valid -> akses /login dialihkan ke dashboard
-  if (isLoggedIn && hasValidRole && pathname === "/login") {
+  if (isLoggedIn && hasValidRole && pathname === "/login" && !takenOver) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
@@ -99,12 +107,28 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/login", request.url))
     }
     if (!userRole || !allowedRoles.includes(userRole)) {
-      // Role tidak dikenal atau tidak punya akses -> keluar dari dashboard
-      return NextResponse.redirect(new URL("/login", request.url))
+      // Role tidak dikenal -> keluar dari dashboard.
+      if (!userRole) {
+        return NextResponse.redirect(new URL("/login", request.url))
+      }
+      // Role dikenal tapi tidak punya akses halaman ini (mis. waiter -> shift).
+      return NextResponse.redirect(new URL("/dashboard", request.url))
     }
   }
 
-  return NextResponse.next()
+  const response = NextResponse.next()
+
+  // Penanda perangkat, dipakai untuk mendeteksi login dari perangkat lain.
+  if (!request.cookies.get(COOKIE_PERANGKAT)) {
+    response.cookies.set(COOKIE_PERANGKAT, crypto.randomUUID(), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    })
+  }
+
+  return response
 }
 
 export const config = {

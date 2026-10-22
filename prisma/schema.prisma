@@ -19,6 +19,13 @@ model Users {
   updatedAt        DateTime?     @map("updated_at")
   resetToken       String?       @unique @map("reset_token")
   resetTokenExpiry DateTime?     @map("reset_token_expiry")
+  /// Versi sesi login akun ini. Bertambah setiap kali ada login baru.
+  /// Sesi yang membawa versi lama otomatis tidak berlaku lagi (takeover).
+  sessionVersion  Int           @default(0) @map("session_version")
+  /// Waktu login terakhir pada akun ini.
+  lastLoginAt     DateTime?     @map("last_login_at")
+  /// ID perangkat (cookie) yang melakukan login terakhir.
+  lastLoginDevice String?       @map("last_login_device")
   logs             Logs[]
   kasirPesanan     Pesanan[]     @relation("KasirPesanan")
   waiterPesanan    Pesanan[]     @relation("WaiterPesanan")
