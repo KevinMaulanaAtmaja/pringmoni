@@ -34,6 +34,90 @@ function jamSingkat(iso: string | null): string {
   })
 }
 
+function durasiShift(waktuMasuk: string, waktuKeluar: string | null): string {
+  const selesai = waktuKeluar ? new Date(waktuKeluar).getTime() : Date.now()
+  const menit = Math.max(0, Math.floor((selesai - new Date(waktuMasuk).getTime()) / 60000))
+  return `${Math.floor(menit / 60)}j ${menit % 60}m`
+}
+
+function RiwayatShiftCard({ s }: { s: ShiftRiwayat }) {
+  const selisih = s.selisihKas ?? 0
+  const aktif = s.statusShift === "ACTIVE"
+  const durasiTeks = durasiShift(s.waktuMasuk, s.waktuKeluar)
+
+  return (
+    <div className="min-w-0 rounded-xl border bg-white p-3 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-medium truncate">{s.kasirUsername}</span>
+            {aktif ? (
+              <Badge className="border-green-300 bg-green-100 px-1.5 py-0 text-[10px] text-green-800">
+                Aktif
+              </Badge>
+            ) : (
+              <Badge className="border-gray-300 bg-gray-100 px-1.5 py-0 text-[10px] text-gray-600">
+                Tutup
+              </Badge>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {tanggalLabel(s.tanggal)} · {jamSingkat(s.waktuMasuk)}
+            {aktif ? " → sekarang" : ` → ${jamSingkat(s.waktuKeluar)}`} · {durasiTeks}
+          </p>
+          {s.sumberShiftKasir && (
+            <p className="mt-0.5 text-xs font-medium text-amber-700">
+              Modal dari {s.sumberShiftKasir}
+            </p>
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-[10px] uppercase tracking-wide text-gray-400">Selisih</p>
+          <p
+            className={`text-sm font-medium ${
+              aktif
+                ? "text-gray-400"
+                : selisih === 0
+                  ? "text-green-700"
+                  : selisih > 0
+                    ? "text-blue-600"
+                    : "text-red-600"
+            }`}
+          >
+            {aktif
+              ? "-"
+              : selisih === 0
+                ? "Sesuai"
+                : selisih > 0
+                  ? `+${rupiah(selisih)}`
+                  : `-${rupiah(Math.abs(selisih))}`}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+        <div>
+          <p className="text-gray-400">Kas awal</p>
+          <p className="font-medium">{rupiah(s.uangAwal)}</p>
+        </div>
+        <div>
+          <p className="text-gray-400">Tunai masuk</p>
+          <p className="font-medium text-green-700">+{rupiah(s.totalTunai)}</p>
+        </div>
+        <div>
+          <p className="text-gray-400">Uang akhir</p>
+          <p className="font-medium">{aktif ? "-" : rupiah(s.uangAkhir ?? 0)}</p>
+        </div>
+      </div>
+
+      <p className="text-xs text-gray-500">
+        {s.totalTransaksi} transaksi · pendapatan {rupiah(s.totalPendapatan)} · seharusnya{" "}
+        {rupiah(s.uangHarapAkhir)}
+      </p>
+    </div>
+  )
+}
+
 export default function ShiftPage() {
   const { data: session, status } = useSession()
   const isOwner = session?.user?.role === "owner"
@@ -206,10 +290,10 @@ export default function ShiftPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="mx-auto w-full min-w-0 max-w-6xl space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Shift</h1>
 
-      <div className="flex gap-2 border-b border-gray-200 pb-4 mb-6">
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-gray-200 pb-4">
         {isOwner && (
           <Button
             onClick={() => setActiveTab("jadwal")}
@@ -217,8 +301,8 @@ export default function ShiftPage() {
             aria-pressed={activeTab === "jadwal"}
             className={
               activeTab === "jadwal"
-                ? "flex-1 bg-green-700 text-white hover:bg-green-800"
-                : "flex-1 hover:bg-green-100 hover:text-green-800 hover:border-green-300"
+                ? "bg-green-700 text-white hover:bg-green-800"
+                : "hover:bg-green-100 hover:text-green-800 hover:border-green-300"
             }
           >
             <Calendar className="w-4 h-4 mr-2" /> Jadwal Shift
@@ -230,8 +314,8 @@ export default function ShiftPage() {
           aria-pressed={activeTab === "riwayat"}
           className={
             activeTab === "riwayat"
-              ? "flex-1 bg-green-700 text-white hover:bg-green-800"
-              : "flex-1 hover:bg-green-100 hover:text-green-800 hover:border-green-300"
+              ? "bg-green-700 text-white hover:bg-green-800"
+              : "hover:bg-green-100 hover:text-green-800 hover:border-green-300"
           }
         >
           <History className="w-4 h-4 mr-2" /> Riwayat Shift
@@ -398,7 +482,7 @@ export default function ShiftPage() {
       )}
 
       {activeTab === "riwayat" && (
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-4">
           {isOwner && (
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-semibold">Riwayat Shift Kasir</h2>
@@ -414,8 +498,8 @@ export default function ShiftPage() {
               </p>
             )}
 
-            <div className="flex flex-wrap gap-2 items-center justify-between">
-              <div className="flex gap-1 flex-wrap">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-1">
                 {([
                   ["all", "Semua"],
                   ["today", "Hari Ini"],
@@ -435,7 +519,7 @@ export default function ShiftPage() {
 
               {isOwner && (
                 <Select value={filterKasir} onValueChange={setFilterKasir}>
-                  <SelectTrigger className="w-44 h-9">
+                  <SelectTrigger className="h-9 w-full sm:w-44">
                     <SelectValue placeholder="Semua kasir" />
                   </SelectTrigger>
                   <SelectContent>
@@ -461,7 +545,13 @@ export default function ShiftPage() {
                 </p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border overflow-x-auto">
+              <>
+                <div className="space-y-2 md:hidden">
+                  {paginated.map((s) => (
+                    <RiwayatShiftCard key={s.id} s={s} />
+                  ))}
+                </div>
+                <div className="hidden w-full min-w-0 overflow-x-auto rounded-xl border bg-white md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -491,12 +581,7 @@ export default function ShiftPage() {
                   <TableBody>
                     {paginated.map((s) => {
                       const selisih = s.selisihKas ?? 0
-                      const durasiMenit = Math.max(0, Math.floor(
-                        (s.waktuKeluar ? new Date(s.waktuKeluar).getTime() : Date.now()) -
-                        new Date(s.waktuMasuk).getTime()
-                      ) / 60000)
-                      const durasiJam = Math.floor(durasiMenit / 60)
-                      const durasiMenitSisa = durasiMenit % 60
+                      const durasiTeks = durasiShift(s.waktuMasuk, s.waktuKeluar)
                       const aktif = s.statusShift === "ACTIVE"
 
                       return (
@@ -529,7 +614,7 @@ export default function ShiftPage() {
                             <p className="whitespace-nowrap text-xs text-gray-500">
                               {aktif ? "→ sekarang" : `→ ${jamSingkat(s.waktuKeluar)}`}
                               {" · "}
-                              {durasiJam}j {durasiMenitSisa}m
+                              {durasiTeks}
                             </p>
                           </TableCell>
                           <TableCell className="px-3 py-3 text-right align-top">
@@ -584,7 +669,8 @@ export default function ShiftPage() {
                     })}
                   </TableBody>
                 </Table>
-              </div>
+                </div>
+              </>
             )}
 
             {shifts.length > perPage && (

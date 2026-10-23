@@ -76,9 +76,9 @@ export function DashboardClient({ role, header, children }: DashboardClientProps
         />
       </div>
 
-      <main className={`flex-1 ${marginLeft} min-h-screen flex flex-col transition-all duration-300`}>
+      <main className={`flex-1 ${marginLeft} min-w-0 min-h-screen flex flex-col transition-all duration-300`}>
         <div className="sticky top-0 z-10 w-full border-b bg-gray-50/95 backdrop-blur supports-[backdrop-filter]:bg-gray-50/60">
-          <div className="px-4 md:px-6 pt-4 md:pt-6 flex items-center gap-3">
+          <div className="px-4 md:px-6 pt-4 md:pt-6 flex items-center gap-3 min-w-0">
             <Button
               variant="ghost"
               size="icon"
@@ -91,7 +91,7 @@ export function DashboardClient({ role, header, children }: DashboardClientProps
             {header}
           </div>
         </div>
-        <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6">
+        <div className="flex-1 min-w-0 px-4 md:px-6 pb-4 md:pb-6">
           {children}
         </div>
       </main>
