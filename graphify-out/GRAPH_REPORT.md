@@ -1,7 +1,7 @@
 # Graph Report - pringmoni  (2026-10-23)
 
 ## Corpus Check
-- 235 files · ~304,448 words
+- 235 files · ~304,515 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4d0499d0`
+- Built from commit: `a98d267a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -129,19 +129,19 @@
 7. `createLog()` - 37 edges
 8. `MejaPage()` - 34 edges
 9. `ResepMenuDialog()` - 34 edges
-10. `Input()` - 32 edges
+10. `Card()` - 32 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `8. Optimasi delay >5 detik` --references--> `getDashboardStats()`  [INFERRED]
   .opencode/PROGRESS.md → src/app/actions/dashboard.ts
 - `6. Komponen (shadcn/ui)` --references--> `cn()`  [INFERRED]
   .opencode/DESIGN.md → src/lib/utils.ts
-- `6. Komponen (shadcn/ui)` --references--> `Input()`  [INFERRED]
-  .opencode/DESIGN.md → src/components/ui/input.tsx
 - `3. Delay navigasi halaman (loading.tsx)` --references--> `PageLoader()`  [INFERRED]
   .opencode/PROGRESS.md → src/components/ui/page-loader.tsx
 - `Priority Test` --references--> `createMenu()`  [INFERRED]
   .opencode/agent/tester.md → src/app/actions/menu.ts
+- `6. Komponen (shadcn/ui)` --references--> `Select()`  [INFERRED]
+  .opencode/DESIGN.md → src/components/ui/select.tsx
 
 ## Import Cycles
 - None detected.
@@ -489,7 +489,7 @@ Cohesion: 0.09
 Nodes (31): class-variance-authority, @hugeicons/core-free-icons, @hugeicons/react, radix-ui, CardAction(), CardFooter(), Checkbox(), DropdownMenuCheckboxItem() (+23 more)
 
 ## Knowledge Gaps
-- **724 isolated node(s):** `DashboardClientProps`, `CartSheetProps`, `Voucher`, `SidebarProps`, `SheetContentProps` (+719 more)
+- **724 isolated node(s):** `Tech Architecture`, `Models`, `Enums (stok & resep)`, `Enums (voucher)`, `3. Route Structure` (+719 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 859 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -497,12 +497,12 @@ Nodes (31): class-variance-authority, @hugeicons/core-free-icons, @hugeicons/rea
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `cn()` connect `cn` to `PageLoader`, `cart-sheet.tsx`, `Button`, `stok-bahan/page.tsx`, `react`, `menu/page.tsx`, `app/layout.tsx`, `Badge`?**
-  _High betweenness centrality (0.051) - this node is a cross-community bridge._
-- **Why does `react` connect `react` to `package.json`, `pesanan.ts`, `dashboard/pesanan/page.tsx`, `actions/shift.ts`, `kasir/page.tsx`, `meja/page.tsx`, `Header.tsx`, `LaporanClient.tsx`, `cart-sheet.tsx`, `Button`, `stok-bahan/page.tsx`, `StaleNotificationBell.tsx`, `category-icon.tsx`, `menu/page.tsx`, `Badge`, `next`, `cn`?**
   _High betweenness centrality (0.050) - this node is a cross-community bridge._
+- **Why does `react` connect `react` to `package.json`, `pesanan.ts`, `dashboard/pesanan/page.tsx`, `actions/shift.ts`, `kasir/page.tsx`, `meja/page.tsx`, `Header.tsx`, `LaporanClient.tsx`, `cart-sheet.tsx`, `Button`, `stok-bahan/page.tsx`, `StaleNotificationBell.tsx`, `category-icon.tsx`, `menu/page.tsx`, `Badge`, `next`, `cn`?**
+  _High betweenness centrality (0.045) - this node is a cross-community bridge._
 - **Why does `lucide-react` connect `react` to `actions/shift.ts`, `src/types/index.ts`, `LaporanClient.tsx`, `cart-sheet.tsx`, `Button`, `StaleNotificationBell.tsx`, `dashboard.ts`, `GrafikPeakHours.tsx`, `DashboardCharts.tsx`, `Badge`, `package.json`, `dashboard/pesanan/page.tsx`, `Header.tsx`, `kasir/page.tsx`, `meja/page.tsx`, `PieKategori.tsx`, `stok-bahan/page.tsx`, `menu/page.tsx`, `pesanan.ts`, `GrafikMenu.tsx`, `PerbandinganCard.tsx`?**
-  _High betweenness centrality (0.039) - this node is a cross-community bridge._
-- **What connects `DashboardClientProps`, `CartSheetProps`, `Voucher` to the rest of the system?**
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+- **What connects `Tech Architecture`, `Models`, `Enums (stok & resep)` to the rest of the system?**
   _724 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `@prisma/client` be split into smaller, more focused modules?**
   _Cohesion score 0.08534850640113797 - nodes in this community are weakly interconnected._

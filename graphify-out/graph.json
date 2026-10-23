@@ -3790,7 +3790,7 @@
       "file_type": "code",
       "norm_label": "loginpage()",
       "source_file": "src/app/(auth)/login/page.tsx",
-      "source_location": "L28"
+      "source_location": "L26"
     },
     {
       "id": "src_lib_rate_limiter_checkratelimit",
@@ -11739,7 +11739,7 @@
       "node_kind": "heading",
       "norm_label": "6. real-time flow",
       "source_file": ".opencode/ARCHITECTURE.md",
-      "source_location": "L142"
+      "source_location": "L141"
     },
     {
       "id": "opencode_architecture_7_payment_flow",
@@ -11751,7 +11751,7 @@
       "node_kind": "heading",
       "norm_label": "7. payment flow",
       "source_file": ".opencode/ARCHITECTURE.md",
-      "source_location": "L148"
+      "source_location": "L147"
     },
     {
       "id": "opencode_architecture_8_stock_availability_flow",
@@ -11763,7 +11763,7 @@
       "node_kind": "heading",
       "norm_label": "8. stock & availability flow",
       "source_file": ".opencode/ARCHITECTURE.md",
-      "source_location": "L154"
+      "source_location": "L153"
     },
     {
       "id": "opencode_architecture_architecture_pringmoni",
@@ -45952,7 +45952,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": ".opencode/ARCHITECTURE.md",
-      "source_location": "L142",
+      "source_location": "L141",
       "weight": 1.0
     },
     {
@@ -45963,7 +45963,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": ".opencode/ARCHITECTURE.md",
-      "source_location": "L148",
+      "source_location": "L147",
       "weight": 1.0
     },
     {
@@ -45974,7 +45974,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": ".opencode/ARCHITECTURE.md",
-      "source_location": "L154",
+      "source_location": "L153",
       "weight": 1.0
     },
     {
@@ -52156,7 +52156,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/app/(auth)/login/page.tsx",
-      "source_location": "L28",
+      "source_location": "L26",
       "weight": 1.0
     },
     {
@@ -58296,7 +58296,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "src/app/(auth)/login/page.tsx",
-      "source_location": "L29",
+      "source_location": "L27",
       "weight": 1.0
     },
     {
@@ -58553,5 +58553,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "4d0499d00df3a5bf77f4eed03fb647248a66bf9d"
+  "built_at_commit": "a98d267a8d1f0cdcd653b8809575ca911933ca09"
 }
