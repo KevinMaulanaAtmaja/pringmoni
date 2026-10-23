@@ -111,10 +111,8 @@ Roles:
 ### 5.1 Ambil alih sesi (takeover antar perangkat)
 
 ```
-Login -> validasi kredensial (bcrypt, tanpa buat sesi)
-      -> cek sesi lain aktif? (last_seen_at/last_login_at < 15 menit & device berbeda)
-         -> ya: konfirmasi "Ambil Alih & Masuk" -> baru buat sesi
-         -> tidak: langsung buat sesi
+Login -> validasi kredensial (bcrypt) -> langsung buat sesi (tanpa dialog
+         konfirmasi; login baru selalu mengambil alih)
 Buat sesi -> users.session_version naik -> JWT membawa versi itu
 Request berikutnya -> jwt callback bandingkan versi token vs DB
       -> sama: users.last_seen_at diperbarui (throttle 2 menit) -> sesi masih hidup
@@ -124,16 +122,16 @@ Request berikutnya -> jwt callback bandingkan versi token vs DB
 | Elemen | Fungsi |
 |--------|--------|
 | `users.session_version` | Penanda versi sesi per akun (naik tiap login) |
-| `users.last_login_at` / `users.last_login_device` | Deteksi login dari perangkat lain |
+| `users.last_login_at` / `users.last_login_device` | Audit login terakhir (dipakai di log takeover) |
 | `users.last_seen_at` | Aktivitas terakhir sesi yang sah (diperbarui `jwt` callback, throttle 2 menit) |
 | cookie `pm_device` | ID perangkat (httpOnly, dibuat proxy) |
-| `src/lib/sesi.ts` | Cache versi sesi (3 detik), deteksi sesi lain, catat aktivitas, format waktu |
+| `src/lib/sesi.ts` | Cache versi sesi (3 detik), catat aktivitas, format waktu |
 | `src/lib/auth.ts` | `authorize` naikkan versi; `jwt` cek versi + catat aktivitas; `session` expose `takenOver` |
 | `src/proxy.ts` | Enforcement: `takenOver` -> `/login?takenOver=1`; set cookie `pm_device` |
 
-Catatan: deteksi memakai `last_seen_at` (fallback `last_login_at`) sehingga sesi
-lama yang masih benar-benar dipakai tetap memicu konfirmasi walau loginnya sudah
-lebih dari 15 menit lalu.
+Catatan: tidak ada langkah konfirmasi tambahan saat login. Sesi lama langsung
+dianggap tidak berlaku pada request berikutnya dan diarahkan ke
+`/login?takenOver=1` yang menampilkan banner "sesi diambil alih".
 
 Catatan: enforcement dilakukan di **proxy** sehingga request lama (termasuk POST
 server action) dialihkan ke login **sebelum** aksi dieksekusi. Role yang sudah

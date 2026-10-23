@@ -6,31 +6,20 @@ import { signIn } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { createLog } from "@/lib/log"
 import { checkRateLimit, recordFailedAttempt, resetRateLimit } from "@/lib/rate-limiter"
-import { COOKIE_PERANGKAT, sesiLainKemungkinanAktif, waktuLoginLabel } from "@/lib/sesi"
+import { COOKIE_PERANGKAT } from "@/lib/sesi"
 
 export type LoginState = {
   error: string
   success: boolean
-  perluKonfirmasi: boolean
-  info: string
 }
 
 const STATE_AWAL: LoginState = {
   error: "",
   success: false,
-  perluKonfirmasi: false,
-  info: "",
 }
 
 type HasilValidasi =
-  | {
-      user: {
-        id: number
-        lastLoginAt: Date | null
-        lastSeenAt: Date | null
-        lastLoginDevice: string | null
-      }
-    }
+  | { user: { id: number; lastLoginDevice: string | null } }
   | { databaseError: true }
   | null
 
@@ -52,8 +41,6 @@ async function validasiKredensial(username: string, password: string): Promise<H
         username: true,
         password: true,
         status: true,
-        lastLoginAt: true,
-        lastSeenAt: true,
         lastLoginDevice: true,
       },
     })
@@ -66,8 +53,6 @@ async function validasiKredensial(username: string, password: string): Promise<H
     return {
       user: {
         id: user.id,
-        lastLoginAt: user.lastLoginAt,
-        lastSeenAt: user.lastSeenAt,
         lastLoginDevice: user.lastLoginDevice,
       },
     }
@@ -86,7 +71,6 @@ export async function loginAction(
 ): Promise<LoginState> {
   const username = (formData.get("username") as string) ?? ""
   const password = (formData.get("password") as string) ?? ""
-  const ambilAlih = formData.get("takeover") === "1"
 
   // Check rate limit BEFORE doing anything else
   const rateCheck = checkRateLimit(username)
@@ -114,27 +98,11 @@ export async function loginAction(
   }
 
   const deviceId = (await cookies()).get(COOKIE_PERANGKAT)?.value ?? null
-
-  // Ada sesi lain yang kemungkinan masih hidup (login dari perangkat lain).
-  // Minta konfirmasi dulu sebelum sesi tersebut dibatalkan.
-  // `lastSeenAt` diutamakan: sesi yang masih dipakai akan terus diperbarui,
-  // jadi login lama yang masih aktif juga terdeteksi (bukan hanya <15 menit).
-  if (
-    !ambilAlih &&
-    sesiLainKemungkinanAktif(
-      hasilValidasi.user.lastSeenAt ?? hasilValidasi.user.lastLoginAt,
-      hasilValidasi.user.lastLoginDevice,
-      deviceId
-    )
-  ) {
-    return {
-      ...STATE_AWAL,
-      perluKonfirmasi: true,
-      info: `Sesi aktif terdeteksi. Login terakhir akun ini ${waktuLoginLabel(
-        hasilValidasi.user.lastLoginAt as Date
-      )} dari perangkat lain. Melanjutkan akan mengeluarkan sesi tersebut.`,
-    }
-  }
+  // Login baru langsung mengambil alih sesi (sesi lama dikeluarkan oleh
+  // sessionVersion). Perbedaan perangkat hanya dicatat untuk audit log.
+  const menggantikanSesiLain =
+    Boolean(hasilValidasi.user.lastLoginDevice) &&
+    hasilValidasi.user.lastLoginDevice !== deviceId
 
   try {
     const result = await signIn('credentials', {
@@ -153,8 +121,8 @@ export async function loginAction(
     resetRateLimit(username)
     await createLog(
       'LOGIN',
-      ambilAlih
-        ? `User ${username} login ke sistem (mengambil alih sesi di perangkat lain)`
+      menggantikanSesiLain
+        ? `User ${username} login ke sistem (menggantikan sesi di perangkat lain)`
         : `User ${username} login ke sistem`
     )
     return { ...STATE_AWAL, success: true }

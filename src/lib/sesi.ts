@@ -15,12 +15,6 @@ export const COOKIE_PERANGKAT = "pm_device"
 /** Umur cache versi sesi (ms). Menghindari satu query DB untuk setiap request. */
 const TTL_CACHE_MS = 3000
 
-/**
- * Rentang waktu aktivitas terakhir yang masih dianggap "sesi aktif" (15 menit).
- * Dipakai untuk mendeteksi login dari perangkat lain sebelum sesi dibuat.
- */
-export const AMBANG_SESI_AKTIF_MS = 15 * 60 * 1000
-
 /** Jarak minimal antar penulisan `last_seen_at` per user (ms). */
 const TTL_AKTIVITAS_MS = 2 * 60 * 1000
 
@@ -74,30 +68,4 @@ export async function catatAktivitasSesi(userId: number): Promise<void> {
   } catch {
     // best effort — kegagalan pencatatan aktivitas tidak boleh menggagalkan request
   }
-}
-
-/**
- * True bila ada kemungkinan sesi lain masih hidup: sesi terakhir masih
- * aktif dalam ambang waktu dan dipakai dari perangkat yang berbeda.
- */
-export function sesiLainKemungkinanAktif(
-  terakhirAktif: Date | null,
-  lastLoginDevice: string | null,
-  deviceId: string | null
-): boolean {
-  if (!terakhirAktif) return false
-  if (Date.now() - terakhirAktif.getTime() > AMBANG_SESI_AKTIF_MS) return false
-  if (lastLoginDevice && deviceId && lastLoginDevice === deviceId) return false
-  return true
-}
-
-/** Format waktu login terakhir untuk ditampilkan pada dialog konfirmasi. */
-export function waktuLoginLabel(lastLoginAt: Date): string {
-  const selisihMenit = Math.max(0, Math.floor((Date.now() - lastLoginAt.getTime()) / 60000))
-  if (selisihMenit < 1) return "beberapa detik yang lalu"
-  if (selisihMenit < 60) return `${selisihMenit} menit yang lalu`
-  const selisihJam = Math.floor(selisihMenit / 60)
-  if (selisihJam < 24) return `${selisihJam} jam yang lalu`
-  const selisihHari = Math.floor(selisihJam / 24)
-  return `${selisihHari} hari yang lalu`
 }

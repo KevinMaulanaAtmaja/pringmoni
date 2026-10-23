@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef, useState, startTransition } from "react"
+import { useActionState, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { loginAction } from '@/app/actions/login'
@@ -8,21 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Eye, EyeOff, ShieldAlert } from "lucide-react"
 
 const initialState = {
   error: '',
   success: false,
-  perluKonfirmasi: false,
-  info: '',
 }
 
 export default function LoginPage() {
@@ -30,9 +20,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [konfirmasiBuka, setKonfirmasiBuka] = useState(false)
   const [sesiDiambilAlih, setSesiDiambilAlih] = useState(false)
-  const formRef = useRef<HTMLFormElement>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -50,23 +38,6 @@ export default function LoginPage() {
       return () => clearTimeout(timer)
     }
   }, [])
-
-  // Munculkan dialog konfirmasi setiap server action mengembalikan perluKonfirmasi
-  useEffect(() => {
-    if (!state.perluKonfirmasi) return
-    const timer = setTimeout(() => setKonfirmasiBuka(true), 0)
-    return () => clearTimeout(timer)
-  }, [state])
-
-  const handleAmbilAlih = () => {
-    const form = formRef.current
-    if (!form) return
-    const data = new FormData(form)
-    data.set('takeover', '1')
-    startTransition(() => {
-      formAction(data)
-    })
-  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 md:p-8 overflow-y-auto">
@@ -87,7 +58,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form action={formAction} ref={formRef} className="space-y-4">
+          <form action={formAction} className="space-y-4">
             {state?.error && !state.success && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg">
                 {state.error}
@@ -152,29 +123,6 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
-
-      <Dialog open={konfirmasiBuka} onOpenChange={setKonfirmasiBuka}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Sesi aktif terdeteksi</DialogTitle>
-            <DialogDescription>
-              {state.info || "Akun ini sedang digunakan di perangkat lain."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setKonfirmasiBuka(false)}
-              disabled={isPending}
-            >
-              Batal
-            </Button>
-            <Button onClick={handleAmbilAlih} disabled={isPending}>
-              {isPending ? "Memproses..." : "Ambil Alih & Masuk"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

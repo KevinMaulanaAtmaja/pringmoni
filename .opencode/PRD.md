@@ -60,18 +60,17 @@
 | PBI-1.2 | CRUD User | Done |
 | PBI-1.3 | CRUD Meja (token unik) | Done |
 | PBI-1.4 | CRUD Menu (kategori, foto) | Done |
-| PBI-1.5 | Ambil alih sesi login antar perangkat (dengan konfirmasi) | Done |
+| PBI-1.5 | Ambil alih sesi login antar perangkat (tanpa langkah konfirmasi tambahan) | Done |
 
 > Catatan PBI-1.4: Menu tidak lagi punya "mode manual" — ketersediaan mengacu pada resep (lihat Modul 6).
 >
-> Catatan PBI-1.5: Saat akun yang sama login lagi dari perangkat lain, sistem
-> **minta konfirmasi dulu** ("Sesi aktif terdeteksi") sebelum sesi lama
-> dibatalkan. Setiap akun punya `users.session_version` yang naik tiap login;
-> JWT lama yang versinya tidak cocok otomatis ditandai `takenOver` dan
-> **proxy** mengalihkan perangkat lama ke `/login?takenOver=1`. Deteksi
-> "perangkat lain" memakai cookie `pm_device` + `users.last_login_at`
-> (ambang 10 menit) — sehingga login ulang di perangkat yang sama tidak
-> menghasilkan prompt. Sumber: `src/lib/sesi.ts`, `src/lib/auth.ts`,
+> Catatan PBI-1.5: Login baru **langsung mengambil alih** sesi akun (tanpa dialog
+> konfirmasi tambahan). Setiap akun punya `users.session_version` yang naik tiap
+> login; JWT lama yang versinya tidak cocok otomatis ditandai `takenOver` dan
+> **proxy** mengalihkan perangkat lama ke `/login?takenOver=1` (banner
+> "sesi diambil alih"). Perbedaan perangkat (`cookie pm_device`) hanya dicatat
+> untuk audit log, sedangkan `users.last_seen_at` menyimpan aktivitas terakhir
+> sesi. Sumber: `src/lib/sesi.ts`, `src/lib/auth.ts`,
 > `src/app/actions/login.ts`, `src/proxy.ts`.
 
 ### Modul 2: Pesanan
