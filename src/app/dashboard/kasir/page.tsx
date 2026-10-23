@@ -156,9 +156,12 @@ export default function KasirPage() {
     return true
   })
 
-  const totalPendapatan = pesananRiwayatFiltered.reduce((sum, p) => sum + (p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0)), 0)
-  const jumlahQRIS = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'qris').length
-  const jumlahTunai = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'tunai').length
+  // Ringkasan pendapatan hanya dari transaksi berhasil — pesanan yang
+  // dibatalkan/refund tetap tampil di tabel tapi bukan pemasukan.
+  const riwayatBerhasil = pesananRiwayatFiltered.filter(p => p.statusPembayaran === 'berhasil')
+  const totalPendapatan = riwayatBerhasil.reduce((sum, p) => sum + (p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0)), 0)
+  const jumlahQRIS = riwayatBerhasil.filter(p => p.metodePembayaran === 'qris').length
+  const jumlahTunai = riwayatBerhasil.filter(p => p.metodePembayaran === 'tunai').length
 
   const [riwayatPage, setRiwayatPage] = useState(1)
   const riwayatPerPage = 10
