@@ -466,7 +466,7 @@ export default function KasirPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full min-w-0 max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Kelola Kasir</h1>
 
       {!isOwner && (
@@ -785,18 +785,18 @@ export default function KasirPage() {
             </div>
 
           <div>
-          <div className="bg-white rounded-xl border overflow-x-auto">
+          <div className="bg-white rounded-xl border">
             <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-base">No. Pesanan</TableHead>
-                    <TableHead className="text-base">Meja</TableHead>
-                    <TableHead className="text-base">Metode</TableHead>
-                    <TableHead className="text-base">Kasir</TableHead>
-                    <TableHead className="text-base">Total</TableHead>
-                    <TableHead className="text-base">Status</TableHead>
-                    <TableHead className="text-base">Waktu</TableHead>
-                    <TableHead className="text-base text-right">Aksi</TableHead>
+                    <TableHead className="text-sm">No. Pesanan</TableHead>
+                    <TableHead className="text-sm">Meja</TableHead>
+                    <TableHead className="hidden sm:table-cell text-sm">Metode</TableHead>
+                    <TableHead className="hidden lg:table-cell text-sm">Kasir</TableHead>
+                    <TableHead className="text-sm">Total</TableHead>
+                    <TableHead className="text-sm">Status</TableHead>
+                    <TableHead className="hidden lg:table-cell text-sm">Waktu</TableHead>
+                    <TableHead className="text-sm text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
               <TableBody>
@@ -809,27 +809,27 @@ export default function KasirPage() {
                 ) : (
                   paginatedRiwayat.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-mono text-xs">{nomorPesanan(p.id, p.createdAt)}</TableCell>
-                      <TableCell className="text-base">{p.nomorMeja}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-mono text-xs whitespace-nowrap">{nomorPesanan(p.id, p.createdAt)}</TableCell>
+                      <TableCell className="text-sm">{p.nomorMeja}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         {p.statusPembayaran === 'dibatalkan' ? (
-                          <Badge className="bg-red-100 text-red-800 border-red-300 text-base px-3 py-1">-</Badge>
+                          <Badge className="bg-red-100 text-red-800 border-red-300 text-xs px-2 py-0.5">-</Badge>
                         ) : p.metodePembayaran ? (
-                          <Badge className={`${metodeColors[p.metodePembayaran as MetodePembayaran]} text-base px-3 py-1`}>
+                          <Badge className={`${metodeColors[p.metodePembayaran as MetodePembayaran]} text-xs px-2 py-0.5`}>
                             {metodeLabels[p.metodePembayaran as MetodePembayaran]}
                           </Badge>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-base">{p.kasirUsername || "-"}</TableCell>
-                      <TableCell className="font-bold text-lg">{formatRupiah(p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0))}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">{p.kasirUsername || "-"}</TableCell>
+                      <TableCell className="font-bold text-sm whitespace-nowrap">{formatRupiah(p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0))}</TableCell>
                         <TableCell>
-                          <Badge className={`${statusBayarColors[p.statusPembayaran as StatusBayar]} text-base px-3 py-1`}>
+                          <Badge className={`${statusBayarColors[p.statusPembayaran as StatusBayar]} text-xs px-2 py-0.5 whitespace-nowrap`}>
                             {statusBayarLabels[p.statusPembayaran as StatusBayar] || p.statusPembayaran}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-base">
+                        <TableCell className="hidden lg:table-cell text-sm whitespace-nowrap">
                           {formatWaktu(p.updatedAt || p.createdAt)}
                         </TableCell>
                       <TableCell className="text-right">
@@ -837,16 +837,17 @@ export default function KasirPage() {
                           {role === 'cashier' && p.statusPembayaran === 'berhasil' && p.statusPesanan !== 'dibatalkan' && (
                             <Button
                               variant="outline"
-                              size="lg"
+                              size="sm"
                               onClick={() => setRefundTarget(p)}
                             >
-                              <Undo2 className="w-5 h-5 mr-1" />Refund
+                              <Undo2 className="w-4 h-4" />
+                              <span className="hidden xl:inline">Refund</span>
                             </Button>
                           )}
                           {p.statusPembayaran === "berhasil" && (
                             <Button
                               variant="outline"
-                              size="lg"
+                              size="sm"
                               onClick={() => printStruk({
                                 id: p.id,
                                 nomorMeja: p.nomorMeja,
@@ -866,11 +867,13 @@ export default function KasirPage() {
                                 namaPelanggan: p.namaPelanggan,
                               })}
                             >
-                              <Printer className="w-5 h-5 mr-1" />Cetak
+                              <Printer className="w-4 h-4" />
+                              <span className="hidden xl:inline">Cetak</span>
                             </Button>
                           )}
-                          <Button variant="outline" size="lg" onClick={() => openDetail(p)}>
-                            <Eye className="w-5 h-5 mr-2" />Detail
+                          <Button variant="outline" size="sm" onClick={() => openDetail(p)}>
+                            <Eye className="w-4 h-4" />
+                            <span className="hidden xl:inline">Detail</span>
                           </Button>
                         </div>
                       </TableCell>
