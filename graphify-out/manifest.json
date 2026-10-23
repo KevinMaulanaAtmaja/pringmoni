@@ -48,9 +48,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1792631313.4460528,
-    "seen": 1792633675.1130586,
-    "ast_hash": "ac545cb9470f3fb52ef9338750f1705c",
+    "mtime": 1792741081.624625,
+    "seen": 1792754679.3209157,
+    "ast_hash": "cb73a27f3e9f63b122f6eecbac13e08e",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -1206,9 +1206,9 @@
     "semantic_hash": ""
   },
   "src/components/kasir/ShiftKasirPanel.tsx": {
-    "mtime": 1792734054.0316806,
-    "seen": 1792734158.9246387,
-    "ast_hash": "18f3f9638fedae4ea4793fe4203d64b5",
+    "mtime": 1792745463.122873,
+    "seen": 1792754679.3229148,
+    "ast_hash": "1583e31babe01357b96f603dcd781edf",
     "semantic_hash": ""
   },
   "src/components/kasir/ShiftSidebarStatus.tsx": {
@@ -1557,6 +1557,12 @@
     "mtime": 1792728589.8104107,
     "seen": 1792728917.337838,
     "ast_hash": "fb75b0f6955eea06fb4f49d5c6db2c83",
+    "semantic_hash": ""
+  },
+  "src/components/ui/switch.tsx": {
+    "mtime": 1792741084.5404248,
+    "seen": 1792754679.3229148,
+    "ast_hash": "dd28ea182d137c4be5d717f96cee80d2",
     "semantic_hash": ""
   }
 }
