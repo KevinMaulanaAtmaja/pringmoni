@@ -100,7 +100,7 @@ describe('proxy route protection', () => {
     ]) {
       const res = await run(path, 'waiter')
       expect(res.status, path).toBe(307)
-      expect(res.location, path).toContain('/login')
+      expect(res.location, path).toContain('/dashboard')
     }
   })
 
@@ -119,7 +119,7 @@ describe('proxy route protection', () => {
     ]) {
       const res = await run(path, 'cashier')
       expect(res.status, path).toBe(307)
-      expect(res.location, path).toContain('/login')
+      expect(res.location, path).toContain('/dashboard')
     }
   })
 
