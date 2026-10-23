@@ -8,6 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Eye, EyeOff, ShieldAlert } from "lucide-react"
 
 const initialState = {
@@ -30,13 +38,15 @@ export default function LoginPage() {
     }
   }, [state.success, router])
 
-  // Sesi ini sebelumnya digantikan login dari perangkat lain (proxy mengarahkan ke ?takenOver=1)
+  // Sesi ini sebelumnya digantikan login dari perangkat lain (proxy mengarahkan
+  // ke ?takenOver=1). Dialog hanya tampil sekali: parameter URL langsung
+  // dibersihkan supaya tidak muncul lagi saat halaman di-refresh.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('takenOver') === '1') {
-      const timer = setTimeout(() => setSesiDiambilAlih(true), 0)
-      return () => clearTimeout(timer)
-    }
+    if (params.get('takenOver') !== '1') return
+    const timer = setTimeout(() => setSesiDiambilAlih(true), 0)
+    window.history.replaceState(null, '', '/login')
+    return () => clearTimeout(timer)
   }, [])
 
   return (
@@ -49,15 +59,6 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-2 px-4 md:px-8">
-          {sesiDiambilAlih && (
-            <div className="mb-4 p-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-              <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>
-                Sesi Anda sebelumnya telah diambil alih oleh login lain. Silakan login kembali dengan akun Anda.
-              </span>
-            </div>
-          )}
-
           <form action={formAction} className="space-y-4">
             {state?.error && !state.success && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg">
@@ -123,6 +124,26 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={sesiDiambilAlih} onOpenChange={setSesiDiambilAlih}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <ShieldAlert className="h-5 w-5 text-amber-600" />
+              Sesi diambil alih
+            </DialogTitle>
+            <DialogDescription>
+              Akun ini baru saja dipakai login di perangkat lain, sehingga sesi
+              Anda di perangkat ini telah berakhir. Silakan login kembali.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button className="w-full" onClick={() => setSesiDiambilAlih(false)}>
+              Mengerti
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

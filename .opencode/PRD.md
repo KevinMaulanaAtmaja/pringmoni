@@ -67,8 +67,9 @@
 > Catatan PBI-1.5: Login baru **langsung mengambil alih** sesi akun (tanpa dialog
 > konfirmasi tambahan). Setiap akun punya `users.session_version` yang naik tiap
 > login; JWT lama yang versinya tidak cocok otomatis ditandai `takenOver` dan
-> **proxy** mengalihkan perangkat lama ke `/login?takenOver=1` (banner
-> "sesi diambil alih"). Perbedaan perangkat (`cookie pm_device`) hanya dicatat
+> **proxy** mengalihkan perangkat lama ke `/login?takenOver=1` yang menampilkan
+> **dialog sekali** "Sesi diambil alih" (URL lalu dibersihkan agar tidak
+> berulang saat refresh). Perbedaan perangkat (`cookie pm_device`) hanya dicatat
 > untuk audit log, sedangkan `users.last_seen_at` menyimpan aktivitas terakhir
 > sesi. Sumber: `src/lib/sesi.ts`, `src/lib/auth.ts`,
 > `src/app/actions/login.ts`, `src/proxy.ts`.

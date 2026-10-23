@@ -131,7 +131,8 @@ Request berikutnya -> jwt callback bandingkan versi token vs DB
 
 Catatan: tidak ada langkah konfirmasi tambahan saat login. Sesi lama langsung
 dianggap tidak berlaku pada request berikutnya dan diarahkan ke
-`/login?takenOver=1` yang menampilkan banner "sesi diambil alih".
+`/login?takenOver=1`, yang menampilkan **dialog sekali** "Sesi diambil alih"
+(parameter URL langsung dibersihkan sehingga tidak muncul lagi saat refresh).
 
 Catatan: enforcement dilakukan di **proxy** sehingga request lama (termasuk POST
 server action) dialihkan ke login **sebelum** aksi dieksekusi. Role yang sudah
