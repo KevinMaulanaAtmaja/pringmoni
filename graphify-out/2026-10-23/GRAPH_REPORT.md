@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b60aef64`
+- Built from commit: `15140dcb`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -143,12 +143,12 @@
   .opencode/PROGRESS.md → src/app/actions/dashboard.ts
 - `6. Komponen (shadcn/ui)` --references--> `cn()`  [INFERRED]
   .opencode/DESIGN.md → src/lib/utils.ts
+- `Priority Test` --references--> `createMenu()`  [INFERRED]
+  .opencode/agent/tester.md → src/app/actions/menu.ts
 - `3. Delay navigasi halaman (loading.tsx)` --references--> `PageLoader()`  [INFERRED]
   .opencode/PROGRESS.md → src/components/ui/page-loader.tsx
 - `6. Komponen (shadcn/ui)` --references--> `Input()`  [INFERRED]
   .opencode/DESIGN.md → src/components/ui/input.tsx
-- `Priority Test` --references--> `createMenu()`  [INFERRED]
-  .opencode/agent/tester.md → src/app/actions/menu.ts
 
 ## Import Cycles
 - None detected.
@@ -524,20 +524,20 @@ Cohesion: 0.10
 Nodes (26): class-variance-authority, @hugeicons/core-free-icons, @hugeicons/react, radix-ui, CardAction(), CardFooter(), Checkbox(), DropdownMenuCheckboxItem() (+18 more)
 
 ## Knowledge Gaps
-- **725 isolated node(s):** `SaranUangAwal`, `SlotSaatIni`, `HasilShiftAktif`, `RingkasanTutup`, `HasilTutupShift` (+720 more)
+- **725 isolated node(s):** `metodeLabels`, `metodeIcons`, `statusBayarColors`, `statusBayarLabels`, `metodeColors` (+720 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 863 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `cn` to `kasir/page.tsx`, `PageLoader`, `cart-sheet.tsx`, `Button`, `stok-bahan/page.tsx`, `Card`, `menu/page.tsx`, `app/layout.tsx`?**
-  _High betweenness centrality (0.056) - this node is a cross-community bridge._
 - **Why does `react` connect `react` to `package.json`, `kasir/page.tsx`, `[tokenMeja]/page.tsx`, `actions/shift.ts`, `pesanan.ts`, `meja/page.tsx`, `LaporanClient.tsx`, `resep-menu-dialog.tsx`, `Card`, `Button`, `stok-bahan/page.tsx`, `cart-sheet.tsx`, `StaleNotificationBell.tsx`, `category-icon.tsx`, `menu/page.tsx`, `pembayaran/[metode]/page.tsx`, `ResepClient.tsx`, `cn`?**
-  _High betweenness centrality (0.048) - this node is a cross-community bridge._
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
 - **Why does `lucide-react` connect `Button` to `actions/shift.ts`, `src/types/index.ts`, `LaporanClient.tsx`, `cart-sheet.tsx`, `StaleNotificationBell.tsx`, `dashboard.ts`, `GrafikPeakHours.tsx`, `pembayaran/[metode]/page.tsx`, `ResepClient.tsx`, `package.json`, `kasir/page.tsx`, `meja/page.tsx`, `GrafikMenu.tsx`, `resep-menu-dialog.tsx`, `stok-bahan/page.tsx`, `menu/page.tsx`, `[tokenMeja]/page.tsx`, `PerbandinganCard.tsx`, `Card`?**
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `dependencies` to `package.json`?**
   _High betweenness centrality (0.047) - this node is a cross-community bridge._
-- **What connects `SaranUangAwal`, `SlotSaatIni`, `HasilShiftAktif` to the rest of the system?**
+- **What connects `metodeLabels`, `metodeIcons`, `statusBayarColors` to the rest of the system?**
   _725 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `seed-2025.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.11333333333333333 - nodes in this community are weakly interconnected._
