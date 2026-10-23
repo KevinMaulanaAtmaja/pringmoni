@@ -118,6 +118,11 @@ export function ShiftKasirPanel({
 
   const [dialogBuka, setDialogBuka] = useState(false)
   const [dialogTutup, setDialogTutup] = useState(false)
+  const [dialogReopen, setDialogReopen] = useState(false)
+  const [reopenInfo, setReopenInfo] = useState<{
+    pesan: string
+    shiftTertutup: { id: number; waktuKeluar: string | null; uangAkhir: number | null }
+  } | null>(null)
   const [uangAwal, setUangAwal] = useState("")
   const [uangAkhir, setUangAkhir] = useState("")
   const [keterangan, setKeterangan] = useState("")
@@ -181,7 +186,7 @@ export function ShiftKasirPanel({
   const saran = data.saranUangAwal
   const modalDariSaran = saran !== null && sumberShiftId === saran.shiftId
 
-  async function submitBuka() {
+  async function submitBuka(konfirmasiReopen = false) {
     const nominal = Number(uangAwal.replace(/\D/g, ""))
     if (!nominal || nominal <= 0) {
       setError("Masukkan uang awal lebih dari 0")
@@ -190,15 +195,25 @@ export function ShiftKasirPanel({
 
     setSubmitting(true)
     setError(null)
-    const hasil = await bukaShift(nominal, sumberShiftId)
+    const hasil = await bukaShift(nominal, sumberShiftId, konfirmasiReopen)
     setSubmitting(false)
+
+    if ("perluKonfirmasiReopen" in hasil) {
+      setReopenInfo({ pesan: hasil.pesan, shiftTertutup: hasil.shiftTertutup })
+      setDialogBuka(false)
+      setDialogReopen(true)
+      return
+    }
 
     if ('error' in hasil) {
       setError(hasil.error)
+      setDialogBuka(true)
       return
     }
 
     setDialogBuka(false)
+    setDialogReopen(false)
+    setReopenInfo(null)
     setUangAwal("")
     setSumberShiftId(null)
     setRingkasan(null)
@@ -423,7 +438,7 @@ export function ShiftKasirPanel({
                     Kasir <span className="font-semibold">{saran.dariKasir}</span>{" "}
                     menutup shift dengan uang akhir{" "}
                     <span className="font-semibold">{rupiah(saran.nominal)}</span>.
-                    Ambil uang tersebut dari laci sebagai uang awal shift Anda.
+                    Ambil uang tersebut dari laci sebagai uang awal shift Anda (uang akhir sudah termasuk modal awal kasir sebelumnya).
                   </p>
                 </div>
               </div>
@@ -478,6 +493,11 @@ export function ShiftKasirPanel({
                   {rupiah(Number(uangAwal))}
                 </p>
               )}
+              <p className="text-xs text-gray-500">
+                Boleh isi nominal sendiri bila ada penyesuaian uang kembalian.
+                Uang akhir kasir sebelumnya sudah termasuk modal awalnya — jangan
+                ditambahkan lagi.
+              </p>
             </div>
 
             {saran && (
@@ -551,11 +571,69 @@ export function ShiftKasirPanel({
               Batal
             </Button>
             <Button
-              onClick={submitBuka}
+              onClick={() => submitBuka()}
               disabled={submitting}
               className="flex-1 bg-green-700 hover:bg-green-800"
             >
               {submitting ? "Menyimpan..." : "Buka Shift"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Konfirmasi buka ulang shift di slot yang sudah ditutup hari ini */}
+      <Dialog open={dialogReopen} onOpenChange={setDialogReopen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Buka ulang shift?</DialogTitle>
+            <DialogDescription>
+              Slot jadwal ini sudah kamu tutup hari ini. Membuka lagi akan membuat
+              shift baru dan tercatat di log sebagai buka ulang.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              {reopenInfo?.pesan}
+            </div>
+            <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Uang awal shift baru</span>
+                <span className="font-semibold">{rupiah(Number(uangAwal || 0))}</span>
+              </div>
+              {reopenInfo?.shiftTertutup.uangAkhir != null && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Uang akhir shift sebelumnya</span>
+                  <span className="font-semibold">
+                    {rupiah(reopenInfo.shiftTertutup.uangAkhir)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogReopen(false)
+                setReopenInfo(null)
+                setDialogBuka(true)
+              }}
+              className="flex-1"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                setDialogReopen(false)
+                setReopenInfo(null)
+                submitBuka(true)
+              }}
+              disabled={submitting}
+              className="flex-1 bg-amber-600 hover:bg-amber-700"
+            >
+              {submitting ? "Menyimpan..." : "Ya, buka ulang"}
             </Button>
           </DialogFooter>
         </DialogContent>

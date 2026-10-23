@@ -48,6 +48,15 @@ type HasilTutupShift =
   | { warning: string; sisaPesanan: number }
   | { error: string }
 
+type HasilBukaShift =
+  | { success: true; shiftId: number }
+  | {
+      perluKonfirmasiReopen: true
+      pesan: string
+      shiftTertutup: { id: number; waktuKeluar: string | null; uangAkhir: number | null }
+    }
+  | { error: string }
+
 const selectShift = {
   id: true,
   kasirId: true,
@@ -221,8 +230,9 @@ export async function getShiftAktif(): Promise<HasilShiftAktif | { error: string
 
 export async function bukaShift(
   uangAwal: number,
-  sumberShiftId?: number | null
-): Promise<{ success: true; shiftId: number } | { error: string }> {
+  sumberShiftId?: number | null,
+  konfirmasiReopen = false
+): Promise<HasilBukaShift> {
   try {
     const session = await auth()
     if (!session?.user) return { error: "Unauthorized" }
@@ -272,6 +282,32 @@ export async function bukaShift(
       }
     }
 
+    // Kasir yang sudah menutup shift di slot ini hari ini boleh membuka lagi,
+    // tapi harus dikonfirmasi dulu dan dicatat sebagai REOPEN_SHIFT.
+    const shiftTertutupHariIni = await prisma.shiftKasir.findFirst({
+      where: {
+        kasirId,
+        jadwalShiftId: slot.id,
+        statusShift: "CLOSED",
+        tanggal: tanggalShiftSekarang(),
+      },
+      orderBy: { waktuKeluar: "desc" },
+      select: { id: true, waktuKeluar: true, uangAkhir: true },
+    })
+    if (shiftTertutupHariIni && !konfirmasiReopen) {
+      return {
+        perluKonfirmasiReopen: true,
+        pesan: `Kamu sudah menutup shift slot ${slot.nama} hari ini (uang akhir Rp${Number(
+          shiftTertutupHariIni.uangAkhir ?? 0
+        ).toLocaleString("id-ID")}). Buka lagi?`,
+        shiftTertutup: {
+          id: shiftTertutupHariIni.id,
+          waktuKeluar: shiftTertutupHariIni.waktuKeluar?.toISOString() ?? null,
+          uangAkhir: shiftTertutupHariIni.uangAkhir ? Number(shiftTertutupHariIni.uangAkhir) : null,
+        },
+      }
+    }
+
     let sumberValid: number | null = null
     if (sumberShiftId != null) {
       const sumber = await prisma.shiftKasir.findUnique({
@@ -308,6 +344,17 @@ export async function bukaShift(
         sumberValid ? ` (dari serah terima shift #${sumberValid})` : ""
       }`
     )
+
+    if (shiftTertutupHariIni) {
+      // Tetap memakai aksi OPEN_SHIFT agar kompatibel dengan enum database;
+      // kata "dibuka ulang" membuat entri ini mudah difilter di halaman log.
+      await createLog(
+        "OPEN_SHIFT",
+        `Shift kasir dibuka ulang oleh ${session.user.username} pada slot ${slot.nama} — shift #${shiftTertutupHariIni.id} sebelumnya sudah ditutup hari ini (uang akhir Rp${Number(
+          shiftTertutupHariIni.uangAkhir ?? 0
+        ).toLocaleString("id-ID")})`
+      )
+    }
 
     revalidatePath("/dashboard/kasir")
     revalidatePath("/dashboard/shift")
