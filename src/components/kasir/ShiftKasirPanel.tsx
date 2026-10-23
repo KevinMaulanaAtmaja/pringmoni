@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import {
   Banknote,
   CheckCircle2,
@@ -130,6 +132,7 @@ export function ShiftKasirPanel({
   const [error, setError] = useState<string | null>(null)
   const [ringkasan, setRingkasan] = useState<RingkasanTutupShift | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [pakaiSisaSebelumnya, setPakaiSisaSebelumnya] = useState(true)
   const ringkasanSudahInit = useRef(false)
 
   // Catatan tutup shift hanya hilang saat kasir menekan tombol X.
@@ -195,7 +198,8 @@ export function ShiftKasirPanel({
 
     setSubmitting(true)
     setError(null)
-    const hasil = await bukaShift(nominal, sumberShiftId, konfirmasiReopen)
+    const sumber = pakaiSisaSebelumnya ? sumberShiftId : null
+    const hasil = await bukaShift(nominal, sumber, konfirmasiReopen)
     setSubmitting(false)
 
     if ("perluKonfirmasiReopen" in hasil) {
@@ -216,6 +220,7 @@ export function ShiftKasirPanel({
     setReopenInfo(null)
     setUangAwal("")
     setSumberShiftId(null)
+    setPakaiSisaSebelumnya(true)
     setRingkasan(null)
     await muatShift()
     onShiftChange?.()
@@ -262,9 +267,16 @@ export function ShiftKasirPanel({
     setDialogTutup(true)
   }
 
-  function bukaDialogBuka(pakaiSaran = false) {
-    setUangAwal(pakaiSaran && saran ? String(saran.nominal) : "")
-    setSumberShiftId(pakaiSaran && saran ? saran.shiftId : null)
+  function bukaDialogBuka(pakaiSaranArg = false) {
+    if (pakaiSaranArg && saran) {
+      setUangAwal(String(saran.nominal))
+      setSumberShiftId(saran.shiftId)
+      setPakaiSisaSebelumnya(true)
+    } else {
+      setUangAwal("")
+      setSumberShiftId(null)
+      setPakaiSisaSebelumnya(true)
+    }
     setError(null)
     setDialogBuka(true)
   }
@@ -273,6 +285,7 @@ export function ShiftKasirPanel({
     if (!saran) return
     setUangAwal(String(saran.nominal))
     setSumberShiftId(saran.shiftId)
+    setPakaiSisaSebelumnya(true)
   }
 
   const selisihPreview = Number(uangAkhir.replace(/\D/g, "")) - uangHarapAkhir
@@ -393,10 +406,9 @@ export function ShiftKasirPanel({
             </div>
           </div>
           <Button
-            variant="outline"
-            size="lg"
             onClick={bukaDialogTutup}
             className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800 shrink-0"
+            variant="outline"
           >
             <LogOut className="w-5 h-5 mr-2" />
             Tutup Shift
@@ -499,6 +511,50 @@ export function ShiftKasirPanel({
                 ditambahkan lagi.
               </p>
             </div>
+
+            {saran && (
+              <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start gap-2">
+                    <HandCoins className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="pakai-sisa" className="text-sm font-semibold text-amber-900">
+                        Gunakan sisa shift sebelumnya
+                      </Label>
+                      <p className="text-xs text-amber-800">
+                        Disarankan dari Shift #{saran.shiftId} (Kasir {saran.dariKasir}) •{" "}
+                        {rupiah(saran.nominal)}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="pakai-sisa"
+                    checked={pakaiSisaSebelumnya}
+                    onCheckedChange={(checked) => {
+                      setPakaiSisaSebelumnya(checked)
+                      if (checked) {
+                        setUangAwal(String(saran.nominal))
+                        setSumberShiftId(saran.shiftId)
+                      } else {
+                        setSumberShiftId(null)
+                        setUangAwal("")
+                        setError(null)
+                      }
+                    }}
+                  />
+                </div>
+                {pakaiSisaSebelumnya && (
+                  <p className="text-xs text-amber-800">
+                    Ini sisa laci dari shift sebelumnya (sudah termasuk modal awal). Bukan patokan wajib — Anda tetap bisa mengedit nominal di atas.
+                  </p>
+                )}
+                {!pakaiSisaSebelumnya && (
+                  <p className="text-xs text-gray-600">
+                    Tidak menggunakan sisa shift sebelumnya. Isi uang awal secara manual sesuai uang fisik di laci saat ini.
+                  </p>
+                )}
+              </div>
+            )}
 
             {saran && (
               <div
