@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useState } from "react"
+import { useActionState, useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { loginAction } from '@/app/actions/login'
@@ -21,14 +21,19 @@ import { Eye, EyeOff, ShieldAlert } from "lucide-react"
 const initialState = {
   error: '',
   success: false,
+  perluKonfirmasi: false,
+  info: '',
 }
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, initialState)
+  const [, startTransition] = useTransition()
   const [showPassword, setShowPassword] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [sesiDiambilAlih, setSesiDiambilAlih] = useState(false)
+  const [batalAlih, setBatalAlih] = useState(false)
+  const konfirmasiAlih = state.perluKonfirmasi && !batalAlih
   const router = useRouter()
 
   useEffect(() => {
@@ -37,6 +42,15 @@ export default function LoginPage() {
       router.refresh()
     }
   }, [state.success, router])
+
+  function ambilAlihSekarang() {
+    const data = new FormData()
+    data.set('username', username)
+    data.set('password', password)
+    data.set('takeover', '1')
+    setBatalAlih(true)
+    startTransition(() => formAction(data))
+  }
 
   // Sesi ini sebelumnya digantikan login dari perangkat lain (proxy mengarahkan
   // ke ?takenOver=1). Dialog hanya tampil sekali: parameter URL langsung
@@ -59,7 +73,11 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-2 px-4 md:px-8">
-          <form action={formAction} className="space-y-4">
+          <form
+            action={formAction}
+            onSubmit={() => setBatalAlih(false)}
+            className="space-y-4"
+          >
             {state?.error && !state.success && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg">
                 {state.error}
@@ -124,6 +142,30 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={konfirmasiAlih} onOpenChange={(open) => !open && setBatalAlih(true)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <ShieldAlert className="h-5 w-5 text-amber-600" />
+              Ambil alih sesi?
+            </DialogTitle>
+            <DialogDescription>{state.info}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setBatalAlih(true)}
+            >
+              Batal
+            </Button>
+            <Button className="flex-1" disabled={isPending} onClick={ambilAlihSekarang}>
+              {isPending ? 'Memproses...' : 'Ya, ambil alih'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={sesiDiambilAlih} onOpenChange={setSesiDiambilAlih}>
         <DialogContent className="max-w-sm">

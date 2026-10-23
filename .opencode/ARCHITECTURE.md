@@ -111,12 +111,15 @@ Roles:
 ### 5.1 Ambil alih sesi (takeover antar perangkat)
 
 ```
-Login -> validasi kredensial (bcrypt) -> langsung buat sesi (tanpa dialog
-         konfirmasi; login baru selalu mengambil alih)
+Login -> validasi kredensial (bcrypt) -> sesi lain masih aktif (last_seen_at
+         < 15 menit & perangkat berbeda)?
+      -> ya: tampilkan SATU dialog "Ambil alih sesi?" (tanpa memanggil signIn)
+      -> tidak / dikonfirmasi: buat sesi (session_version naik)
 Buat sesi -> users.session_version naik -> JWT membawa versi itu
 Request berikutnya -> jwt callback bandingkan versi token vs DB
       -> sama: users.last_seen_at diperbarui (throttle 2 menit) -> sesi masih hidup
-      -> beda: token.takenOver = true -> proxy redirect /login?takenOver=1
+      -> beda: token.takenOver = true -> proxy hapus cookie sesi +
+               redirect /login?takenOver=1 (dialog sekali)
 ```
 
 | Elemen | Fungsi |
@@ -129,9 +132,10 @@ Request berikutnya -> jwt callback bandingkan versi token vs DB
 | `src/lib/auth.ts` | `authorize` naikkan versi; `jwt` cek versi + catat aktivitas; `session` expose `takenOver` |
 | `src/proxy.ts` | Enforcement: `takenOver` -> `/login?takenOver=1`; set cookie `pm_device` |
 
-Catatan: tidak ada langkah konfirmasi tambahan saat login. Sesi lama langsung
-dianggap tidak berlaku pada request berikutnya dan diarahkan ke
-`/login?takenOver=1`, yang menampilkan **dialog sekali** "Sesi diambil alih"
+Catatan: konfirmasi hanya **satu kali** saat menekan tombol Masuk (dialog
+"Ambil alih sesi?"). Setelah dikonfirmasi, sesi lama langsung tidak berlaku
+pada request berikutnya; perangkat lama kehilangan cookie sesi dan diarahkan
+ke `/login?takenOver=1`, yang menampilkan **dialog sekali** "Sesi diambil alih"
 (parameter URL langsung dibersihkan sehingga tidak muncul lagi saat refresh).
 
 Catatan: enforcement dilakukan di **proxy** sehingga request lama (termasuk POST

@@ -84,10 +84,18 @@ export async function proxy(request: NextRequest) {
   const hasValidRole = userRole !== undefined
   const takenOver = session?.user?.takenOver === true
 
-  // Sesi ini sudah digantikan login dari perangkat lain -> arahkan ke login.
-  // Dikecualikan untuk halaman login itu sendiri supaya tidak terjadi redirect loop.
+  // Sesi ini sudah digantikan login dari perangkat lain -> hapus cookie sesi
+  // lalu arahkan ke login. Dikecualikan untuk halaman login itu sendiri supaya
+  // tidak terjadi redirect loop.
   if (takenOver && pathname !== "/login") {
-    return NextResponse.redirect(new URL("/login?takenOver=1", request.url))
+    const url = new URL("/login?takenOver=1", request.url)
+    const res = NextResponse.redirect(url)
+    for (const cookie of request.cookies.getAll()) {
+      if (cookie.name.startsWith("authjs.") || cookie.name.startsWith("__Secure-authjs.")) {
+        res.cookies.delete(cookie.name)
+      }
+    }
+    return res
   }
 
   // Belum login dan bukan route publik -> ke halaman login

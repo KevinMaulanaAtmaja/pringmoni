@@ -60,19 +60,21 @@
 | PBI-1.2 | CRUD User | Done |
 | PBI-1.3 | CRUD Meja (token unik) | Done |
 | PBI-1.4 | CRUD Menu (kategori, foto) | Done |
-| PBI-1.5 | Ambil alih sesi login antar perangkat (tanpa langkah konfirmasi tambahan) | Done |
+| PBI-1.5 | Ambil alih sesi login antar perangkat (satu konfirmasi saat login) | Done |
 
 > Catatan PBI-1.4: Menu tidak lagi punya "mode manual" — ketersediaan mengacu pada resep (lihat Modul 6).
 >
-> Catatan PBI-1.5: Login baru **langsung mengambil alih** sesi akun (tanpa dialog
-> konfirmasi tambahan). Setiap akun punya `users.session_version` yang naik tiap
-> login; JWT lama yang versinya tidak cocok otomatis ditandai `takenOver` dan
-> **proxy** mengalihkan perangkat lama ke `/login?takenOver=1` yang menampilkan
-> **dialog sekali** "Sesi diambil alih" (URL lalu dibersihkan agar tidak
-> berulang saat refresh). Perbedaan perangkat (`cookie pm_device`) hanya dicatat
-> untuk audit log, sedangkan `users.last_seen_at` menyimpan aktivitas terakhir
-> sesi. Sumber: `src/lib/sesi.ts`, `src/lib/auth.ts`,
-> `src/app/actions/login.ts`, `src/proxy.ts`.
+> Catatan PBI-1.5: Saat menekan Masuk, bila sesi akun masih aktif di perangkat
+> lain (`users.last_seen_at` < 15 menit & `cookie pm_device` berbeda), tampil
+> **satu dialog konfirmasi** "Ambil alih sesi?". Setelah dikonfirmasi, login
+> membuat sesi baru dan menaikkan `users.session_version`; JWT lama otomatis
+> ditandai `takenOver`, cookie sesinya dihapus **proxy**, dan perangkat lama
+> diarahkan ke `/login?takenOver=1` yang menampilkan **dialog sekali** "Sesi
+> diambil alih" (URL lalu dibersihkan agar tidak berulang saat refresh).
+> Menekan **Batal** pada dialog tidak dihitung sebagai percobaan gagal — rate
+> limit login hanya mencatat username/password yang salah. Sumber:
+> `src/lib/sesi.ts`, `src/lib/auth.ts`, `src/app/actions/login.ts`, `src/lib/rate-limiter.ts`,
+> `src/proxy.ts`.
 
 ### Modul 2: Pesanan
 | PBI | Deskripsi | Status |
