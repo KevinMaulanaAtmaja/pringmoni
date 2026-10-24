@@ -1,7 +1,7 @@
 # Graph Report - pringmoni  (2026-10-24)
 
 ## Corpus Check
-- 238 files · ~306,280 words
+- 238 files · ~306,431 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `db02f946`
+- Built from commit: `fc88656a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -174,8 +174,8 @@
 3. `MenuPage()` - 49 edges
 4. `StokBahanPage()` - 39 edges
 5. `createLog()` - 37 edges
-6. `MejaPage()` - 34 edges
-7. `ResepMenuDialog()` - 34 edges
+6. `ResepMenuDialog()` - 34 edges
+7. `MejaPage()` - 34 edges
 8. `Input()` - 32 edges
 9. `Card()` - 32 edges
 10. `UsersPage()` - 31 edges
@@ -183,12 +183,12 @@
 ## Surprising Connections (you probably didn't know these)
 - `Priority Test` --references--> `createMenu()`  [INFERRED]
   .opencode/agent/tester.md → src/app/actions/menu.ts
+- `6. Komponen (shadcn/ui)` --references--> `Input()`  [INFERRED]
+  .opencode/DESIGN.md → src/components/ui/input.tsx
 - `6. Komponen (shadcn/ui)` --references--> `cn()`  [INFERRED]
   .opencode/DESIGN.md → src/lib/utils.ts
 - `3. Delay navigasi halaman (loading.tsx)` --references--> `PageLoader()`  [INFERRED]
   .opencode/PROGRESS.md → src/components/ui/page-loader.tsx
-- `6. Komponen (shadcn/ui)` --references--> `Input()`  [INFERRED]
-  .opencode/DESIGN.md → src/components/ui/input.tsx
 - `6. Komponen (shadcn/ui)` --references--> `Select()`  [INFERRED]
   .opencode/DESIGN.md → src/components/ui/select.tsx
 
@@ -566,7 +566,7 @@ Cohesion: 0.11
 Nodes (19): CardAction(), CardFooter(), Checkbox(), DropdownMenuCheckboxItem(), DropdownMenuContent(), DropdownMenuItem(), DropdownMenuLabel(), DropdownMenuRadioItem() (+11 more)
 
 ## Knowledge Gaps
-- **700 isolated node(s):** `SaranUangAwal`, `SlotSaatIni`, `HasilShiftAktif`, `RingkasanTutup`, `HasilTutupShift` (+695 more)
+- **700 isolated node(s):** `SaranUangAwal`, `HasilShiftAktif`, `RingkasanTutupShift`, `CartSheetProps`, `Voucher` (+695 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 844 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **60 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -574,12 +574,12 @@ Nodes (19): CardAction(), CardFooter(), Checkbox(), DropdownMenuCheckboxItem(), 
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `cn()` connect `cn` to `PageLoader`, `Card`, `Button`, `stok-bahan/page.tsx`, `resep-menu-dialog.tsx`, `cart-sheet.tsx`, `meja/page.tsx`, `DashboardClient.tsx`, `app/layout.tsx`, `tabs.tsx`?**
-  _High betweenness centrality (0.055) - this node is a cross-community bridge._
+  _High betweenness centrality (0.048) - this node is a cross-community bridge._
 - **Why does `Button()` connect `Button` to `stok-bahan.ts`, `dashboard/pesanan/page.tsx`, `actions/shift.ts`, `pesanan-baru/page.tsx`, `LaporanClient.tsx`, `Card`, `cart-sheet.tsx`, `stok-bahan/page.tsx`, `resep-menu-dialog.tsx`, `meja/page.tsx`, `DashboardClient.tsx`, `[tokenMeja]/page.tsx`, `pembayaran/[metode]/page.tsx`, `menu/page.tsx`, `cn`?**
-  _High betweenness centrality (0.018) - this node is a cross-community bridge._
+  _High betweenness centrality (0.017) - this node is a cross-community bridge._
 - **Why does `PageLoader()` connect `PageLoader` to `cn`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **What connects `SaranUangAwal`, `SlotSaatIni`, `HasilShiftAktif` to the rest of the system?**
+  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+- **What connects `SaranUangAwal`, `HasilShiftAktif`, `RingkasanTutupShift` to the rest of the system?**
   _700 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `seed-2025.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.11333333333333333 - nodes in this community are weakly interconnected._

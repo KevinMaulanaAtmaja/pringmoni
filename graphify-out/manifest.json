@@ -1206,9 +1206,9 @@
     "semantic_hash": ""
   },
   "src/components/kasir/ShiftKasirPanel.tsx": {
-    "mtime": 1792800844.314843,
-    "seen": 1792802126.3502884,
-    "ast_hash": "3a1ea4fbc665cba4575d77e8f509a084",
+    "mtime": 1792803239.986777,
+    "seen": 1792803433.6416128,
+    "ast_hash": "c414e494e8918ac9af7bb56e0862e609",
     "semantic_hash": ""
   },
   "src/components/kasir/ShiftSidebarStatus.tsx": {
