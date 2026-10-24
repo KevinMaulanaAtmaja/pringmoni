@@ -272,10 +272,15 @@ export function ShiftKasirPanel({
   }
 
   function bukaDialogBuka(pakaiSaranArg = false) {
+    if (shiftLainAktif) return
     if (pakaiSaranArg && saran) {
       setUangAwal(String(saran.nominal))
       setSumberShiftId(saran.shiftId)
       setPakaiSisaSebelumnya(true)
+    } else if (saranSendiri) {
+      setUangAwal(String(saranSendiri.nominal))
+      setSumberShiftId(null)
+      setPakaiSisaSebelumnya(false)
     } else {
       setUangAwal("")
       setSumberShiftId(null)
@@ -436,11 +441,46 @@ export function ShiftKasirPanel({
               size="lg"
               onClick={() => bukaDialogBuka(false)}
               className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+              disabled={!!shiftLainAktif}
             >
               <Wallet className="w-5 h-5 mr-2" />
               Buka Shift
             </Button>
           </div>
+
+          {shiftLainAktif && (
+            <div className="rounded-lg border-2 border-red-300 bg-red-50 p-3 text-sm text-red-800">
+              <p className="font-semibold text-red-900">Tidak bisa membuka shift</p>
+              <p>
+                Shift <span className="font-semibold">kasir {shiftLainAktif.kasirUsername}</span>
+                {shiftLainAktif.slotNama ? ` di slot ${shiftLainAktif.slotNama}` : ""} masih aktif di hari ini.
+                Shift kasir lain harus ditutup terlebih dahulu sebelum Anda bisa membuka shift baru di slot ini.
+              </p>
+            </div>
+          )}
+
+          {saranSendiri && !saran && !shiftLainAktif && (
+            <div className="flex flex-col gap-3 rounded-lg border-2 border-green-400 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5">
+                <HandCoins className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                <div>
+                  <p className="text-sm font-bold text-green-900">Gunakan uang kembalian sendiri</p>
+                  <p className="text-sm text-green-800">
+                    Sisa uang akhir shift terakhir Anda hari ini{" "}
+                    <span className="font-semibold">{rupiah(saranSendiri.nominal)}</span>.
+                    Uang ini akan jadi uang awal shift Anda (uang kembalian/laci sebelumnya).
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => bukaDialogBuka(false)}
+                className="shrink-0 bg-green-700 text-white hover:bg-green-800"
+              >
+                <Banknote className="mr-2 h-4 w-4" />
+                Pakai {rupiah(saranSendiri.nominal)}
+              </Button>
+            </div>
+          )}
 
           {saran && (
             <div className="flex flex-col gap-3 rounded-lg border-2 border-amber-400 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
