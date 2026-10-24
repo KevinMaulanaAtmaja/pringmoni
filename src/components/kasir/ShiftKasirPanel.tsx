@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react"
 import { bukaShift, getShiftAktif, tutupShift } from "@/app/actions/shift"
+import type { ShiftLainAktif, SaranUangAwalSendiri } from "@/app/actions/shift"
 import type { ShiftAktif } from "@/types"
 
 const rupiah = (n: number) => `Rp${Math.round(n).toLocaleString("id-ID")}`
@@ -41,6 +42,8 @@ type HasilShiftAktif = {
   shift: ShiftAktif | null
   canManage: boolean
   saranUangAwal: SaranUangAwal | null
+  saranUangAwalSendiri: SaranUangAwalSendiri | null
+  shiftLainAktif: ShiftLainAktif | null
 }
 
 type RingkasanTutupShift = {
@@ -117,7 +120,6 @@ export function ShiftKasirPanel({
   const [data, setData] = useState<HasilShiftAktif | null>(null)
   const [loading, setLoading] = useState(true)
   const [sudahMuat, setSudahMuat] = useState(false)
-
   const [dialogBuka, setDialogBuka] = useState(false)
   const [dialogTutup, setDialogTutup] = useState(false)
   const [dialogReopen, setDialogReopen] = useState(false)
@@ -188,6 +190,8 @@ export function ShiftKasirPanel({
   const uangHarapAkhir = shift ? shift.uangAwal + shift.totalTunai : 0
   const saran = data.saranUangAwal
   const modalDariSaran = saran !== null && sumberShiftId === saran.shiftId
+  const saranSendiri = data.saranUangAwalSendiri
+  const shiftLainAktif = data.shiftLainAktif
 
   async function submitBuka(konfirmasiReopen = false) {
     const nominal = Number(uangAwal.replace(/\D/g, ""))

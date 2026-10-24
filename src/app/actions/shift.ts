@@ -26,10 +26,23 @@ type SaranUangAwal = { shiftId: number; nominal: number; dariKasir: string }
 
 type SlotSaatIni = { id: number; nama: string; jamMulai: number; jamSelesai: number } | null
 
+export type ShiftLainAktif = {
+  shiftId: number
+  kasirUsername: string
+  slotNama: string | null
+}
+
+export type SaranUangAwalSendiri = {
+  shiftId: number
+  nominal: number
+}
+
 type HasilShiftAktif = {
   shift: ShiftAktif | null
   canManage: boolean
   saranUangAwal: SaranUangAwal | null
+  saranUangAwalSendiri: SaranUangAwalSendiri | null
+  shiftLainAktif: ShiftLainAktif | null
   slotSaatIni: SlotSaatIni
 }
 
@@ -172,7 +185,7 @@ export async function getShiftAktif(): Promise<HasilShiftAktif | { error: string
   await autoCloseShifts()
 
   if (!canManage) {
-    return { shift: null, canManage: false, saranUangAwal: null, slotSaatIni: null }
+    return { shift: null, canManage: false, saranUangAwal: null, saranUangAwalSendiri: null, shiftLainAktif: null, slotSaatIni: null }
   }
 
   const kasirId = parseInt(session.user.id, 10)
@@ -197,12 +210,14 @@ export async function getShiftAktif(): Promise<HasilShiftAktif | { error: string
   })
   const slot = slotSaatIni(jadwal)
 
+  // 1. Saran uang awal dari shift sebelumnya yang sama slot & CLOSED (atau milik kasir lain tutup)
   const shiftTertutupTerakhir = await prisma.shiftKasir.findFirst({
     where: {
       statusShift: "CLOSED",
       uangAkhir: { not: null },
-      // Hanya kasir lain: serah terima kas antar shift, bukan shift milik sendiri.
+      // Hanya kasir lain: serah terima kas antar shift, & jadwal sama
       kasirId: { not: kasirId },
+      jadwalShiftId: slot?.id,
     },
     select: {
       id: true,
@@ -210,6 +225,36 @@ export async function getShiftAktif(): Promise<HasilShiftAktif | { error: string
       kasir: { select: { username: true } },
     },
     orderBy: { waktuKeluar: "desc" },
+  })
+
+  // 2. Saran uang awal milik sendiri (kasir ini) dari shift terakhir tutup hari ini
+  const shiftTerakhirSendiri = await prisma.shiftKasir.findFirst({
+    where: {
+      statusShift: "CLOSED",
+      uangAkhir: { not: null },
+      kasirId: kasirId,
+      tanggal: tanggalShiftSekarang(),
+    },
+    select: {
+      id: true,
+      uangAkhir: true,
+    },
+    orderBy: { waktuKeluar: "desc" },
+  })
+
+  // 3. Shift lain AKTIF di slot hari ini (milik kasir lain) → untuk warning
+  const shiftLainAktif = await prisma.shiftKasir.findFirst({
+    where: {
+      statusShift: "ACTIVE",
+      kasirId: { not: kasirId },
+      tanggal: tanggalShiftSekarang(),
+      jadwalShiftId: slot?.id,
+    },
+    select: {
+      id: true,
+      kasir: { select: { username: true } },
+      jadwalShift: { select: { nama: true } },
+    },
   })
 
   return {
@@ -220,6 +265,19 @@ export async function getShiftAktif(): Promise<HasilShiftAktif | { error: string
           shiftId: shiftTertutupTerakhir.id,
           nominal: Number(shiftTertutupTerakhir.uangAkhir),
           dariKasir: shiftTertutupTerakhir.kasir.username,
+        }
+      : null,
+    saranUangAwalSendiri: shiftTerakhirSendiri?.uangAkhir
+      ? {
+          shiftId: shiftTerakhirSendiri.id,
+          nominal: Number(shiftTerakhirSendiri.uangAkhir),
+        }
+      : null,
+    shiftLainAktif: shiftLainAktif
+      ? {
+          shiftId: shiftLainAktif.id,
+          kasirUsername: shiftLainAktif.kasir.username,
+          slotNama: shiftLainAktif.jadwalShift?.nama ?? null,
         }
       : null,
     slotSaatIni: slot
