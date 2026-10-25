@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { History, Calendar, Edit, Trash2, Plus, Save, X } from "lucide-react"
-import { getJadwalShift, simpanJadwalShift, updateJadwalShift, hapusJadwalShift, getRiwayatShift, getDaftarKasir } from "@/app/actions/shift"
+import { getJadwalShift, simpanJadwalShift, updateJadwalShift, hapusJadwalShift, getRiwayatShift, getDaftarKasir, getDaftarKasirLengkap, bukaShift, tutupShift } from "@/app/actions/shift"
 import { formatJam, jamDariTeks } from "@/lib/jadwal"
 import type { JadwalShift, ShiftRiwayat } from "@/types"
 
@@ -26,6 +26,15 @@ function tanggalLabel(iso: string): string {
   })
 }
 
+function tanggalSingkat(iso: string | Date): string {
+  const d = iso instanceof Date ? iso : new Date(iso)
+  return d.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })
+}
+
 function jamSingkat(iso: string | null): string {
   if (!iso) return "-"
   return new Date(iso).toLocaleTimeString("id-ID", {
@@ -35,16 +44,38 @@ function jamSingkat(iso: string | null): string {
   })
 }
 
+function tanggalJamSingkat(iso: string | null): string {
+  if (!iso) return "-"
+  const d = new Date(iso)
+  return `${tanggalSingkat(d)} · ${d.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })}`
+}
+
 function durasiShift(waktuMasuk: string, waktuKeluar: string | null): string {
   const selesai = waktuKeluar ? new Date(waktuKeluar).getTime() : Date.now()
   const menit = Math.max(0, Math.floor((selesai - new Date(waktuMasuk).getTime()) / 60000))
   return `${Math.floor(menit / 60)}j ${menit % 60}m`
 }
 
+function isDifferentDay(a: string, b: string | null): boolean {
+  if (!b) return false
+  const da = new Date(a)
+  const db = new Date(b)
+  return (
+    da.getFullYear() !== db.getFullYear() ||
+    da.getMonth() !== db.getMonth() ||
+    da.getDate() !== db.getDate()
+  )
+}
+
 function RiwayatShiftCard({ s }: { s: ShiftRiwayat }) {
   const selisih = s.selisihKas ?? 0
   const aktif = s.statusShift === "ACTIVE"
   const durasiTeks = durasiShift(s.waktuMasuk, s.waktuKeluar)
+  const bedaHari = isDifferentDay(s.waktuMasuk, s.waktuKeluar)
 
   return (
     <div className="min-w-0 rounded-xl border bg-white p-3 space-y-2">
@@ -63,8 +94,16 @@ function RiwayatShiftCard({ s }: { s: ShiftRiwayat }) {
             )}
           </div>
           <p className="mt-0.5 text-xs text-gray-500">
-            {tanggalLabel(s.tanggal)} · {jamSingkat(s.waktuMasuk)}
-            {aktif ? " → sekarang" : ` → ${jamSingkat(s.waktuKeluar)}`} · {durasiTeks}
+            {bedaHari ? (
+              <>
+                {tanggalJamSingkat(s.waktuMasuk)} → {tanggalJamSingkat(s.waktuKeluar)} · {durasiTeks}
+              </>
+            ) : (
+              <>
+                {tanggalLabel(s.tanggal)} · {jamSingkat(s.waktuMasuk)}
+                {aktif ? " → sekarang" : ` → ${jamSingkat(s.waktuKeluar)}`} · {durasiTeks}
+              </>
+            )}
           </p>
           {s.sumberShiftKasir && (
             <p className="mt-0.5 text-xs font-medium text-amber-700">
@@ -139,11 +178,17 @@ export default function ShiftPage() {
   })
 
   const [period, setPeriod] = useState<"all" | "today" | "week" | "month">("all")
-  const [activeTab, setActiveTab] = useState<"jadwal" | "riwayat">("riwayat")
+  const [activeTab, setActiveTab] = useState<"jadwal" | "riwayat" | "atur">("riwayat")
   const [filterKasir, setFilterKasir] = useState("all")
   const [daftarKasir, setDaftarKasir] = useState<string[]>([])
+  const [daftarKasirLengkap, setDaftarKasirLengkap] = useState<Array<{ id: number; username: string }>>([])
   const [page, setPage] = useState(1)
   const perPage = 10
+  const [showAturModal, setShowAturModal] = useState(false)
+  const [selectedKasirId, setSelectedKasirId] = useState<number | "">("")
+  const [selectedJadwalId, setSelectedJadwalId] = useState<number | "">("")
+  const [uangAwalAtur, setUangAwalAtur] = useState("")
+  const [actionLoading, setActionLoading] = useState(false)
 
   const fetchJadwal = useCallback(async () => {
     setLoadingJadwal(true)
@@ -180,7 +225,15 @@ export default function ShiftPage() {
 
   useEffect(() => {
     // Jadwal shift hanya boleh diakses owner — kasir tidak perlu memanggilnya.
-    if (isOwner) fetchJadwal()
+    if (isOwner) {
+      fetchJadwal()
+      getDaftarKasir().then((hasil) => {
+        if (!("error" in hasil)) setDaftarKasir(hasil.kasir)
+      })
+      getDaftarKasirLengkap().then((hasil) => {
+        if (!("error" in hasil)) setDaftarKasirLengkap(hasil.kasir)
+      })
+    }
     fetchRiwayat()
   }, [fetchJadwal, fetchRiwayat, isOwner])
 
@@ -189,10 +242,13 @@ export default function ShiftPage() {
     getDaftarKasir().then((hasil) => {
       if (!("error" in hasil)) setDaftarKasir(hasil.kasir)
     })
+    getDaftarKasirLengkap().then((hasil) => {
+      if (!("error" in hasil)) setDaftarKasirLengkap(hasil.kasir)
+    })
   }, [isOwner])
 
   useEffect(() => {
-    if (isOwner) setActiveTab("jadwal")
+    if (isOwner) setActiveTab("atur")
   }, [isOwner])
 
   const resetForm = () => {
@@ -229,7 +285,7 @@ export default function ShiftPage() {
         nama: formData.nama,
         jamMulai,
         jamSelesai,
-        urutan: formData.urutan,
+        urutan: formData.urutan || 1,
         aktif: formData.aktif,
       }
       if (editingId) {
@@ -295,7 +351,20 @@ export default function ShiftPage() {
       <h1 className="text-2xl font-bold text-gray-800">Shift</h1>
 
       <div className="mb-6 flex flex-wrap gap-2 border-b border-gray-200 pb-4">
-        {isOwner && (
+      {isOwner && (
+        <>
+          <Button
+            onClick={() => setActiveTab("atur")}
+            variant={activeTab === "atur" ? "default" : "outline"}
+            aria-pressed={activeTab === "atur"}
+            className={
+              activeTab === "atur"
+                ? "bg-green-700 text-white hover:bg-green-800"
+                : "hover:bg-green-100 hover:text-green-800 hover:border-green-300"
+            }
+          >
+            <Edit className="w-4 h-4 mr-2" /> Atur Shift Kasir
+          </Button>
           <Button
             onClick={() => setActiveTab("jadwal")}
             variant={activeTab === "jadwal" ? "default" : "outline"}
@@ -308,7 +377,8 @@ export default function ShiftPage() {
           >
             <Calendar className="w-4 h-4 mr-2" /> Jadwal Shift
           </Button>
-        )}
+        </>
+      )}
         <Button
           onClick={() => setActiveTab("riwayat")}
           variant={activeTab === "riwayat" ? "default" : "outline"}
@@ -322,6 +392,200 @@ export default function ShiftPage() {
           <History className="w-4 h-4 mr-2" /> Riwayat Shift
         </Button>
       </div>
+
+      {activeTab === "atur" && isOwner && (
+        <div className="space-y-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">Atur Shift Kasir</h2>
+              <p className="text-sm text-gray-600">Atur penugasan kasir ke slot jadwal. Pilih kasir dan slot jadwal untuk mengatur shift.</p>
+            </div>
+            <Button onClick={() => { setShowAturModal(true); setSelectedKasirId(""); setSelectedJadwalId(""); setUangAwalAtur("") }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Atur Shift Kasir
+            </Button>
+          </div>
+
+          <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Shift Aktif Saat Ini</h3>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { fetchJadwal(); fetchRiwayat() }}>Refresh</Button>
+              </div>
+            </div>
+            {shifts.filter((s) => s.statusShift === "ACTIVE").length === 0 ? (
+              <p className="text-sm text-gray-500">Tidak ada shift kasir yang sedang aktif.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {shifts
+                  .filter((s) => s.statusShift === "ACTIVE")
+                  .map((s) => (
+                    <div key={s.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{s.kasirUsername}</p>
+                          <p className="text-xs text-gray-500">
+                            Masuk {jamSingkat(s.waktuMasuk)} · {s.namaJadwal || "-"}
+                          </p>
+                        </div>
+                        <Badge className="border-green-300 bg-green-100 text-green-800">Aktif</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-gray-400">Uang awal</p>
+                          <p className="font-medium">{rupiah(s.uangAwal)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">Tunai masuk</p>
+                          <p className="font-medium text-green-700">+{rupiah(s.totalTunai)}</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={actionLoading}
+                        onClick={async () => {
+                          const uangAkhirStr = prompt(`Tutup shift ${s.kasirUsername}. Masukkan uang akhir fisik (Rp):`)
+                          if (uangAkhirStr === null) return
+                          const uangAkhir = Number(uangAkhirStr.replace(/[^0-9]/g, ""))
+                          if (!Number.isFinite(uangAkhir) || uangAkhir <= 0) {
+                            alert("Nominal tidak valid")
+                            return
+                          }
+                      setActionLoading(true)
+                      try {
+                        const res = await tutupShift(uangAkhir, "Ditutup oleh Owner", true, s.kasirId)
+                        if ("error" in res) {
+                          alert(res.error)
+                        } else if ("warning" in res) {
+                          if (confirm(res.warning)) {
+                            const res2 = await tutupShift(uangAkhir, "Ditutup oleh Owner", true, s.kasirId)
+                            if ("error" in res2) alert(res2.error)
+                            else alert("Shift berhasil ditutup")
+                          }
+                        } else {
+                          alert("Shift berhasil ditutup")
+                        }
+                        fetchRiwayat()
+                      } catch (e) {
+                        console.error(e)
+                        alert("Gagal menutup shift")
+                      } finally {
+                        setActionLoading(false)
+                      }
+                        }}
+                      >
+                        Tutup Shift
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {showAturModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Atur Shift Kasir</h3>
+                  <Button variant="ghost" size="icon" onClick={() => setShowAturModal(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <Label>Pilih Kasir</Label>
+                    <Select value={selectedKasirId === "" ? "" : String(selectedKasirId)} onValueChange={(v) => setSelectedKasirId(v ? Number(v) : "")}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih kasir" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {daftarKasirLengkap.map((k) => (
+                          <SelectItem key={k.id} value={String(k.id)}>
+                            {k.username}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Pilih Jadwal Shift</Label>
+                    <Select value={selectedJadwalId === "" ? "" : String(selectedJadwalId)} onValueChange={(v) => setSelectedJadwalId(v ? Number(v) : "")}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih slot jadwal" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {jadwalList
+                          .filter((j) => j.aktif)
+                          .map((j) => (
+                            <SelectItem key={j.id} value={String(j.id)}>
+                              {j.nama} ({formatJam(j.jamMulai)} - {j.jamSelesai === 1440 ? "24:00" : formatJam(j.jamSelesai)})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">Tentukan kasir untuk jadwal shift ini.</p>
+                  </div>
+                  <div>
+                    <Label>Uang Awal</Label>
+                    <Input
+                      value={uangAwalAtur}
+                      onChange={(e) => setUangAwalAtur(e.target.value.replace(/[^0-9]/g, ""))}
+                      placeholder="Kosongkan jika ingin otomatis"
+                      inputMode="numeric"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Bisa dikosongkan, sistem akan mengambil saran uang awal.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                    <Button
+                    disabled={actionLoading || selectedKasirId === "" || selectedJadwalId === ""}
+                    onClick={async () => {
+                      setActionLoading(true)
+                      try {
+                    const uangAwalVal = uangAwalAtur ? Number(uangAwalAtur) : 0
+                    const jadwalTarget = selectedJadwalId === "" ? null : (selectedJadwalId as number)
+                    const res = await bukaShift(uangAwalVal, null, false, selectedKasirId as number, jadwalTarget)
+                    if ("error" in res) {
+                      alert(res.error)
+                    } else if ("perluKonfirmasiReopen" in res) {
+                      if (confirm(res.pesan)) {
+                        const res2 = await bukaShift(uangAwalVal, null, true, selectedKasirId as number, jadwalTarget)
+                        if ("error" in res2) alert(res2.error)
+                        else {
+                          alert("Shift berhasil dibuka")
+                          setShowAturModal(false)
+                          setSelectedKasirId("")
+                          setSelectedJadwalId("")
+                          setUangAwalAtur("")
+                          fetchRiwayat()
+                        }
+                      }
+                    } else {
+                      alert("Shift berhasil dibuka")
+                      setShowAturModal(false)
+                      setSelectedKasirId("")
+                      setSelectedJadwalId("")
+                      setUangAwalAtur("")
+                      fetchRiwayat()
+                    }
+                      } catch (e) {
+                        console.error(e)
+                        alert("Gagal membuka shift")
+                      } finally {
+                        setActionLoading(false)
+                      }
+                    }}
+                  >
+                    Buka Shift
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAturModal(false)}>Batal</Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {activeTab === "jadwal" && isOwner && (
         <div className="space-y-6">
@@ -340,7 +604,7 @@ export default function ShiftPage() {
                     <Button variant="ghost" size="icon" onClick={resetForm}><X className="w-4 h-4" /></Button>
                   </h3>
                   <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <Label htmlFor="nama">Nama Slot</Label>
                         <Input
@@ -351,42 +615,69 @@ export default function ShiftPage() {
                           required
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="urutan">Urutan</Label>
-                        <Input
-                          id="urutan"
-                          type="number"
-                          min="1"
-                          max="8"
-                          value={formData.urutan}
-                          onChange={(e) => setFormData({ ...formData, urutan: Number(e.target.value) })}
-                          required
-                        />
-                      </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="jamMulai">Jam Mulai</Label>
-                        <Input
-                          id="jamMulai"
-                          type="time"
-                          step="900"
-                          value={formData.jamMulai}
-                          onChange={(e) => setFormData({ ...formData, jamMulai: e.target.value })}
-                          required
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id="jamMulai"
+                            type="time"
+                            step="900"
+                            lang="id-ID"
+                            inputMode="numeric"
+                            value={formData.jamMulai}
+                            onChange={(e) => setFormData({ ...formData, jamMulai: e.target.value })}
+                            required
+                            className="flex-1"
+                          />
+                          <span className="text-xs text-gray-500 whitespace-nowrap">
+                            {(() => {
+                              const [hStr] = formData.jamMulai.split(":")
+                              const h = Number(hStr)
+                              if (Number.isNaN(h) || hStr.length !== 2) return ""
+                              if (h >= 5 && h < 11) return "Pagi"
+                              if (h >= 11 && h < 15) return "Siang"
+                              if (h >= 15 && h < 18) return "Sore"
+                              if (h >= 18 && h < 24) return "Malam"
+                              return "Dini Hari"
+                            })()}
+                          </span>
+                        </div>
                       </div>
                       <div>
                         <Label htmlFor="jamSelesai">Jam Selesai</Label>
-                        <Input
-                          id="jamSelesai"
-                          type="time"
-                          step="900"
-                          value={formData.jamSelesaiTengahMalam ? "23:59" : formData.jamSelesai}
-                          onChange={(e) => setFormData({ ...formData, jamSelesai: e.target.value, jamSelesaiTengahMalam: false })}
-                          disabled={formData.jamSelesaiTengahMalam}
-                          required
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id="jamSelesai"
+                            type="time"
+                            step="900"
+                            lang="id-ID"
+                            inputMode="numeric"
+                            value={formData.jamSelesaiTengahMalam ? "23:59" : formData.jamSelesai}
+                            onChange={(e) => setFormData({ ...formData, jamSelesai: e.target.value, jamSelesaiTengahMalam: false })}
+                            disabled={formData.jamSelesaiTengahMalam}
+                            required
+                            className="flex-1"
+                          />
+                          {!formData.jamSelesaiTengahMalam && (
+                            <span className="text-xs text-gray-500 whitespace-nowrap">
+                              {(() => {
+                                const [hStr] = formData.jamSelesai.split(":")
+                                const h = Number(hStr)
+                                if (Number.isNaN(h) || hStr.length !== 2) return ""
+                                if (h >= 5 && h < 11) return "Pagi"
+                                if (h >= 11 && h < 15) return "Siang"
+                                if (h >= 15 && h < 18) return "Sore"
+                                if (h >= 18 && h < 24) return "Malam"
+                                return "Dini Hari"
+                              })()}
+                            </span>
+                          )}
+                          {formData.jamSelesaiTengahMalam && (
+                            <span className="text-xs text-gray-500 whitespace-nowrap">Malam/Tengah Malam</span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-2">
                           <input
                             type="checkbox"
@@ -429,36 +720,34 @@ export default function ShiftPage() {
                       <TableHead>Nama</TableHead>
                       <TableHead>Jam Mulai</TableHead>
                       <TableHead>Jam Selesai</TableHead>
-                      <TableHead>Urutan</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loadingJadwal ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
-                          Memuat...
-                        </TableCell>
-                      </TableRow>
-                    ) : jadwalList.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                          Belum ada jadwal shift. Klik &quot;Tambah Slot&quot; untuk membuat.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      jadwalList.map((j) => (
-                        <TableRow key={j.id}>
-                          <TableCell className="font-medium">{j.nama}</TableCell>
-                          <TableCell>{formatJam(j.jamMulai)}</TableCell>
-                          <TableCell>{formatJam(j.jamSelesai)}</TableCell>
-                          <TableCell>{j.urutan}</TableCell>
-                          <TableCell>
-                            <Badge variant={j.aktif ? "default" : "secondary"}>
-                              {j.aktif ? "Aktif" : "Nonaktif"}
-                            </Badge>
+                      {loadingJadwal ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8">
+                            Memuat...
                           </TableCell>
+                        </TableRow>
+                      ) : jadwalList.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                            Belum ada jadwal shift. Klik &quot;Tambah Slot&quot; untuk membuat.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        jadwalList.map((j) => (
+                          <TableRow key={j.id}>
+                            <TableCell className="font-medium">{j.nama}</TableCell>
+                            <TableCell>{formatJam(j.jamMulai)}</TableCell>
+                            <TableCell>{formatJam(j.jamSelesai)}</TableCell>
+                            <TableCell>
+                              <Badge variant={j.aktif ? "default" : "secondary"}>
+                                {j.aktif ? "Aktif" : "Nonaktif"}
+                              </Badge>
+                            </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <Button variant="ghost" size="icon" onClick={() => handleEdit(j)}>
@@ -608,16 +897,31 @@ export default function ShiftPage() {
                               <p className="mt-1 text-xs text-gray-400">Modal sendiri</p>
                             )}
                           </TableCell>
-                          <TableCell className="px-3 py-3 align-top">
-                            <p className="whitespace-nowrap text-sm">
-                              {tanggalLabel(s.tanggal)} · {jamSingkat(s.waktuMasuk)}
-                            </p>
-                            <p className="whitespace-nowrap text-xs text-gray-500">
-                              {aktif ? "→ sekarang" : `→ ${jamSingkat(s.waktuKeluar)}`}
-                              {" · "}
-                              {durasiTeks}
-                            </p>
-                          </TableCell>
+                            <TableCell className="px-3 py-3 align-top">
+                              {isDifferentDay(s.waktuMasuk, s.waktuKeluar) ? (
+                                <>
+                                  <p className="whitespace-nowrap text-sm">
+                                    {tanggalJamSingkat(s.waktuMasuk)}
+                                  </p>
+                                  <p className="whitespace-nowrap text-xs text-gray-500">
+                                    {aktif ? "→ sekarang" : `→ ${tanggalJamSingkat(s.waktuKeluar)}`}
+                                    {" · "}
+                                    {durasiTeks}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="whitespace-nowrap text-sm">
+                                    {tanggalLabel(s.tanggal)} · {jamSingkat(s.waktuMasuk)}
+                                  </p>
+                                  <p className="whitespace-nowrap text-xs text-gray-500">
+                                    {aktif ? "→ sekarang" : `→ ${jamSingkat(s.waktuKeluar)}`}
+                                    {" · "}
+                                    {durasiTeks}
+                                  </p>
+                                </>
+                              )}
+                            </TableCell>
                           <TableCell className="px-3 py-3 text-right align-top">
                             <p className="whitespace-nowrap text-sm">{rupiah(s.uangAwal)}</p>
                             <p className="whitespace-nowrap text-xs text-green-700">

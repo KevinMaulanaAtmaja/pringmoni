@@ -538,8 +538,20 @@ export function ShiftKasirPanel({
                   type="text"
                   inputMode="numeric"
                   value={uangAwal}
-                  onChange={(e) => setUangAwal(e.target.value.replace(/\D/g, ""))}
-                  placeholder="500000"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "")
+                    setUangAwal(val)
+                  }}
+                  onFocus={(e) => {
+                    e.target.select()
+                  }}
+                  onBlur={(e) => {
+                    const val = e.target.value.replace(/\D/g, "")
+                    if (val && val.length > 0 && val.length < 3) {
+                      setUangAwal(val + "000")
+                    }
+                  }}
+                  placeholder="000"
                   className="pl-9 text-lg font-semibold"
                   autoFocus
                 />

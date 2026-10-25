@@ -289,17 +289,22 @@ export async function getShiftAktif(): Promise<HasilShiftAktif | { error: string
 export async function bukaShift(
   uangAwal: number,
   sumberShiftId?: number | null,
-  konfirmasiReopen = false
+  konfirmasiReopen = false,
+  kasirIdTarget?: number | null,
+  jadwalShiftIdTarget?: number | null
 ): Promise<HasilBukaShift> {
   try {
     const session = await auth()
     if (!session?.user) return { error: "Unauthorized" }
-    if (session.user.role !== "cashier") return { error: HANYA_KASIR }
-    const kasirId = parseInt(session.user.id, 10)
+    let kasirId: number
+    if (session.user.role === "owner" && kasirIdTarget) {
+      kasirId = kasirIdTarget
+    } else if (session.user.role === "cashier") {
+      kasirId = parseInt(session.user.id, 10)
+    } else {
+      return { error: HANYA_KASIR }
+    }
     if (Number.isNaN(kasirId)) return { error: "Unauthorized" }
-
-    const nominal = validasiNominal(uangAwal)
-    if ("error" in nominal) return nominal
 
     await autoCloseShifts()
 
@@ -323,12 +328,64 @@ export async function bukaShift(
         error: "Jadwal shift belum diatur. Hubungi owner untuk membuat jadwal shift.",
       }
     }
-    const slot = slotSaatIni(jadwal)
-    if (!slot) {
-      return {
-        error: `Sekarang di luar jam kerja. Jam shift: ${deskripsiJadwal(jadwal)}.`,
+    let slot: (typeof jadwal)[number] | null = null
+    if (session.user.role === "owner" && kasirIdTarget && jadwalShiftIdTarget) {
+      slot = jadwal.find((j) => j.id === jadwalShiftIdTarget) || null
+      if (!slot) {
+        const jadwalAll = await prisma.jadwalShift.findUnique({ where: { id: jadwalShiftIdTarget } })
+        if (!jadwalAll || !jadwalAll.aktif) {
+          return { error: "Slot jadwal tidak valid atau tidak aktif" }
+        }
+        slot = { id: jadwalAll.id, nama: jadwalAll.nama, jamMulai: jadwalAll.jamMulai, jamSelesai: jadwalAll.jamSelesai }
+      }
+    } else {
+      slot = slotSaatIni(jadwal)
+      if ((session.user.role === "owner" && kasirIdTarget) || sumberShiftId) {
+        if (!slot && jadwal.length > 0) slot = jadwal[0]
+      }
+      if (!slot) {
+        return {
+          error: `Sekarang di luar jam kerja. Jam shift: ${deskripsiJadwal(jadwal)}.`,
+        }
       }
     }
+
+    let nominalVal = Number(uangAwal)
+    if (!Number.isFinite(nominalVal) || nominalVal <= 0) {
+      const saran = await prisma.shiftKasir.findFirst({
+        where: {
+          statusShift: "CLOSED",
+          uangAkhir: { not: null },
+          kasirId: { not: kasirId },
+          jadwalShiftId: slot.id,
+        },
+        select: { uangAkhir: true },
+        orderBy: { waktuKeluar: "desc" },
+      })
+      if (saran?.uangAkhir && Number(saran.uangAkhir) > 0) {
+        nominalVal = Number(saran.uangAkhir)
+      } else {
+        const saranSendiri = await prisma.shiftKasir.findFirst({
+          where: {
+            statusShift: "CLOSED",
+            uangAkhir: { not: null },
+            kasirId,
+          },
+          select: { uangAkhir: true },
+          orderBy: { waktuKeluar: "desc" },
+        })
+        if (saranSendiri?.uangAkhir && Number(saranSendiri.uangAkhir) > 0) {
+          nominalVal = Number(saranSendiri.uangAkhir)
+        } else {
+          nominalVal = 0
+        }
+      }
+    }
+    if (nominalVal <= 0) {
+      nominalVal = 0
+    }
+    const nominal = validasiNominal(nominalVal)
+    if ("error" in nominal) return nominal
 
     const slotDiisi = await prisma.shiftKasir.findFirst({
       where: { statusShift: "ACTIVE", jadwalShiftId: slot.id },
@@ -396,9 +453,10 @@ export async function bukaShift(
       select: { id: true },
     })
 
+    const targetUser = await prisma.users.findUnique({ where: { id: kasirId }, select: { username: true } })
     await createLog(
       "OPEN_SHIFT",
-      `Shift kasir dibuka oleh ${session.user.username} (${session.user.role}) — uang awal Rp${nominal.nilai.toLocaleString("id-ID")} (slot ${slot.nama} ${formatJam(slot.jamMulai)}-${formatJam(slot.jamSelesai)})${
+      `Shift kasir dibuka ${session.user.role === "owner" ? "oleh Owner" : `oleh ${session.user.username}`} (${session.user.role}) untuk ${targetUser?.username || kasirId} — uang awal Rp${nominal.nilai.toLocaleString("id-ID")} (slot ${slot.nama} ${formatJam(slot.jamMulai)}-${formatJam(slot.jamSelesai)})${
         sumberValid ? ` (dari serah terima shift #${sumberValid})` : ""
       }`
     )
@@ -408,7 +466,7 @@ export async function bukaShift(
       // kata "dibuka ulang" membuat entri ini mudah difilter di halaman log.
       await createLog(
         "OPEN_SHIFT",
-        `Shift kasir dibuka ulang oleh ${session.user.username} pada slot ${slot.nama} — shift #${shiftTertutupHariIni.id} sebelumnya sudah ditutup hari ini (uang akhir Rp${Number(
+        `Shift kasir dibuka ulang ${session.user.role === "owner" ? "oleh Owner" : `oleh ${session.user.username}`} untuk ${targetUser?.username || kasirId} pada slot ${slot.nama} — shift #${shiftTertutupHariIni.id} sebelumnya sudah ditutup hari ini (uang akhir Rp${Number(
           shiftTertutupHariIni.uangAkhir ?? 0
         ).toLocaleString("id-ID")})`
       )
@@ -432,13 +490,20 @@ export async function bukaShift(
 export async function tutupShift(
   uangAkhir: number,
   keterangan?: string | null,
-  konfirmasiSisaPesanan?: boolean
+  konfirmasiSisaPesanan?: boolean,
+  kasirIdTarget?: number | null
 ): Promise<HasilTutupShift> {
   try {
     const session = await auth()
     if (!session?.user) return { error: "Unauthorized" }
-    if (session.user.role !== "cashier") return { error: HANYA_KASIR }
-    const kasirId = parseInt(session.user.id, 10)
+    let kasirId: number
+    if (session.user.role === "owner" && kasirIdTarget) {
+      kasirId = kasirIdTarget
+    } else if (session.user.role === "cashier") {
+      kasirId = parseInt(session.user.id, 10)
+    } else {
+      return { error: HANYA_KASIR }
+    }
     if (Number.isNaN(kasirId)) return { error: "Unauthorized" }
 
     const nominal = validasiNominal(uangAkhir)
@@ -502,9 +567,10 @@ export async function tutupShift(
           ? `lebih Rp${selisihKas.toLocaleString("id-ID")}`
           : `kurang Rp${Math.abs(selisihKas).toLocaleString("id-ID")}`
 
+    const targetUser2 = await prisma.users.findUnique({ where: { id: kasirId }, select: { username: true } })
     await createLog(
       "CLOSE_SHIFT",
-      `Shift kasir ditutup oleh ${session.user.username} — ${totals.totalTransaksi} transaksi, pendapatan Rp${totals.totalPendapatan.toLocaleString("id-ID")}, uang awal Rp${Number(shift.uangAwal).toLocaleString("id-ID")}, uang akhir Rp${nominal.nilai.toLocaleString("id-ID")} (${selisihTeks})`
+      `Shift kasir ditutup ${session.user.role === "owner" ? "oleh Owner" : `oleh ${session.user.username}`} untuk ${targetUser2?.username || kasirId} — ${totals.totalTransaksi} transaksi, pendapatan Rp${totals.totalPendapatan.toLocaleString("id-ID")}, uang awal Rp${Number(shift.uangAwal).toLocaleString("id-ID")}, uang akhir Rp${nominal.nilai.toLocaleString("id-ID")} (${selisihTeks})`
     )
 
     revalidatePath("/dashboard/kasir")
@@ -624,6 +690,19 @@ export async function getDaftarKasir(): Promise<{ kasir: string[] } | { error: s
     orderBy: { username: "asc" },
   })
   return { kasir: kasir.map((k) => k.username) }
+}
+
+export async function getDaftarKasirLengkap(): Promise<{ kasir: Array<{ id: number; username: string }> } | { error: string }> {
+  const session = await auth()
+  if (!session?.user || session.user.role !== "owner") {
+    return { error: "Unauthorized" }
+  }
+  const kasir = await prisma.users.findMany({
+    where: { role: "cashier", status: true },
+    select: { id: true, username: true },
+    orderBy: { username: "asc" },
+  })
+  return { kasir }
 }
 
 // ── Jadwal slot shift (owner) ─────────────────────────────────────────────────
