@@ -1314,9 +1314,9 @@
     "semantic_hash": ""
   },
   "src/components/dashboard/menu-management.tsx": {
-    "mtime": 1792631381.7197733,
-    "seen": 1792633675.1140966,
-    "ast_hash": "03e52179d4b1cabbf17faa288d09558f",
+    "mtime": 1792908749.726767,
+    "seen": 1792908874.6117458,
+    "ast_hash": "b33e3356b748d27d5b7402a5e0202be5",
     "semantic_hash": ""
   },
   "src/components/dashboard/menu-tabs.tsx": {

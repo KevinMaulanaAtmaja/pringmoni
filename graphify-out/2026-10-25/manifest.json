@@ -1062,9 +1062,9 @@
     "semantic_hash": ""
   },
   "src/app/actions/stok-bahan.ts": {
-    "mtime": 1792907286.9786277,
-    "seen": 1792907328.2534332,
-    "ast_hash": "be692d615d414a333934c3bb3b0d37b0",
+    "mtime": 1792908175.7387633,
+    "seen": 1792908379.9340415,
+    "ast_hash": "d94228b3a044c88db21ce4d5090364b7",
     "semantic_hash": ""
   },
   "src/app/dashboard/kasir/layout.tsx": {
@@ -1074,9 +1074,9 @@
     "semantic_hash": ""
   },
   "src/app/dashboard/stok-bahan/page.tsx": {
-    "mtime": 1792123406.275011,
-    "seen": 1792633675.1140966,
-    "ast_hash": "48917245dcd1136883a0ba55c56fa384",
+    "mtime": 1792908345.3288858,
+    "seen": 1792908379.9340415,
+    "ast_hash": "a147e553de163dd96db8ce25b2175a99",
     "semantic_hash": ""
   },
   "src/components/dashboard/KasirOrderNotifications.tsx": {

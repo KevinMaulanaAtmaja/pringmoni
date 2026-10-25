@@ -414,9 +414,15 @@ enum KategoriBahan {
 
 enum SatuanStok {
   kg
+  gram
+  liter
+  ml
   pcs
   pack
   bungkus
+  sachet
+  botol
+  kaleng
 }
 
 enum StatusStok {
