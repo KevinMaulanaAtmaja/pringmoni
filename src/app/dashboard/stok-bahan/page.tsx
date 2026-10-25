@@ -879,7 +879,7 @@ export default function StokBahanPage() {
               title="Reset seluruh data bahan ke 0"
             >
               <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-              Reset ke 0
+              Hapus Semua Stok Bahan
             </Button>
           )}
           <Button onClick={() => openDialog()} size="sm" className="h-8 text-xs">
@@ -1581,7 +1581,7 @@ export default function StokBahanPage() {
               Batal
             </Button>
             <Button variant="destructive" onClick={handleResetConfirm} disabled={resetting}>
-              {resetting ? 'Mereset...' : 'Ya, Reset ke 0'}
+              {resetting ? 'Menghapus...' : 'Ya, Hapus Semua'}
             </Button>
           </DialogFooter>
         </DialogContent>

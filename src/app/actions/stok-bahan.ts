@@ -312,11 +312,11 @@ export async function deleteStokBahan(id: number) {
   }
 }
 
-export async function resetAllStokBahan(tipe: LokasiStok) {
+export async function resetAllStokBahan(tipe?: LokasiStok) {
   try {
     await requireOwner()
     await prisma.stokBahan.updateMany({
-      where: { tipe, deletedAt: null },
+      where: { deletedAt: null },
       data: { deletedAt: new Date() },
     })
     revalidatePath("/dashboard/stok-bahan")
