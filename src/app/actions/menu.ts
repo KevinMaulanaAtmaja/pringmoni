@@ -6,7 +6,7 @@ import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { deleteAllMenuFotos } from './menu-foto';
-import { butuhBumbu, hitungKetersediaanResep } from '@/lib/resep';
+
 
 export type MenuWithKategori = {
   id: number;
@@ -15,19 +15,16 @@ export type MenuWithKategori = {
   harga: number;
   kategoriId: number;
   statusMenu: StatusMenu;
+  stokManual?: number;
   createdAt: Date;
   updatedAt: Date | null;
   deletedAt: Date | null;
   kategori: KategoriMenu;
   fotoUrl: string | null;
   fotoUrls?: string[];
-  /** Punya >= 1 bahan di resep → stok dilacak otomatis; tanpa resep → manual */
   adaResep?: boolean;
-  /** Resep punya 1 bahan utama + 1 bumbu (indikator kualitas data) */
   resepLengkap?: boolean;
-  /** Porsi maksimum yang masih bisa dimasak dari stok bahan sekarang */
   porsiTersedia?: number;
-  /** Bahan yang stoknya paling menentukan nilai porsiTersedia */
   bahanPembatas?: string[];
 };
 
@@ -37,6 +34,7 @@ export type CreateMenuInput = {
   harga: number;
   kategoriId: number;
   statusMenu?: StatusMenu;
+  stokManual?: number;
 };
 
 export type UpdateMenuInput = Partial<CreateMenuInput> & { id: number };
@@ -55,6 +53,7 @@ export async function getMenus(): Promise<MenuWithKategori[]> {
       harga: true,
       kategoriId: true,
       statusMenu: true,
+      stokManual: true,
       createdAt: true,
       updatedAt: true,
       deletedAt: true,
@@ -147,6 +146,7 @@ export async function createMenu(data: CreateMenuInput) {
       harga: new Prisma.Decimal(data.harga),
       kategoriId: data.kategoriId,
       statusMenu: data.statusMenu || 'tersedia',
+      stokManual: data.stokManual ?? 0,
     },
   });
   revalidatePath('/dashboard/menu');
@@ -157,7 +157,7 @@ export async function createMenu(data: CreateMenuInput) {
 
 export async function updateMenu(data: UpdateMenuInput) {
   await requireOwner()
-  const { id, namaMenu, deskripsi, kategoriId, statusMenu, harga } = data;
+  const { id, namaMenu, deskripsi, kategoriId, statusMenu, harga, stokManual } = data as any;
 
   // Validation
   if (namaMenu !== undefined && !namaMenu?.trim()) {
@@ -167,8 +167,6 @@ export async function updateMenu(data: UpdateMenuInput) {
     return { error: "Harga harus lebih dari 0" }
   }
 
-  // Hanya field yang diizinkan (allowlist) supaya field sensitif seperti
-  // deletedAt/createdAt tidak bisa diubah paksa dari client.
   await prisma.menu.update({
     where: { id },
     data: {
@@ -177,6 +175,7 @@ export async function updateMenu(data: UpdateMenuInput) {
       kategoriId,
       statusMenu,
       harga: harga !== undefined ? new Prisma.Decimal(harga) : undefined,
+      stokManual: stokManual !== undefined ? Number(stokManual) : undefined,
     },
   });
   revalidatePath('/dashboard/menu');

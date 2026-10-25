@@ -37,8 +37,8 @@ export type KetersediaanResep = {
  * Dipakai bersama di server (gate pesanan) maupun client (badge & validasi form
  * resep) supaya aturannya konsisten. Murni — tidak menyentuh database.
  */
-export function butuhBumbu(kategori: string | null | undefined): boolean {
-  return (kategori ?? '').trim().toLowerCase() === 'makanan'
+export function butuhBumbu(_kategori: string | null | undefined): boolean {
+  return false
 }
 
 /**
@@ -55,7 +55,7 @@ export function hitungKetersediaanResep(
   punyaBahanBumbu: number,
   wajibBumbu = true
 ): KetersediaanResep {
-  const lengkap = punyaBahanUtama > 0 && (!wajibBumbu || punyaBahanBumbu > 0)
+  const lengkap = punyaBahanUtama > 0
 
   const pembatas = bahan
     .filter((b) => b.jumlahPerPorsi > 0)
