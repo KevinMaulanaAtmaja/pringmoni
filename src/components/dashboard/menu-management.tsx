@@ -183,6 +183,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
     harga: '',
     kategoriId: '',
     statusMenu: 'tersedia' as StatusMenu,
+    stokManual: '0',
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -349,6 +350,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
         harga: menu.harga.toString(),
         kategoriId: menu.kategoriId.toString(),
         statusMenu: menu.statusMenu,
+        stokManual: ((menu as any).stokManual ?? 0).toString(),
       });
 
       // Set price value in thousands
@@ -366,6 +368,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
         kategoriId:
           kategoris[0]?.id.toString() || '',
         statusMenu: 'tersedia',
+        stokManual: '0',
       });
 
       setPriceValue('');
@@ -491,7 +494,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
           );
         }
       } else {
-        const result = await createMenu(data);
+        const result = await createMenu({ ...data, stokManual: parseInt((form as any).stokManual || '0') } as any);
 
         if (
           result &&

@@ -204,15 +204,15 @@
     "semantic_hash": "44113c94b44fa03a461e5b637a70d1e5"
   },
   "src/app/actions/menu.ts": {
-    "mtime": 1792631313.630866,
-    "seen": 1792633675.1140966,
-    "ast_hash": "75beb0f6ac32548bddb21de53c9e9af8",
+    "mtime": 1792906087.9729614,
+    "seen": 1792907328.2534332,
+    "ast_hash": "621409f8be65fd2b9c34432e1a1e36a1",
     "semantic_hash": ""
   },
   "src/app/actions/pesanan.ts": {
-    "mtime": 1792633440.398316,
-    "seen": 1792633675.1140966,
-    "ast_hash": "be0753e2d49bb82093a98f6e96b0f6e4",
+    "mtime": 1792906220.855874,
+    "seen": 1792907328.2534332,
+    "ast_hash": "d99eb1f333b4210f16bf6a2235cba1be",
     "semantic_hash": ""
   },
   "src/app/actions/reset-password-confirm.ts": {
@@ -456,9 +456,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/DashboardClient.tsx": {
-    "mtime": 1792716994.743184,
-    "seen": 1792721132.6093037,
-    "ast_hash": "e3acb60f124d2202d9be1a3763ae4bae",
+    "mtime": 1792905661.4860017,
+    "seen": 1792907328.2534332,
+    "ast_hash": "0da8f58f8527258fcf40cbc8139dbae6",
     "semantic_hash": ""
   },
   "src/components/layout/Footer.tsx": {
@@ -474,9 +474,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/Sidebar.tsx": {
-    "mtime": 1792633440.4233115,
-    "seen": 1792633675.1140966,
-    "ast_hash": "d61f740481c564dbb50910943eb6664f",
+    "mtime": 1792905635.6983168,
+    "seen": 1792907328.2534332,
+    "ast_hash": "82934743bc6893d186304665863fe706",
     "semantic_hash": ""
   },
   "src/components/ui/BankIcon.tsx": {
@@ -1062,9 +1062,9 @@
     "semantic_hash": ""
   },
   "src/app/actions/stok-bahan.ts": {
-    "mtime": 1792125900.14118,
-    "seen": 1792633675.1140966,
-    "ast_hash": "05ac02d9dfba3401c42103ccb774d171",
+    "mtime": 1792907286.9786277,
+    "seen": 1792907328.2534332,
+    "ast_hash": "be692d615d414a333934c3bb3b0d37b0",
     "semantic_hash": ""
   },
   "src/app/dashboard/kasir/layout.tsx": {
@@ -1139,30 +1139,6 @@
     "ast_hash": "a77ef5a868072e9b515f498cc25a5f3d",
     "semantic_hash": ""
   },
-  "src/app/dashboard/resep/loading.tsx": {
-    "mtime": 1790782862.4763606,
-    "seen": 1792633675.1140966,
-    "ast_hash": "34464177055629b6c35317f6d31727d4",
-    "semantic_hash": ""
-  },
-  "src/app/dashboard/resep/page.tsx": {
-    "mtime": 1790782849.0247896,
-    "seen": 1792633675.1140966,
-    "ast_hash": "6ca877321943886779fd8add493f9e5a",
-    "semantic_hash": ""
-  },
-  "src/components/dashboard/ResepClient.tsx": {
-    "mtime": 1792126882.5091524,
-    "seen": 1792633675.1140966,
-    "ast_hash": "53413006d7a664d8386729ad2ee57569",
-    "semantic_hash": ""
-  },
-  "src/components/dashboard/resep-menu-dialog.tsx": {
-    "mtime": 1792123335.362154,
-    "seen": 1792633675.1140966,
-    "ast_hash": "a49a311172bb0a139ab5338e176f353e",
-    "semantic_hash": ""
-  },
   "src/components/dashboard/transfer-dapur-dialog.tsx": {
     "mtime": 1792033075.1277976,
     "seen": 1792633675.1140966,
@@ -1170,9 +1146,9 @@
     "semantic_hash": ""
   },
   "src/lib/resep.ts": {
-    "mtime": 1792122482.8595493,
-    "seen": 1792633675.1140966,
-    "ast_hash": "085e0d263a551c1eeff8af0068fa14e1",
+    "mtime": 1792905799.4441826,
+    "seen": 1792907328.254432,
+    "ast_hash": "cf5c50df02fed83c85dff34203b35803",
     "semantic_hash": ""
   },
   "prisma/migrations/20261015000001_add_satuan_bungkus/migration.sql": {
