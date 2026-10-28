@@ -14,6 +14,8 @@ import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, ba
 import { RefundDialog } from "@/components/pesanan/refund-dialog"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
+import { pisahCatatanItem } from "@/lib/catatan-item"
+import { VarianBadge } from "@/components/ui/varian-badge"
 import { ShiftKasirPanel, useShiftAktif } from "@/components/kasir/ShiftKasirPanel"
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 
@@ -82,7 +84,8 @@ interface Pesanan {
 export default function KasirPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const role = session?.user?.role as string || 'kasir'
+  const rawRole = ((session?.user?.role as string) || 'kasir').toLowerCase()
+  const role = rawRole === 'kasir' ? 'cashier' : rawRole
   const isOwner = role === 'owner'
 
   const [activeTab, setActiveTab] = useState<"belum" | "riwayat">(isOwner ? "riwayat" : "belum")
@@ -837,7 +840,7 @@ export default function KasirPage() {
                         </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-1.5 justify-end">
-                          {role === 'cashier' && p.statusPembayaran === 'berhasil' && p.statusPesanan !== 'dibatalkan' && (
+                           {(role === 'cashier' || role === 'kasir') && p.statusPembayaran === 'berhasil' && p.statusPesanan !== 'dibatalkan' && p.statusPesanan !== 'refund' && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -858,6 +861,7 @@ export default function KasirPage() {
                                   nama: i.namaMenu,
                                   jumlah: i.jumlah,
                                   harga: Number(i.hargaSaatPesan),
+                                  catatan: i.catatanItem,
                                 })),
                                 totalHarga: Number(p.totalHarga),
                                 adminFee: p.biayaAdmin ? Number(p.biayaAdmin) : undefined,
@@ -959,6 +963,7 @@ export default function KasirPage() {
                           nama: i.namaMenu,
                           jumlah: i.jumlah,
                           harga: Number(i.hargaSaatPesan),
+                          catatan: i.catatanItem,
                         })),
                         totalHarga: Number(selectedPesanan.totalHarga),
                         adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
@@ -1242,15 +1247,22 @@ export default function KasirPage() {
           </DialogHeader>
           <div className="flex flex-col min-h-0 overflow-hidden">
             <div className="space-y-4 overflow-y-auto min-h-0 pr-1" style={{ maxHeight: 210 }}>
-              {selectedPesanan && selectedPesanan.items.map((item) => (
-                <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="text-lg font-medium">{item.namaMenu}</p>
-                    <p className="text-base text-gray-500">{item.jumlah}x @ {formatRupiah(item.hargaSaatPesan)}</p>
+              {selectedPesanan && selectedPesanan.items.map((item) => {
+                const { varian, catatan } = pisahCatatanItem(item.catatanItem)
+                return (
+                  <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="text-lg font-medium flex items-center gap-2">
+                        {item.namaMenu}
+                        {varian && <VarianBadge varian={varian} />}
+                      </p>
+                      <p className="text-base text-gray-500">{item.jumlah}x @ {formatRupiah(item.hargaSaatPesan)}</p>
+                      {catatan && <p className="text-sm text-amber-600">Catatan: {catatan}</p>}
+                    </div>
+                    <span className="text-lg font-semibold">{formatRupiah(item.hargaSaatPesan * item.jumlah)}</span>
                   </div>
-                  <span className="text-lg font-semibold">{formatRupiah(item.hargaSaatPesan * item.jumlah)}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
             <div className="border-t pt-4 mt-4">
               <div className="flex justify-between text-2xl font-bold">
@@ -1295,6 +1307,7 @@ export default function KasirPage() {
                     nama: i.namaMenu,
                     jumlah: i.jumlah,
                     harga: Number(i.hargaSaatPesan),
+                    catatan: i.catatanItem,
                   })),
                   totalHarga: Number(selectedPesanan.totalHarga),
                   adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,

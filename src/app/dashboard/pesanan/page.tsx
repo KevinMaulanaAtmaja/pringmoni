@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { getPesananForDashboard, updateStatusPesanan, markPesananSelesai, getPesananById, markItemDiantar } from "@/app/actions/pesanan"
 import { StatusPesanan } from "@prisma/client"
-import { Eye, Printer, CheckCircle, SearchX, Inbox, XCircle, ChevronLeft, ChevronRight, Clock, ArrowRightLeft } from "lucide-react"
+import { Eye, Printer, CheckCircle, SearchX, Inbox, XCircle, ChevronLeft, ChevronRight, Clock, ArrowRightLeft, Undo2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import {
@@ -27,8 +27,12 @@ import {
 } from "@/components/ui/dialog"
 import { useUserRole } from "@/lib/user-context"
 import { printStruk } from "@/lib/print-struk"
+import { pisahCatatanItem } from "@/lib/catatan-item"
+import { VarianBadge } from "@/components/ui/varian-badge"
 import { useNotification } from "@/hooks/use-notification"
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
+import { RefundDialog } from "@/components/pesanan/refund-dialog"
+import { useSession } from "next-auth/react"
 
 const statusColors: Record<string, string> = {
   menunggu: "bg-yellow-100 text-yellow-800",
@@ -95,6 +99,9 @@ interface PesananDetail {
 
 export default function PesananPage() {
   const userRole = useUserRole()
+  const { data: session } = useSession()
+  const rawRole = ((session?.user?.role as string) || userRole || 'kasir').toLowerCase()
+  const role = rawRole === 'kasir' ? 'cashier' : rawRole
   const router = useRouter()
   const { notifyNewOrder, notifyOrderPaid } = useNotification()
   const prevNotifiedOrderIdsRef = useRef<Set<number>>(new Set())
@@ -119,6 +126,7 @@ export default function PesananPage() {
   const [showCompleteModal, setShowCompleteModal] = useState(false)
   const [debugError, setDebugError] = useState<string | null>(null)
   const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({})
+  const [refundTarget, setRefundTarget] = useState<PesananItem | null>(null)
 
   const toggleItemCheck = useCallback(async (pesananId: number, itemId: number) => {
     const key = `${pesananId}-${itemId}`
@@ -552,18 +560,23 @@ export default function PesananPage() {
                       <p className="text-xs text-gray-400 mt-auto">Waiter: {p.waiterUsername}</p>
                     )}
                   </div>
-                 <div className="border-t pt-3">
-                   <div className="flex gap-2">
-                     <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
-                       <Eye className="w-5 h-5 mr-2" /> Detail
-                     </Button>
-                     {userRole === 'waiter' && p.statusBayar === 'berhasil' && (
-                       <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
-                         <CheckCircle className="w-5 h-5 mr-2" /> Tandai Item
-                       </Button>
-                     )}
-                   </div>
-                 </div>
+                  <div className="border-t pt-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
+                        <Eye className="w-5 h-5 mr-2" /> Detail
+                      </Button>
+                      {(role === 'cashier') && p.statusBayar === 'berhasil' && p.status !== 'dibatalkan' && p.status !== 'refund' && (
+                        <Button variant="outline" size="lg" onClick={() => setRefundTarget(p)} className="text-base">
+                          <Undo2 className="w-5 h-5 mr-2" /> Refund
+                        </Button>
+                      )}
+                      {userRole === 'waiter' && p.statusBayar === 'berhasil' && (
+                        <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
+                          <CheckCircle className="w-5 h-5 mr-2" /> Tandai Item
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                </div>
              ))}
           </div>
@@ -687,6 +700,16 @@ export default function PesananPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-1 justify-end">
+                          {(role === 'cashier') && p.statusBayar === 'berhasil' && p.status !== 'dibatalkan' && p.status !== 'refund' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setRefundTarget(p)}
+                            >
+                              <Undo2 className="w-3.5 h-3.5" />
+                              <span className="hidden lg:inline">Refund</span>
+                            </Button>
+                          )}
                           {p.statusBayar === 'berhasil' && (
                             <Button
                               variant="outline"
@@ -702,6 +725,7 @@ export default function PesananPage() {
                                       nama: i.nama_menu,
                                       jumlah: i.jumlah,
                                       harga: Number(i.harga_saat_pesan),
+                                      catatan: i.catatan_item,
                                     })),
                                     totalHarga: Number(d.total_harga),
                                     adminFee: d.biaya_admin ? Number(d.biaya_admin) : undefined,
@@ -837,22 +861,32 @@ export default function PesananPage() {
                   <h4 className="font-medium text-xs mb-1.5 mt-3">Item Pesanan</h4>
                   <div className="overflow-y-auto min-h-0" style={{ maxHeight: 150 }}>
                     <div className="border rounded-lg divide-y">
-                      {selectedPesanan.items.map((item) => (
+                      {selectedPesanan.items.map((item) => {
+                        const { varian, catatan } = pisahCatatanItem(item.catatan_item)
+                        return (
                         <div key={item.id} className="p-2 flex items-center justify-between text-xs">
                           <div>
                             <p className="font-medium">{item.nama_menu}</p>
                             <p className="text-gray-500">
                               {item.jumlah}x Rp {Number(item.harga_saat_pesan).toLocaleString("id-ID")}
                             </p>
-                            {item.catatan_item && (
-                              <p className="text-amber-600">Catatan: {item.catatan_item}</p>
+                            {(varian || catatan) && (
+                              <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                {varian && (
+                                  <VarianBadge varian={varian} />
+                                )}
+                                {catatan && (
+                                  <p className="text-amber-600">Catatan: {catatan}</p>
+                                )}
+                              </div>
                             )}
                           </div>
                           <p className="font-medium">
                             Rp {(item.jumlah * Number(item.harga_saat_pesan)).toLocaleString("id-ID")}
                           </p>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
 
@@ -890,6 +924,7 @@ export default function PesananPage() {
                     nama: i.nama_menu,
                     jumlah: i.jumlah,
                     harga: Number(i.harga_saat_pesan),
+                    catatan: i.catatan_item,
                   })),
                   totalHarga: Number(selectedPesanan.total_harga),
                   adminFee: selectedPesanan.biaya_admin ? Number(selectedPesanan.biaya_admin) : undefined,
@@ -947,6 +982,7 @@ export default function PesananPage() {
                   <div className="border rounded-lg divide-y">
                     {selectedPesananForComplete.items.map((item) => {
                       const isChecked = checkedMap[`${selectedPesananForComplete.id}-${item.id}`] || false
+                      const { varian, catatan } = pisahCatatanItem(item.catatan_item)
                       return (
                         <div 
                           key={item.id} 
@@ -964,8 +1000,15 @@ export default function PesananPage() {
                               <p className={`font-medium ${isChecked ? 'line-through text-gray-400' : ''}`}>
                                 {item.jumlah}x {item.nama_menu}
                               </p>
-                              {item.catatan_item && (
-                                <p className="text-sm text-amber-600">Catatan: {item.catatan_item}</p>
+                              {(varian || catatan) && (
+                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                  {varian && (
+                                    <VarianBadge varian={varian} />
+                                  )}
+                                  {catatan && (
+                                    <p className="text-sm text-amber-600">Catatan: {catatan}</p>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1002,7 +1045,28 @@ export default function PesananPage() {
               )}
             </DialogFooter>
          </DialogContent>
-       </Dialog>
-    </div>
-  )
-}
+        </Dialog>
+
+        <RefundDialog
+          open={refundTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setRefundTarget(null)
+          }}
+          pesanan={
+            refundTarget
+              ? {
+                  id: refundTarget.id,
+                  nomorMeja: refundTarget.meja,
+                  totalHarga: Number(refundTarget.total),
+                  namaPelanggan: refundTarget.namaPelanggan || null,
+                }
+              : null
+          }
+          onSuccess={() => {
+            setRefundTarget(null)
+            fetchData()
+          }}
+        />
+     </div>
+   )
+ }
