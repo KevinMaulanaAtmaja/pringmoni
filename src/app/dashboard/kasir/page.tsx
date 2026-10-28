@@ -14,6 +14,8 @@ import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, ba
 import { RefundDialog } from "@/components/pesanan/refund-dialog"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
+import { pisahCatatanItem } from "@/lib/catatan-item"
+import { VarianBadge } from "@/components/ui/varian-badge"
 import { ShiftKasirPanel, useShiftAktif } from "@/components/kasir/ShiftKasirPanel"
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 
@@ -82,7 +84,8 @@ interface Pesanan {
 export default function KasirPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const role = session?.user?.role as string || 'kasir'
+  const rawRole = ((session?.user?.role as string) || 'kasir').toLowerCase()
+  const role = rawRole === 'kasir' ? 'cashier' : rawRole
   const isOwner = role === 'owner'
 
   const [activeTab, setActiveTab] = useState<"belum" | "riwayat">(isOwner ? "riwayat" : "belum")
@@ -156,9 +159,12 @@ export default function KasirPage() {
     return true
   })
 
-  const totalPendapatan = pesananRiwayatFiltered.reduce((sum, p) => sum + (p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0)), 0)
-  const jumlahQRIS = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'qris').length
-  const jumlahTunai = pesananRiwayatFiltered.filter(p => p.metodePembayaran === 'tunai').length
+  // Ringkasan pendapatan hanya dari transaksi berhasil — pesanan yang
+  // dibatalkan/refund tetap tampil di tabel tapi bukan pemasukan.
+  const riwayatBerhasil = pesananRiwayatFiltered.filter(p => p.statusPembayaran === 'berhasil')
+  const totalPendapatan = riwayatBerhasil.reduce((sum, p) => sum + (p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0)), 0)
+  const jumlahQRIS = riwayatBerhasil.filter(p => p.metodePembayaran === 'qris').length
+  const jumlahTunai = riwayatBerhasil.filter(p => p.metodePembayaran === 'tunai').length
 
   const [riwayatPage, setRiwayatPage] = useState(1)
   const riwayatPerPage = 10
@@ -466,7 +472,7 @@ export default function KasirPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full min-w-0 max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Kelola Kasir</h1>
 
       {!isOwner && (
@@ -785,18 +791,18 @@ export default function KasirPage() {
             </div>
 
           <div>
-          <div className="bg-white rounded-xl border overflow-x-auto">
+          <div className="bg-white rounded-xl border">
             <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-base">No. Pesanan</TableHead>
-                    <TableHead className="text-base">Meja</TableHead>
-                    <TableHead className="text-base">Metode</TableHead>
-                    <TableHead className="text-base">Kasir</TableHead>
-                    <TableHead className="text-base">Total</TableHead>
-                    <TableHead className="text-base">Status</TableHead>
-                    <TableHead className="text-base">Waktu</TableHead>
-                    <TableHead className="text-base text-right">Aksi</TableHead>
+                    <TableHead className="text-sm">No. Pesanan</TableHead>
+                    <TableHead className="text-sm">Meja</TableHead>
+                    <TableHead className="hidden sm:table-cell text-sm">Metode</TableHead>
+                    <TableHead className="hidden lg:table-cell text-sm">Kasir</TableHead>
+                    <TableHead className="text-sm">Total</TableHead>
+                    <TableHead className="text-sm">Status</TableHead>
+                    <TableHead className="hidden lg:table-cell text-sm">Waktu</TableHead>
+                    <TableHead className="text-sm text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
               <TableBody>
@@ -809,44 +815,45 @@ export default function KasirPage() {
                 ) : (
                   paginatedRiwayat.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-mono text-xs">{nomorPesanan(p.id, p.createdAt)}</TableCell>
-                      <TableCell className="text-base">{p.nomorMeja}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-mono text-xs whitespace-nowrap">{nomorPesanan(p.id, p.createdAt)}</TableCell>
+                      <TableCell className="text-sm">{p.nomorMeja}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         {p.statusPembayaran === 'dibatalkan' ? (
-                          <Badge className="bg-red-100 text-red-800 border-red-300 text-base px-3 py-1">-</Badge>
+                          <Badge className="bg-red-100 text-red-800 border-red-300 text-xs px-2 py-0.5">-</Badge>
                         ) : p.metodePembayaran ? (
-                          <Badge className={`${metodeColors[p.metodePembayaran as MetodePembayaran]} text-base px-3 py-1`}>
+                          <Badge className={`${metodeColors[p.metodePembayaran as MetodePembayaran]} text-xs px-2 py-0.5`}>
                             {metodeLabels[p.metodePembayaran as MetodePembayaran]}
                           </Badge>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-base">{p.kasirUsername || "-"}</TableCell>
-                      <TableCell className="font-bold text-lg">{formatRupiah(p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0))}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">{p.kasirUsername || "-"}</TableCell>
+                      <TableCell className="font-bold text-sm whitespace-nowrap">{formatRupiah(p.totalHarga + (p.biayaAdmin || 0) + (p.ppn || 0))}</TableCell>
                         <TableCell>
-                          <Badge className={`${statusBayarColors[p.statusPembayaran as StatusBayar]} text-base px-3 py-1`}>
+                          <Badge className={`${statusBayarColors[p.statusPembayaran as StatusBayar]} text-xs px-2 py-0.5 whitespace-nowrap`}>
                             {statusBayarLabels[p.statusPembayaran as StatusBayar] || p.statusPembayaran}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-base">
+                        <TableCell className="hidden lg:table-cell text-sm whitespace-nowrap">
                           {formatWaktu(p.updatedAt || p.createdAt)}
                         </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-1.5 justify-end">
-                          {role === 'cashier' && p.statusPembayaran === 'berhasil' && p.statusPesanan !== 'dibatalkan' && (
+                           {(role === 'cashier' || role === 'kasir') && p.statusPembayaran === 'berhasil' && p.statusPesanan !== 'dibatalkan' && p.statusPesanan !== 'refund' && (
                             <Button
                               variant="outline"
-                              size="lg"
+                              size="sm"
                               onClick={() => setRefundTarget(p)}
                             >
-                              <Undo2 className="w-5 h-5 mr-1" />Refund
+                              <Undo2 className="w-4 h-4" />
+                              <span className="hidden xl:inline">Refund</span>
                             </Button>
                           )}
                           {p.statusPembayaran === "berhasil" && (
                             <Button
                               variant="outline"
-                              size="lg"
+                              size="sm"
                               onClick={() => printStruk({
                                 id: p.id,
                                 nomorMeja: p.nomorMeja,
@@ -854,6 +861,7 @@ export default function KasirPage() {
                                   nama: i.namaMenu,
                                   jumlah: i.jumlah,
                                   harga: Number(i.hargaSaatPesan),
+                                  catatan: i.catatanItem,
                                 })),
                                 totalHarga: Number(p.totalHarga),
                                 adminFee: p.biayaAdmin ? Number(p.biayaAdmin) : undefined,
@@ -866,11 +874,13 @@ export default function KasirPage() {
                                 namaPelanggan: p.namaPelanggan,
                               })}
                             >
-                              <Printer className="w-5 h-5 mr-1" />Cetak
+                              <Printer className="w-4 h-4" />
+                              <span className="hidden xl:inline">Cetak</span>
                             </Button>
                           )}
-                          <Button variant="outline" size="lg" onClick={() => openDetail(p)}>
-                            <Eye className="w-5 h-5 mr-2" />Detail
+                          <Button variant="outline" size="sm" onClick={() => openDetail(p)}>
+                            <Eye className="w-4 h-4" />
+                            <span className="hidden xl:inline">Detail</span>
                           </Button>
                         </div>
                       </TableCell>
@@ -953,6 +963,7 @@ export default function KasirPage() {
                           nama: i.namaMenu,
                           jumlah: i.jumlah,
                           harga: Number(i.hargaSaatPesan),
+                          catatan: i.catatanItem,
                         })),
                         totalHarga: Number(selectedPesanan.totalHarga),
                         adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
@@ -1236,15 +1247,22 @@ export default function KasirPage() {
           </DialogHeader>
           <div className="flex flex-col min-h-0 overflow-hidden">
             <div className="space-y-4 overflow-y-auto min-h-0 pr-1" style={{ maxHeight: 210 }}>
-              {selectedPesanan && selectedPesanan.items.map((item) => (
-                <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="text-lg font-medium">{item.namaMenu}</p>
-                    <p className="text-base text-gray-500">{item.jumlah}x @ {formatRupiah(item.hargaSaatPesan)}</p>
+              {selectedPesanan && selectedPesanan.items.map((item) => {
+                const { varian, catatan } = pisahCatatanItem(item.catatanItem)
+                return (
+                  <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="text-lg font-medium flex items-center gap-2">
+                        {item.namaMenu}
+                        {varian && <VarianBadge varian={varian} />}
+                      </p>
+                      <p className="text-base text-gray-500">{item.jumlah}x @ {formatRupiah(item.hargaSaatPesan)}</p>
+                      {catatan && <p className="text-sm text-amber-600">Catatan: {catatan}</p>}
+                    </div>
+                    <span className="text-lg font-semibold">{formatRupiah(item.hargaSaatPesan * item.jumlah)}</span>
                   </div>
-                  <span className="text-lg font-semibold">{formatRupiah(item.hargaSaatPesan * item.jumlah)}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
             <div className="border-t pt-4 mt-4">
               <div className="flex justify-between text-2xl font-bold">
@@ -1289,6 +1307,7 @@ export default function KasirPage() {
                     nama: i.namaMenu,
                     jumlah: i.jumlah,
                     harga: Number(i.hargaSaatPesan),
+                    catatan: i.catatanItem,
                   })),
                   totalHarga: Number(selectedPesanan.totalHarga),
                   adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,

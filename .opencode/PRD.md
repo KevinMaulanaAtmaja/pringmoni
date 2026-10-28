@@ -60,8 +60,21 @@
 | PBI-1.2 | CRUD User | Done |
 | PBI-1.3 | CRUD Meja (token unik) | Done |
 | PBI-1.4 | CRUD Menu (kategori, foto) | Done |
+| PBI-1.5 | Ambil alih sesi login antar perangkat (satu konfirmasi saat login) | Done |
 
 > Catatan PBI-1.4: Menu tidak lagi punya "mode manual" — ketersediaan mengacu pada resep (lihat Modul 6).
+>
+> Catatan PBI-1.5: Saat menekan Masuk, bila sesi akun masih aktif di perangkat
+> lain (`users.last_seen_at` < 15 menit & `cookie pm_device` berbeda), tampil
+> **satu dialog konfirmasi** "Ambil alih sesi?". Setelah dikonfirmasi, login
+> membuat sesi baru dan menaikkan `users.session_version`; JWT lama otomatis
+> ditandai `takenOver`, cookie sesinya dihapus **proxy**, dan perangkat lama
+> diarahkan ke `/login?takenOver=1` yang menampilkan **dialog sekali** "Sesi
+> diambil alih" (URL lalu dibersihkan agar tidak berulang saat refresh).
+> Menekan **Batal** pada dialog tidak dihitung sebagai percobaan gagal — rate
+> limit login hanya mencatat username/password yang salah. Sumber:
+> `src/lib/sesi.ts`, `src/lib/auth.ts`, `src/app/actions/login.ts`, `src/lib/rate-limiter.ts`,
+> `src/proxy.ts`.
 
 ### Modul 2: Pesanan
 | PBI | Deskripsi | Status |
@@ -110,11 +123,17 @@
 |-----|----------|--------|
 | PBI-7.1 | Reservasi pesanan (offline) | Todo |
 | PBI-7.2 | Ganti meja (pindah pesanan antar meja) | Todo |
-| PBI-7.3 | Pergantian shift kasir | Todo |
+| PBI-7.3 | Pergantian shift kasir | Done |
 | PBI-7.4 | Auto-kosongkan meja + pesanan (pesanan selesai / pesanan lama dibayar) | Done |
 | PBI-7.5 | Refund + bukti foto | Done |
 
-> Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan).
+> Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan). Ditambah lagi, saat lewat tengah malam (00:00) sisa pesanan aktif yang belum dibayar ikut dibatalkan otomatis oleh `getNotifikasiTerlambat()` — lihat PBI-8.4.
+>
+> Catatan PBI-7.3 (pembagian hak akses shift):
+> - **CASHIER** — hanya boleh **buka/tutup shift sendiri** dan **melihat riwayat shift sendiri** (read-only). Tidak bisa mengatur jadwal shift maupun melihat/mengubah shift kasir lain.
+> - **OWNER** — configuring jadwal shift (tambah/edit/hapus slot) + monitoring seluruh riwayat shift (read-only, termasuk filter per kasir). Tidak membuka/menutup shift kasir.
+> - **WAITER** — **tidak punya akses shift sama sekali** (menu disembunyikan, route `/dashboard/shift` diblokir proxy, aksi shift menolak role ini). Alasan: shift melacak uang awal/akhir kas (drawer) yang dipegang kasir.
+> - Jadwal shift & riwayat shift berada di satu halaman `/dashboard/shift` (tab terpisah). Menu sidebar owner: "Shift" (mobile & desktop) — sebelumnya ada link `/dashboard/jadwal-shift` yang **404**.
 
 ### Modul 8: Notifikasi, QR & Backup
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*
@@ -124,6 +143,20 @@
 | PBI-8.1 | Download QR meja | Todo |
 | PBI-8.2 | Notifikasi perubahan status pesanan ke customer | Todo |
 | PBI-8.3 | Backup data | Todo |
+| PBI-8.4 | Notifikasi pesanan terlambat di dashboard (lonceng + badge) | Done |
+
+> Catatan PBI-8.4: Lonceng notifikasi **selalu tampil** di header dashboard untuk
+> **OWNER, CASHIER, dan WAITER** (semua halaman dashboard). Badge menampilkan jumlah
+> pesanan yang **sudah >30 menit belum ditangani** — status `menunggu` (belum di-acknowledge)
+> maupun `diproses` (sudah bayar, belum diantar). Klik lonceng untuk melihat daftar
+> pesanan terlambat + tautan ke detail pesanan; bunyi/voice alert baru saat ada pesanan
+> terlambat **baru** terdeteksi. **Reset tiap tengah malam (00:00):** notifikasi hanya
+> berlaku untuk pesanan yang dibuat **hari ini**, dan sisa pesanan yang **belum dibayar**
+> otomatis dibatalkan + mejanya dikosongkan (`CANCEL_ORDER_EXPIRED`), sehingga tidak
+> menggantung selamanya seperti sebelumnya. Pesanan yang **sudah dibayar** tidak
+> dibatalkan otomatis (perlu refund manual) — hanya dikeluarkan dari daftar notifikasi.
+> Sumber data tunggal: `src/app/actions/notifikasi.ts` → `getNotifikasiTerlambat()`
+> (dipakai bersama oleh lonceng header dan banner `StaleOrdersWarning` di `/dashboard`).
 
 ### Modul 9: Non-Fungsional & Pengujian
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*

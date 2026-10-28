@@ -157,10 +157,26 @@ Project ini menggunakan **OpenCode Workflow** dengan konfigurasi di folder `.ope
 | Aktivitas | Diizinkan |
 |-----------|-----------|
 | `npm run dev` | Tidak - dijalankan oleh user |
-| `npm run build` | Ya |
+| `npm run build` | Ya **tapi hanya saat dev server user TIDAK aktif** |
 | `npm run lint` | Ya |
 | Install dependencies baru | Hanya BE yang boleh |
 | Mengosongkan database | **HANYA atas perintah eksplisit user** |
+
+### ⚠️ Larangan: `next build` bersamaan dengan `next dev`
+
+`next build` menimpa folder `.next/` yang sama dipakai dev server Turbopack.
+Akibatnya dev server bisa **buta total** (semua route balas 404, termasuk
+`/login` dan `/api/auth/*`) atau memuat modul basi (mis. Prisma client lama →
+`Unknown field 'sessionVersion'`).
+
+Aturan:
+- Jalankan `next build` **hanya** setelah dev server user dimatikan.
+- Setelah build, `.next/` dibersihkan (`rm -rf .next`) bila dev server akan
+  dijalankan lagi — dev server akan membangun ulang artefaknya sendiri.
+- Setelah mengubah `prisma/schema.prisma`: `npx prisma generate` **harus**
+  dijalankan saat dev server mati (Windows mengunci DLL query engine → EPERM).
+- Kalau dev server tiba-tiba 404 semua route: matikan → `rm -rf .next` →
+  jalankan ulang `npm run dev`.
 
 ### Branch Terlindungi (JANGAN DIHAPUS)
 

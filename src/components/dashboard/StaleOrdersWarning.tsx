@@ -21,7 +21,7 @@ export function StaleOrdersWarning({ orders }: { orders: StaleOrder[] }) {
       <div className="flex items-center gap-2 mb-1.5">
         <Clock className="w-3.5 h-3.5 text-amber-600" />
         <span className="text-xs font-bold text-amber-700 tracking-wide">
-          &gt;30 Menit — {orders.length} pesanan
+          &gt;30 Menit — {orders.length} pesanan belum ditangani
         </span>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -32,7 +32,9 @@ export function StaleOrdersWarning({ orders }: { orders: StaleOrder[] }) {
             className="inline-flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-medium text-xs px-2 py-1 rounded-full transition"
           >
             <span>Meja {o.nomorMeja}</span>
-            <span className="text-[10px] text-amber-600">({formatDurasi(o.lamaMenit)})</span>
+            <span className="text-[10px] text-amber-600">
+              ({o.statusPesanan === "diproses" ? "Belum diantar" : "Belum diproses"}, {formatDurasi(o.lamaMenit)})
+            </span>
             <ArrowRight className="w-3 h-3" />
           </Link>
         ))}

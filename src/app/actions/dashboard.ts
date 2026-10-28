@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
+import { getNotifikasiTerlambat } from "@/app/actions/notifikasi"
 import type { RoleUser } from "@/types"
 
 const AUTO_CANCEL_THROTTLE_MS = 60_000
@@ -253,48 +254,23 @@ export interface StaleOrder {
   createdAt: Date
 }
 
-export async function getStaleOrders() {
-  const session = await auth()
-  const role = session?.user?.role as RoleUser | undefined
-  if (!role || role === 'owner') return []
-
-  const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000)
-
-  try {
-    const stalePesanan = await prisma.pesanan.findMany({
-      where: {
-        statusPesanan: 'diproses',
-        createdAt: { lte: thirtyMinAgo },
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        createdAt: true,
-        mejaId: true,
-        statusPesanan: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    })
-
-    const mejaIds = [...new Set(stalePesanan.map(p => p.mejaId))]
-    const mejaList = await prisma.meja.findMany({
-      where: { id: { in: mejaIds } },
-      select: { id: true, nomorMeja: true },
-    })
-    const mejaMap = new Map(mejaList.map(m => [m.id, m.nomorMeja]))
-
-    const now = Date.now()
-    return stalePesanan.map(p => ({
-      id: p.id,
-      nomorMeja: mejaMap.get(p.mejaId) || `Meja #${p.mejaId}`,
-      statusPesanan: p.statusPesanan,
-      lamaMenit: Math.round((now - p.createdAt.getTime()) / 60000),
-      createdAt: p.createdAt,
-    }))
-  } catch (error) {
-    console.error('Stale orders error:', error)
-    return []
-  }
+/**
+ * Pesanan terlambat (>30 menit & belum ditangani).
+ *
+ * Sumber data tunggal: `getNotifikasiTerlambat` — dipakai juga oleh lonceng
+ * notifikasi di header dashboard, sehingga banner dan badge lonceng selalu
+ * konsisten. Bisa diakses semua role (owner, cashier, waiter) dan otomatis
+ * ter-reset saat lewat tengah malam.
+ */
+export async function getStaleOrders(): Promise<StaleOrder[]> {
+  const { orders } = await getNotifikasiTerlambat()
+  return orders.map((o) => ({
+    id: o.id,
+    nomorMeja: o.nomorMeja,
+    statusPesanan: o.statusPesanan,
+    lamaMenit: o.lamaMenit,
+    createdAt: new Date(o.createdAt),
+  }))
 }
 
 export async function autoCancelStaleUnpaid() {

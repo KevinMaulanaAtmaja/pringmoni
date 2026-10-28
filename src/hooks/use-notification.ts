@@ -2,7 +2,7 @@
 
 import { useCallback, useRef } from 'react'
 
-type NotificationType = 'new_order' | 'order_paid'
+type NotificationType = 'new_order' | 'order_paid' | 'stale_order'
 
 /**
  * Shared notification hook for the dashboard.
@@ -11,6 +11,7 @@ type NotificationType = 'new_order' | 'order_paid'
  * Sound designs:
  * - New Order : double beep (880Hz + 660Hz) + voice
  * - Order Paid: triple higher-pitched beep (1100Hz + 880Hz + 1100Hz) + voice
+ * - Stale Order: descending triple beep (1000Hz + 850Hz + 700Hz) + voice
  */
 export function useNotification() {
   // Keep a reference to a single AudioContext so we don't create a new one
@@ -94,6 +95,11 @@ export function useNotification() {
         playBeep(1100, 0.2, 0)
         playBeep(880, 0.2, 0.25)
         playBeep(1100, 0.25, 0.5)
+      } else if (type === 'stale_order') {
+        // Descending triple beep: 1000Hz, 850Hz, 700Hz (suara "waspada")
+        playBeep(1000, 0.2, 0)
+        playBeep(850, 0.2, 0.25)
+        playBeep(700, 0.3, 0.5)
       }
     },
     [playBeep]
@@ -135,10 +141,38 @@ export function useNotification() {
     [playSound, speak]
   )
 
+  /**
+   * Combined sound + voice untuk satu pesanan terlambat (>30 menit belum ditangani).
+   */
+  const notifyStaleOrder = useCallback(
+    (nomorMeja: string, lamaMenit: number) => {
+      playSound('stale_order')
+      speak(
+        `Perhatian, pesanan meja ${nomorMeja} sudah ${lamaMenit} menit belum ditangani`
+      )
+    },
+    [playSound, speak]
+  )
+
+  /**
+   * Combined sound + voice untuk lebih dari satu pesanan terlambat sekaligus.
+   */
+  const notifyStaleOrders = useCallback(
+    (jumlah: number) => {
+      playSound('stale_order')
+      speak(
+        `Perhatian, ada ${jumlah} pesanan terlambat yang belum ditangani`
+      )
+    },
+    [playSound, speak]
+  )
+
   return {
     playSound,
     speak,
     notifyNewOrder,
     notifyOrderPaid,
+    notifyStaleOrder,
+    notifyStaleOrders,
   }
 }

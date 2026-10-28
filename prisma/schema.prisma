@@ -19,6 +19,16 @@ model Users {
   updatedAt        DateTime?     @map("updated_at")
   resetToken       String?       @unique @map("reset_token")
   resetTokenExpiry DateTime?     @map("reset_token_expiry")
+  /// Versi sesi login akun ini. Bertambah setiap kali ada login baru.
+  /// Sesi yang membawa versi lama otomatis tidak berlaku lagi (takeover).
+  sessionVersion  Int           @default(0) @map("session_version")
+  /// Waktu login terakhir pada akun ini.
+  lastLoginAt     DateTime?     @map("last_login_at")
+  /// ID perangkat (cookie) yang melakukan login terakhir.
+  lastLoginDevice String?       @map("last_login_device")
+  /// Waktu terakhir sesi akun ini masih dipakai (request terautentikasi).
+  /// Dipakai untuk mendeteksi sesi lain yang benar-benar masih aktif.
+  lastSeenAt      DateTime?     @map("last_seen_at")
   logs             Logs[]
   kasirPesanan     Pesanan[]     @relation("KasirPesanan")
   waiterPesanan    Pesanan[]     @relation("WaiterPesanan")
@@ -145,6 +155,7 @@ model Menu {
   harga         Decimal         @map("harga") @db.Decimal(10, 2)
   kategoriId    Int             @map("kategori_id")
   statusMenu    StatusMenu      @default(tersedia) @map("status_menu")
+  stokManual    Int             @default(0) @map("stok_manual")
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime?       @map("updated_at")
   deletedAt     DateTime?       @map("deleted_at")
@@ -403,9 +414,15 @@ enum KategoriBahan {
 
 enum SatuanStok {
   kg
+  gram
+  liter
+  ml
   pcs
   pack
   bungkus
+  sachet
+  botol
+  kaleng
 }
 
 enum StatusStok {
