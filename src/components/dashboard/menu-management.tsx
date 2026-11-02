@@ -74,6 +74,9 @@ import {
   createKategori,
   updateKategori,
   deleteKategori,
+  updateStokMenuHarian,
+  setAllStokMenuHarian,
+  setStokMenuHarianByKategori,
 } from '@/app/actions/menu';
 
 type ActionResult = { success: boolean } | { error: string };
@@ -84,7 +87,7 @@ import {
   getMenuFotos,
 } from '@/app/actions/menu-foto';
 
-import { ResepMenuDialog } from '@/components/dashboard/resep-menu-dialog';
+
 
 import { useUploadThing } from '@/lib/uploadthing-client';
 
@@ -170,10 +173,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // Resep bahan states
-  const [isResepOpen, setIsResepOpen] = useState(false);
-  const [resepMenuId, setResepMenuId] = useState<number | null>(null);
-  const [resepNamaMenu, setResepNamaMenu] = useState('');
+
 
   const [loading, setLoading] = useState(true);
 
@@ -241,6 +241,17 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
   const [isDeleteFotoOpen, setIsDeleteFotoOpen] = useState(false);
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  const [editingStokId, setEditingStokId] = useState<number | null>(null)
+  const [editingStokValue, setEditingStokValue] = useState<string>('')
+  const [savingStok, setSavingStok] = useState(false)
+
+  // Bulk daily stock states
+  const [isBulkStokOpen, setIsBulkStokOpen] = useState(false)
+  const [bulkStokValue, setBulkStokValue] = useState('0')
+  const [bulkStokScope, setBulkStokScope] = useState<'semua' | 'kategori'>('semua')
+  const [bulkKategoriId, setBulkKategoriId] = useState('')
+  const [savingBulkStok, setSavingBulkStok] = useState(false)
 
   const totalPhotos =
     existingFotos.length + uploadedFotoUrls.length;
@@ -350,7 +361,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
         harga: menu.harga.toString(),
         kategoriId: menu.kategoriId.toString(),
         statusMenu: menu.statusMenu,
-        stokManual: ((menu as any).stokManual ?? 0).toString(),
+        stokManual: (menu.stokManual ?? 0).toString(),
       });
 
       // Set price value in thousands
@@ -379,12 +390,6 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
     setUploadedFotoUrls([]);
     setUploadedFileKeys([]);
     setIsOpen(true);
-  }
-
-  function openResepDialog(menuId: number, namaMenu: string) {
-    setResepMenuId(menuId);
-    setResepNamaMenu(namaMenu);
-    setIsResepOpen(true);
   }
 
   async function loadMenuFotos(menuId: number) {
@@ -446,12 +451,15 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
     setSubmitting(true);
 
     try {
+      const stokManual = parseInt(form.stokManual || '0', 10);
+
       const data = {
         namaMenu: form.namaMenu,
         deskripsi: form.deskripsi || undefined,
         harga: parseFloat(form.harga),
         kategoriId: parseInt(form.kategoriId),
         statusMenu: form.statusMenu,
+        stokManual: Number.isNaN(stokManual) ? 0 : stokManual,
       };
 
       // Validation
@@ -463,6 +471,12 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
 
       if (data.harga <= 0) {
         alert('Harga harus lebih dari 0');
+        setSubmitting(false);
+        return;
+      }
+
+      if (data.stokManual < 0) {
+        alert('Stok siap jual tidak boleh negatif');
         setSubmitting(false);
         return;
       }
@@ -494,7 +508,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
           );
         }
       } else {
-        const result = await createMenu({ ...data, stokManual: parseInt((form as any).stokManual || '0') } as any);
+        const result = await createMenu(data);
 
         if (
           result &&
@@ -529,6 +543,36 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
       loadData();
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleBulkStokSubmit() {
+    const jumlah = parseInt(bulkStokValue, 10)
+
+    if (Number.isNaN(jumlah) || jumlah < 0) {
+      alert('Jumlah porsi siap jual tidak valid')
+      return
+    }
+
+    if (bulkStokScope === 'kategori' && !bulkKategoriId) {
+      alert('Pilih kategori terlebih dahulu')
+      return
+    }
+
+    setSavingBulkStok(true)
+    try {
+      const res = bulkStokScope === 'kategori'
+        ? await setStokMenuHarianByKategori(parseInt(bulkKategoriId, 10), jumlah)
+        : await setAllStokMenuHarian(jumlah)
+
+      if (res && 'error' in res) {
+        alert(res.error)
+        return
+      }
+      setIsBulkStokOpen(false)
+      await loadData()
+    } finally {
+      setSavingBulkStok(false)
     }
   }
 
@@ -827,6 +871,20 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
 
         <div className="ml-auto flex items-center gap-2">
           <Button
+            variant="outline"
+            className="h-8"
+            onClick={() => {
+              setBulkStokValue('0')
+              setBulkStokScope('semua')
+              setBulkKategoriId('')
+              setIsBulkStokOpen(true)
+            }}
+          >
+            <CookingPot className="w-4 h-4 mr-2" />
+            Stok Harian
+          </Button>
+
+          <Button
             onClick={() => openDialog()}
             className="h-8"
           >
@@ -1051,42 +1109,56 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
                     </TableCell>
 
                     <TableCell className="py-2">
-                      {!menu.adaResep ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] text-gray-500 border-gray-300"
-                          title="Belum punya resep — ketersediaan mengikuti status menu"
-                        >
-                          Stok manual
-                        </Badge>
-                      ) : (menu.porsiTersedia ?? 0) <= 0 ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] text-red-700 border-red-300"
-                          title={`Stok bahan habis${
-                            menu.bahanPembatas?.length
-                              ? `: ${menu.bahanPembatas.join(', ')}`
-                              : ''
-                          }`}
-                        >
-                          Stok habis
-                        </Badge>
+                      {menu.statusMenu === 'nonaktif' ? (
+                        <Badge variant="outline" className="text-[10px] text-gray-500 border-gray-300">Nonaktif</Badge>
+                      ) : editingStokId === menu.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            className="w-16 h-6 px-1 text-xs border rounded"
+                            value={editingStokValue}
+                            onChange={(e) => setEditingStokValue(e.target.value)}
+                          />
+                          <Button
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            disabled={savingStok}
+                            onClick={async () => {
+                              const val = parseInt(editingStokValue) || 0
+                              if (val < 0) return
+                              setSavingStok(true)
+                              const res = await updateStokMenuHarian(menu.id, val)
+                              setSavingStok(false)
+                              if (res && 'error' in res) {
+                                alert(res.error)
+                                return
+                              }
+                              setEditingStokId(null)
+                              loadData()
+                            }}
+                          >
+                            Simpan
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => setEditingStokId(null)}
+                          >
+                            Batal
+                          </Button>
+                        </div>
                       ) : (
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] ${
-                            (menu.porsiTersedia ?? 0) <= 5
-                              ? 'text-amber-700 border-amber-300'
-                              : 'text-emerald-700 border-emerald-300'
-                          }`}
-                          title={`Stok bahan cukup untuk ${menu.porsiTersedia} porsi${
-                            menu.bahanPembatas?.length
-                              ? `. Paling tipis: ${menu.bahanPembatas.join(', ')}`
-                              : ''
-                          }`}
+                        <button
+                          className="text-sm font-medium hover:underline"
+                          onClick={() => {
+                            setEditingStokId(menu.id)
+                            setEditingStokValue(String(menu.stokManual ?? 0))
+                          }}
                         >
-                          {menu.porsiTersedia} porsi
-                        </Badge>
+                          {menu.stokManual ?? 0}
+                        </button>
                       )}
                     </TableCell>
 
@@ -1110,20 +1182,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
 
                     <TableCell className="py-2 text-right">
                       <div className="flex justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          title="Atur resep bahan"
-                          onClick={() =>
-                            openResepDialog(
-                              menu.id,
-                              menu.namaMenu
-                            )
-                          }
-                        >
-                          <CookingPot className="w-3 h-3" />
-                        </Button>
+
 
                         <Button
                           variant="outline"
@@ -1479,6 +1538,29 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
                     </Select>
                   </div>
                 </div>
+
+                {/* Stok Siap Jual Hari Ini */}
+                <div className="grid gap-1">
+                  <Label htmlFor="stokManual" className="text-xs">
+                    Stok Siap Jual Hari Ini
+                  </Label>
+                  <Input
+                    id="stokManual"
+                    type="number"
+                    min="0"
+                    value={form.stokManual}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        stokManual: e.target.value,
+                      })
+                    }
+                    className="h-6 text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Jika diisi 0, menu akan otomatis menjadi Habis saat disimpan.
+                  </p>
+                </div>
               </div>
 
               {/* Photo Upload */}
@@ -1704,19 +1786,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
             </div>
 
             <DialogFooter className="gap-1">
-              {editingId && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    openResepDialog(editingId, form.namaMenu)
-                  }
-                  className="h-7 text-xs px-3 mr-auto"
-                >
-                  <CookingPot className="w-3 h-3 mr-1" />
-                  Resep
-                </Button>
-              )}
+
 
               <Button
                 type="button"
@@ -1743,13 +1813,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
         </DialogContent>
       </Dialog>
 
-      {/* Resep Menu Dialog */}
-      <ResepMenuDialog
-        open={isResepOpen}
-        onOpenChange={setIsResepOpen}
-        menuId={resepMenuId}
-        namaMenu={resepNamaMenu}
-      />
+      {/* Resep Menu Dialog removed */}
 
       {/* Category Dialog */}
       <Dialog
@@ -2049,6 +2113,125 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
               }
             >
               Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Daily Stock Dialog */}
+      <Dialog
+        open={isBulkStokOpen}
+        onOpenChange={setIsBulkStokOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Atur Stok Harian
+            </DialogTitle>
+
+            <DialogDescription className="text-sm text-gray-500">
+              {bulkStokScope === 'kategori'
+                ? 'Akan diterapkan ke menu pada kategori terpilih. Menu Nonaktif tidak akan diubah.'
+                : 'Akan diterapkan ke semua menu dengan status bukan Nonaktif. Menu Nonaktif tidak akan diubah.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-2 py-2">
+            <div
+              className={`grid gap-2 ${
+                bulkStokScope === 'kategori' ? 'grid-cols-2' : 'grid-cols-1'
+              }`}
+            >
+              <div className="grid gap-1">
+                <Label className="text-xs">
+                  Terapkan ke
+                </Label>
+                <Select
+                  value={bulkStokScope}
+                  onValueChange={(value) =>
+                    setBulkStokScope(value as 'semua' | 'kategori')
+                  }
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semua">
+                      Semua Menu Aktif
+                    </SelectItem>
+                    <SelectItem value="kategori">
+                      Per Kategori
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {bulkStokScope === 'kategori' && (
+                <div className="grid gap-1">
+                  <Label className="text-xs">
+                    Kategori
+                  </Label>
+                  <Select
+                    value={bulkKategoriId}
+                    onValueChange={setBulkKategoriId}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Pilih kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {kategoris.map((kat) => (
+                        <SelectItem
+                          key={kat.id}
+                          value={kat.id.toString()}
+                        >
+                          {kat.lokasi === 'cafe'
+                            ? `☕ ${kat.namaKategori}`
+                            : kat.namaKategori}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-1">
+              <Label htmlFor="bulkStok" className="text-xs">
+                Jumlah porsi siap jual
+              </Label>
+              <Input
+                id="bulkStok"
+                type="number"
+                min="0"
+                value={bulkStokValue}
+                onChange={(e) => setBulkStokValue(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Isi 0 untuk mengosongkan stok{' '}
+                {bulkStokScope === 'kategori'
+                  ? 'pada kategori ini'
+                  : 'semua menu aktif'}.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsBulkStokOpen(false)}
+            >
+              Batal
+            </Button>
+
+            <Button
+              onClick={handleBulkStokSubmit}
+              disabled={
+                savingBulkStok ||
+                (bulkStokScope === 'kategori' && !bulkKategoriId)
+              }
+            >
+              {savingBulkStok ? '...' : 'Terapkan'}
             </Button>
           </DialogFooter>
         </DialogContent>

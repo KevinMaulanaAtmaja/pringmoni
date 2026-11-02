@@ -96,9 +96,15 @@ const tipeLabels: Record<LokasiStok, string> = {
 
 const satuanLabels: Record<SatuanStok, string> = {
   kg: 'kg',
+  gram: 'gram',
+  liter: 'liter',
+  ml: 'ml',
   pcs: 'pcs',
   pack: 'pack',
   bungkus: 'bungkus',
+  sachet: 'sachet',
+  botol: 'botol',
+  kaleng: 'kaleng',
 }
 
 const statusColors: Record<StatusStok, string> = {
@@ -946,6 +952,7 @@ export default function StokBahanPage() {
         <Button variant={activeTipe === 'gudang' ? 'default' : 'outline'} size="sm" onClick={() => setActiveTipe('gudang')}>Gudang</Button>
         <Button variant={activeTipe === 'dapur' ? 'default' : 'outline'} size="sm" onClick={() => setActiveTipe('dapur')}>Dapur</Button>
       </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
         <Input
           placeholder="Cari bahan..."
           value={search}

@@ -609,18 +609,6 @@ export async function getDaftarMenuResep(): Promise<MenuResepRingkasan[]> {
       (r) => r.stokBahan.kategori === "bumbu"
     ).length
 
-    const ketersediaan = hitungKetersediaanResep(
-      bahan.map((r) => ({
-        namaBahan: r.stokBahan.namaBahan,
-        satuan: r.stokBahan.satuan,
-        jumlahPerPorsi: Number(r.jumlah),
-        stokQty: Number(r.stokBahan.stokQty),
-      })),
-      jumlahBahanUtama,
-      jumlahBahanBumbu,
-      butuhBumbu(m.kategori?.namaKategori)
-    )
-
     return {
       id: m.id,
       namaMenu: m.namaMenu,
@@ -629,10 +617,10 @@ export async function getDaftarMenuResep(): Promise<MenuResepRingkasan[]> {
       jumlahBahan: bahan.length,
       jumlahBahanUtama,
       jumlahBahanBumbu,
-      adaResep: ketersediaan.adaResep,
-      lengkap: ketersediaan.lengkap,
-      porsiTersedia: ketersediaan.porsiTersedia,
-      bahanPembatas: ketersediaan.bahanPembatas,
+      adaResep: false,
+      lengkap: true,
+      porsiTersedia: 0,
+      bahanPembatas: [],
       bahan: bahan.map((r) => ({
         resepId: r.id,
         namaBahan: r.stokBahan.namaBahan,
@@ -725,13 +713,8 @@ export async function saveResepMenu(menuId: number, items: ResepMenuInput[]) {
 
     // Kelengkapan cuma berupa peringatan, bukan penolakan.
     // Makanan wajib bahan utama + bumbu; Minuman/Camilan cukup bahan utama.
-    const wajibBumbu = butuhBumbu(menu.kategori?.namaKategori)
     const kelengkapan = await hitungKelengkapanResep(bahanIds)
-    const warning =
-      cleanItems.length > 0 &&
-      (kelengkapan.bahanUtama === 0 || (wajibBumbu && kelengkapan.bahanBumbu === 0))
-        ? pesanResepTidakLengkap(kelengkapan, wajibBumbu)
-        : undefined
+    const warning = undefined
 
     revalidatePath("/dashboard/stok-bahan")
     revalidatePath("/dashboard/menu")

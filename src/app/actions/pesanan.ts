@@ -81,7 +81,7 @@ export async function getMejaByToken(tokenMeja: string) {
 
 export async function getMenusForCustomer() {
   const menus = await prisma.menu.findMany({
-    where: { statusMenu: { in: ['tersedia', 'habis'] }, deletedAt: null },
+    where: { statusMenu: 'tersedia', stokManual: { gt: 0 }, deletedAt: null },
     select: {
       id: true,
       namaMenu: true,
@@ -186,9 +186,6 @@ export async function createPesanan(data: CreatePesananData) {
       where: { id: menuId, deletedAt: null },
       include: {
         kategori: { select: { namaKategori: true } },
-        resep: {
-          include: { stokBahan: true },
-        },
       },
     })
 
@@ -200,41 +197,9 @@ export async function createPesanan(data: CreatePesananData) {
       return { error: `${menu.namaMenu} sedang tidak tersedia` }
     }
 
-    const bahanAktif = menu.resep
-      .filter((r) => !r.stokBahan.deletedAt)
-      .map((r) => ({
-        namaBahan: r.stokBahan.namaBahan,
-        satuan: r.stokBahan.satuan,
-        jumlahPerPorsi: Number(r.jumlah),
-        stokQty: Number(r.stokBahan.stokQty),
-        kategori: r.stokBahan.kategori,
-      }))
-    const wajibBumbu = butuhBumbu(menu.kategori?.namaKategori)
-    const ketersediaan = hitungKetersediaanResep(
-      bahanAktif,
-      bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
-      bahanAktif.filter((b) => b.kategori === 'bumbu').length,
-      wajibBumbu
-    )
-
-    // Gerbang resep: makanan wajib punya bahan utama + bumbu; minuman & camilan
-    // cukup bahan utama (bumbu opsional). Menu yang belum lengkap tidak boleh
-    // dipesan walau statusMenu 'tersedia'.
-    if (!ketersediaan.lengkap) {
-      const butuh = wajibBumbu
-        ? 'butuh bahan utama & bumbu'
-        : 'butuh minimal 1 bahan utama'
-      return { error: `${menu.namaMenu} belum dapat dipesan — resep belum lengkap (${butuh})` }
-    }
-
-    // Porsi yang boleh dipesan ditentukan stok bahan dapur, bukan hanya
-    // statusMenu — ini gerbang terakhir supaya customer tidak bisa pesan
-    // menu yang porsinya habis.
-    if (ketersediaan.porsiTersedia <= 0) {
-      return { error: `${menu.namaMenu} sedang habis — stok bahan tidak mencukupi` }
-    }
-    if (jumlahTotal > ketersediaan.porsiTersedia) {
-      return { error: `${menu.namaMenu} hanya tersisa ${ketersediaan.porsiTersedia} porsi` }
+    const stokManual = menu.stokManual ?? 0
+    if (stokManual < jumlahTotal) {
+      return { error: `${menu.namaMenu} hanya tersisa ${stokManual} porsi` }
     }
 
     const harga = Number(menu.harga)
@@ -276,29 +241,50 @@ export async function createPesanan(data: CreatePesananData) {
 
   const publicId = crypto.randomUUID()
 
-  const pesanan = await prisma.pesanan.create({
-    data: {
-      mejaId: meja.id,
-      kasirId,
-      statusPesanan: StatusPesanan.menunggu,
-      totalHarga: totalHarga,
-      voucherId: voucherTerpakai?.id ?? null,
-      diskonVoucher: diskonVoucher,
-      namaPelanggan: namaPelanggan || null,
-      catatan: catatan || null,
-      metodePembayaran: (metodePembayaran as MetodePembayaran) || null,
-      biayaAdmin: 0,
-      ppn: 0,
-      midtransOrderId: publicId,
-      detailPesanan: {
-        create: items.map(item => ({
-          menuId: item.menuId,
-          jumlah: item.jumlah,
-          hargaSaatPesan: itemPrices[item.menuId],
-          catatanItem: item.catatan,
-        })),
+  const pesanan = await prisma.$transaction(async (tx) => {
+    const created = await tx.pesanan.create({
+      data: {
+        mejaId: meja.id,
+        kasirId,
+        statusPesanan: StatusPesanan.menunggu,
+        totalHarga: totalHarga,
+        voucherId: voucherTerpakai?.id ?? null,
+        diskonVoucher: diskonVoucher,
+        namaPelanggan: namaPelanggan || null,
+        catatan: catatan || null,
+        metodePembayaran: (metodePembayaran as MetodePembayaran) || null,
+        biayaAdmin: 0,
+        ppn: 0,
+        midtransOrderId: publicId,
+        detailPesanan: {
+          create: items.map(item => ({
+            menuId: item.menuId,
+            jumlah: item.jumlah,
+            hargaSaatPesan: itemPrices[item.menuId],
+            catatanItem: item.catatan,
+          })),
+        },
       },
-    },
+    })
+
+    for (const [menuId, jumlahTotal] of jumlahPerMenu) {
+      const menuCurrent = await tx.menu.findUnique({
+        where: { id: menuId },
+        select: { stokManual: true, statusMenu: true },
+      })
+      if (!menuCurrent) throw new Error('Menu tidak ditemukan')
+      const newStok = (menuCurrent.stokManual ?? 0) - jumlahTotal
+      if (newStok < 0) throw new Error('Stok tidak mencukupi')
+      await tx.menu.update({
+        where: { id: menuId },
+        data: {
+          stokManual: newStok,
+          statusMenu: newStok <= 0 ? 'habis' : (menuCurrent.statusMenu === 'nonaktif' ? 'nonaktif' : 'tersedia'),
+        },
+      })
+    }
+
+    return created
   })
 
   await prisma.meja.update({

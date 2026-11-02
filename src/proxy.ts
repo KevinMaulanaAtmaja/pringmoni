@@ -4,14 +4,14 @@ import { auth } from "@/lib/auth"
 import { COOKIE_PERANGKAT } from "@/lib/sesi"
 import type { RoleUser } from "@/types"
 
-const ALL_ROLES: readonly RoleUser[] = ["owner", "cashier", "waiter"]
+const ALL_ROLES: readonly RoleUser[] = ["owner", "cashier", "waiter", "kitchen"]
 
 // Route access mapping: which roles can access which dashboard paths
 const roleRouteAccess: Record<string, RoleUser[]> = {
-  "/dashboard": ["owner", "cashier", "waiter"],
-  "/dashboard/pesanan": ["owner", "cashier", "waiter"],
+  "/dashboard": ["owner", "cashier", "waiter", "kitchen"],
+  "/dashboard/pesanan": ["owner", "cashier", "waiter", "kitchen"],
   "/dashboard/kasir": ["owner", "cashier"],
-  "/dashboard/menu": ["owner"],
+  "/dashboard/menu": ["owner", "kitchen"],
   "/dashboard/stok-bahan": ["owner"],
   "/dashboard/resep": ["owner"],
   "/dashboard/meja": ["owner", "cashier", "waiter"],

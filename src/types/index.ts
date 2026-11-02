@@ -1,4 +1,4 @@
-export type RoleUser = 'owner' | 'cashier' | 'waiter'
+export type RoleUser = 'owner' | 'cashier' | 'waiter' | 'kitchen'
 
 export type TipeMeja = 'lesehan' | 'kursi'
 

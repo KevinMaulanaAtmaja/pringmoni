@@ -328,6 +328,7 @@ enum RoleUser {
   owner
   cashier
   waiter
+  kitchen
 }
 
 enum StatusMeja {

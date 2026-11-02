@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { deleteAllMenuFotos } from './menu-foto';
+import { createLog } from '@/lib/log';
 
 
 export type MenuWithKategori = {
@@ -66,51 +67,19 @@ export async function getMenus(): Promise<MenuWithKategori[]> {
         },
         orderBy: { urutan: 'asc' },
       },
-      resep: {
-        select: {
-          jumlah: true,
-          stokBahan: {
-            select: {
-              namaBahan: true,
-              kategori: true,
-              satuan: true,
-              stokQty: true,
-              deletedAt: true,
-            },
-          },
-        },
-      },
     },
     orderBy: { createdAt: 'desc' },
   });
   return menus.map((m) => {
-    // `resep` berisi Decimal (jumlah/stokQty) — jangan ikut dikembalikan
-    // ke Client Component (React hanya menerima plain object).
-    const { resep, ...menuTanpaResep } = m;
-    const bahanAktif = resep
-      .filter((r) => !r.stokBahan.deletedAt)
-      .map((r) => ({
-        namaBahan: r.stokBahan.namaBahan,
-        satuan: r.stokBahan.satuan,
-        jumlahPerPorsi: Number(r.jumlah),
-        stokQty: Number(r.stokBahan.stokQty),
-        kategori: r.stokBahan.kategori,
-      }));
-    const ketersediaan = hitungKetersediaanResep(
-      bahanAktif,
-      bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
-      bahanAktif.filter((b) => b.kategori === 'bumbu').length,
-      butuhBumbu(m.kategori?.namaKategori)
-    );
     return {
-      ...menuTanpaResep,
+      ...m,
       harga: Number(m.harga),
       fotoUrl: m.menuFoto[0]?.fotoUrl || null,
       fotoUrls: m.menuFoto.map(f => f.fotoUrl),
-      adaResep: ketersediaan.adaResep,
-      resepLengkap: ketersediaan.lengkap,
-      porsiTersedia: ketersediaan.porsiTersedia,
-      bahanPembatas: ketersediaan.bahanPembatas,
+      adaResep: false,
+      resepLengkap: true,
+      porsiTersedia: 0,
+      bahanPembatas: [],
     };
   });
 }
@@ -129,8 +98,19 @@ async function requireOwner() {
   }
 }
 
+async function requireOwnerOrKitchen() {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error("Unauthorized")
+  }
+  if (session.user.role !== 'owner' && session.user.role !== 'kitchen') {
+    throw new Error("Unauthorized")
+  }
+  return session
+}
+
 export async function createMenu(data: CreateMenuInput) {
-  await requireOwner()
+  await requireOwnerOrKitchen()
   // Validation
   if (!data.namaMenu?.trim()) {
     return { error: "Nama menu wajib diisi" }
@@ -138,15 +118,22 @@ export async function createMenu(data: CreateMenuInput) {
   if (data.harga <= 0) {
     return { error: "Harga harus lebih dari 0" }
   }
-  
+
+  const stokManual = data.stokManual === undefined
+    ? 0
+    : Math.max(0, Math.floor(Number(data.stokManual)))
+  const statusMenu = data.statusMenu && data.statusMenu !== 'nonaktif'
+    ? (stokManual > 0 ? 'tersedia' : 'habis')
+    : (data.statusMenu || 'tersedia')
+
   const menu = await prisma.menu.create({
     data: {
       namaMenu: data.namaMenu,
       deskripsi: data.deskripsi,
       harga: new Prisma.Decimal(data.harga),
       kategoriId: data.kategoriId,
-      statusMenu: data.statusMenu || 'tersedia',
-      stokManual: data.stokManual ?? 0,
+      statusMenu,
+      stokManual,
     },
   });
   revalidatePath('/dashboard/menu');
@@ -156,8 +143,8 @@ export async function createMenu(data: CreateMenuInput) {
 }
 
 export async function updateMenu(data: UpdateMenuInput) {
-  await requireOwner()
-  const { id, namaMenu, deskripsi, kategoriId, statusMenu, harga, stokManual } = data as any;
+  await requireOwnerOrKitchen()
+  const { id, namaMenu, deskripsi, kategoriId, statusMenu, harga, stokManual } = data;
 
   // Validation
   if (namaMenu !== undefined && !namaMenu?.trim()) {
@@ -167,15 +154,22 @@ export async function updateMenu(data: UpdateMenuInput) {
     return { error: "Harga harus lebih dari 0" }
   }
 
+  const nextStok = stokManual !== undefined
+    ? Math.max(0, Math.floor(Number(stokManual)))
+    : undefined
+  const nextStatus = statusMenu && statusMenu !== 'nonaktif' && nextStok !== undefined
+    ? (nextStok > 0 ? 'tersedia' : 'habis')
+    : statusMenu
+
   await prisma.menu.update({
     where: { id },
     data: {
       namaMenu,
       deskripsi,
       kategoriId,
-      statusMenu,
+      statusMenu: nextStatus,
       harga: harga !== undefined ? new Prisma.Decimal(harga) : undefined,
-      stokManual: stokManual !== undefined ? Number(stokManual) : undefined,
+      stokManual: nextStok,
     },
   });
   revalidatePath('/dashboard/menu');
@@ -296,4 +290,88 @@ export async function deleteKategori(id: number) {
   });
   revalidatePath('/dashboard/menu');
   return { success: true };
+}
+
+export async function updateStokMenuHarian(menuId: number, jumlah: number) {
+  const session = await requireOwnerOrKitchen()
+  if (jumlah < 0 || !Number.isInteger(jumlah)) {
+    return { error: "Stok harus berupa angka tidak negatif" }
+  }
+  const menu = await prisma.menu.findUnique({
+    where: { id: menuId },
+    select: { id: true, statusMenu: true, namaMenu: true },
+  })
+  if (!menu) return { error: "Menu tidak ditemukan" }
+  if (menu.statusMenu === 'nonaktif') {
+    return { error: "Menu nonaktif tidak bisa diatur stok hariannya" }
+  }
+
+  let statusMenu = menu.statusMenu
+  if (jumlah > 0) {
+    statusMenu = 'tersedia'
+  } else {
+    statusMenu = 'habis'
+  }
+
+  await prisma.menu.update({
+    where: { id: menuId },
+    data: { stokManual: jumlah, statusMenu },
+  })
+
+  await createLog('UPDATE_ORDER_STATUS', `Atur stok harian ${menu.namaMenu} menjadi ${jumlah}`, session.user.id ? parseInt(session.user.id) : undefined)
+
+  revalidatePath('/dashboard/menu')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+async function applyStokHarian(jumlah: number, kategoriId?: number) {
+  const session = await requireOwnerOrKitchen()
+  if (jumlah < 0 || !Number.isInteger(jumlah)) {
+    return { error: "Stok harus berupa angka tidak negatif" }
+  }
+
+  let kategoriNama = ''
+  if (kategoriId !== undefined) {
+    const kategori = await prisma.kategoriMenu.findFirst({
+      where: { id: kategoriId, deletedAt: null },
+      select: { namaKategori: true },
+    })
+    if (!kategori) {
+      return { error: "Kategori tidak ditemukan" }
+    }
+    kategoriNama = kategori.namaKategori
+  }
+
+  const where: Prisma.MenuWhereInput = {
+    deletedAt: null,
+    statusMenu: { not: 'nonaktif' },
+    ...(kategoriId !== undefined ? { kategoriId } : {}),
+  }
+
+  await prisma.menu.updateMany({
+    where,
+    data: {
+      stokManual: jumlah,
+      statusMenu: jumlah > 0 ? 'tersedia' : 'habis',
+    },
+  })
+
+  const target = kategoriId !== undefined
+    ? `kategori ${kategoriNama}`
+    : 'semua menu (nonaktif dikecualikan)'
+
+  await createLog('UPDATE_ORDER_STATUS', `Atur stok harian ${target} menjadi ${jumlah}`, session.user.id ? parseInt(session.user.id) : undefined)
+
+  revalidatePath('/dashboard/menu')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+export async function setAllStokMenuHarian(jumlah: number) {
+  return applyStokHarian(jumlah)
+}
+
+export async function setStokMenuHarianByKategori(kategoriId: number, jumlah: number) {
+  return applyStokHarian(jumlah, kategoriId)
 }

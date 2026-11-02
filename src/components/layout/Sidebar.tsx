@@ -44,6 +44,12 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
+    : (role === 'kitchen')
+    ? [
+        { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+        { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
+        { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
+      ]
     : [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
