@@ -16,7 +16,6 @@ import {
   PanelLeftOpen,
   Boxes,
   History,
-  CookingPot,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
@@ -45,12 +44,17 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
+    : (role === 'kitchen')
+    ? [
+        { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+        { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
+        { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
+      ]
     : [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
         { name: "Stok Bahan", icon: Boxes, href: "/dashboard/stok-bahan" },
-        { name: "Resep", icon: CookingPot, href: "/dashboard/resep" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Akun", icon: User, href: "/dashboard/users" },
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },

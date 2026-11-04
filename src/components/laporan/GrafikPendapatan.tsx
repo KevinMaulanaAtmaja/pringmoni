@@ -11,7 +11,11 @@ function formatRupiah(v: number) {
   return `Rp${v}`
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+interface TooltipPayload {
+  payload: GrafikPoint
+}
+
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayload[]; label?: string }) {
   if (!active || !payload?.length) return null
   const data = payload[0].payload
   return (

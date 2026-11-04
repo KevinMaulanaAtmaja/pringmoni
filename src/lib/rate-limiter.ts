@@ -19,6 +19,12 @@ function getKey(identifier: string): string {
   return `login:${identifier}`
 }
 
+/**
+ * Cek apakah identifier masih boleh mencoba login. Fungsi ini TIDAK menambah
+ * hitungan — percobaan hanya dicatat lewat `recordFailedAttempt`. Dengan begitu
+ * aksi yang dibatalkan pengguna (mis. menutup dialog "Ambil alih sesi?" tanpa
+ * jadi login) tidak ikut terhitung sebagai percobaan gagal.
+ */
 export function checkRateLimit(identifier: string): {
   allowed: boolean
   remainingAttempts: number
@@ -29,8 +35,7 @@ export function checkRateLimit(identifier: string): {
   const entry = store.get(key)
 
   if (!entry) {
-    store.set(key, { attempts: 1, firstAttempt: now, blockedUntil: null })
-    return { allowed: true, remainingAttempts: MAX_ATTEMPTS - 1, blockedUntil: null }
+    return { allowed: true, remainingAttempts: MAX_ATTEMPTS, blockedUntil: null }
   }
 
   if (entry.blockedUntil && now < entry.blockedUntil) {
@@ -38,31 +43,41 @@ export function checkRateLimit(identifier: string): {
   }
 
   if (entry.blockedUntil && now >= entry.blockedUntil) {
-    store.set(key, { attempts: 1, firstAttempt: now, blockedUntil: null })
-    return { allowed: true, remainingAttempts: MAX_ATTEMPTS - 1, blockedUntil: null }
+    store.delete(key)
+    return { allowed: true, remainingAttempts: MAX_ATTEMPTS, blockedUntil: null }
   }
 
   if (now - entry.firstAttempt > WINDOW_MS) {
-    store.set(key, { attempts: 1, firstAttempt: now, blockedUntil: null })
-    return { allowed: true, remainingAttempts: MAX_ATTEMPTS - 1, blockedUntil: null }
+    store.delete(key)
+    return { allowed: true, remainingAttempts: MAX_ATTEMPTS, blockedUntil: null }
   }
 
-  entry.attempts += 1
+  return {
+    allowed: true,
+    remainingAttempts: Math.max(0, MAX_ATTEMPTS - entry.attempts),
+    blockedUntil: null,
+  }
+}
 
+/** Catat satu percobaan login yang gagal (username/password salah). */
+export function recordFailedAttempt(identifier: string): void {
+  const key = getKey(identifier)
+  const now = Date.now()
+  const entry = store.get(key)
+
+  if (!entry || now - entry.firstAttempt > WINDOW_MS) {
+    store.set(key, { attempts: 1, firstAttempt: now, blockedUntil: null })
+    return
+  }
+
+  if (entry.blockedUntil && now < entry.blockedUntil) return
+
+  entry.attempts += 1
   if (entry.attempts >= MAX_ATTEMPTS) {
     entry.blockedUntil = now + BLOCK_DURATION_MS
     console.log(`[RATE LIMIT] User "${identifier}" diblokir ${BLOCK_DURATION_MS / 60000} menit setelah ${entry.attempts} percobaan`)
-    store.set(key, entry)
-    return { allowed: false, remainingAttempts: 0, blockedUntil: entry.blockedUntil }
   }
-
   store.set(key, entry)
-  const remaining = MAX_ATTEMPTS - entry.attempts
-  return { allowed: true, remainingAttempts: remaining, blockedUntil: null }
-}
-
-export function recordFailedAttempt(_identifier: string): void {
-  // checkRateLimit already pre-increments
 }
 
 export function resetRateLimit(identifier: string): void {

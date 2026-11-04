@@ -1,4 +1,4 @@
-export type RoleUser = 'owner' | 'cashier' | 'waiter'
+export type RoleUser = 'owner' | 'cashier' | 'waiter' | 'kitchen'
 
 export type TipeMeja = 'lesehan' | 'kursi'
 
@@ -109,9 +109,14 @@ export interface KasKeluarItem {
 
 export type StatusMenu = 'tersedia' | 'habis' | 'nonaktif'
 
+/** Pringmoni mencakup 2 tempat: Resto dan Cafe */
+export type LokasiMenu = 'resto' | 'cafe'
+
 export interface KategoriMenu {
   id: number
   namaKategori: string
+  lokasi: LokasiMenu
+  pilihanSuhu?: boolean
 }
 
 export interface Menu {
@@ -135,6 +140,10 @@ export interface CustomerMenu {
   statusMenu: StatusMenu
   fotoUrl: string | null
   menuFoto?: { id: number; fotoUrl: string }[]
+  /** Lokasi asal menu (ikut kategori): resto atau cafe */
+  lokasi?: LokasiMenu
+  /** Kategorinya punya pilihan panas/dingin → pelanggan memilih varian saat pesan */
+  pilihanSuhu?: boolean
   /** Punya >= 1 bahan di resep → stok dilacak otomatis (mode otomatis) */
   adaResep?: boolean
   /** Resep punya 1 bahan utama + 1 bumbu (indikator kualitas data) */
@@ -145,9 +154,29 @@ export interface CustomerMenu {
   bahanPembatas?: string[]
 }
 
-export type StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan'
-export type StatusBayar = 'menunggu' | 'berhasil' | 'dibatalkan'
+export type StatusPesanan = 'menunggu' | 'diproses' | 'selesai' | 'dibatalkan' | 'refund'
+export type StatusBayar = 'menunggu' | 'berhasil' | 'dibatalkan' | 'refund'
 export type MetodePembayaran = 'qris' | 'tunai' | 'transfer'
+
+export type StatusVoucher = 'aktif' | 'nonaktif'
+
+/** Voucher aktif yang bisa dipilih customer */
+export interface VoucherOpsi {
+  id: number
+  kode: string
+  namaVoucher: string
+  deskripsi: string | null
+  diskonPersen: number
+  minimalBelanja: number
+}
+
+/** Voucher yang sedang dipakai pada keranjang (diskon dihitung ulang dari subtotal) */
+export interface VoucherTerpakai {
+  kode: string
+  namaVoucher: string
+  diskonPersen: number
+  minimalBelanja: number
+}
 
 export interface DetailPesananItem {
   id: number

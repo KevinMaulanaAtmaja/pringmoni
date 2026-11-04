@@ -47,12 +47,10 @@ export default async function DashboardPage() {
   }
 
   let staleOrders: Awaited<ReturnType<typeof getStaleOrders>> = []
-  if (role !== 'owner') {
-    try {
-      staleOrders = await getStaleOrders()
-    } catch {
-      staleOrders = []
-    }
+  try {
+    staleOrders = await getStaleOrders()
+  } catch {
+    staleOrders = []
   }
 
   return (
@@ -60,7 +58,7 @@ export default async function DashboardPage() {
       <h1 className="text-2xl font-bold mb-6 capitalize">
         Dashboard {role === 'owner' ? 'Owner' : role === 'cashier' ? 'Kasir' : 'Waiter'}
       </h1>
-      {role !== 'owner' && <StaleOrdersWarning orders={staleOrders} />}
+      <StaleOrdersWarning orders={staleOrders} />
       <StatGrid stats={stats} role={role} />
       <DashboardCharts charts={charts} />
       <DashboardRealtimeRefresh />

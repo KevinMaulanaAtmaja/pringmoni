@@ -6,12 +6,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wallet, ArrowLeft, Banknote, CreditCard, Loader2, AlertCircle } from "lucide-react";
 import { createPesanan } from "@/app/actions/pesanan";
-import { ambilKeranjangCheckout, hapusKeranjangCheckout } from "@/lib/checkout-storage";
+import { validateVoucher } from "@/app/actions/voucher";
+import { ambilKeranjangCheckout, hapusKeranjangCheckout, ambilKodeVoucher } from "@/lib/checkout-storage";
+import { hitungPotonganDiskon } from "@/lib/voucher";
 
 interface CheckoutData {
   items: { id: number; namaMenu: string; harga: number; jumlah: number; catatan: string | null }[];
   subtotal: number;
+  diskon: number;
   total: number;
+  kodeVoucher: string | null;
+  diskonPersen: number;
 }
 
 interface CreatePesananResult {
@@ -40,15 +45,43 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const items = ambilKeranjangCheckout();
-      if (!items || items.length === 0) {
-        setData(null);
+      const muat = async () => {
+        const items = ambilKeranjangCheckout();
+        if (!items || items.length === 0) {
+          setData(null);
+          setLoading(false);
+          return;
+        }
+        const subtotal = items.reduce((sum, item) => sum + item.harga * item.jumlah, 0);
+
+        // Voucher divalidasi ulang di server; kalau tidak valid lagi, dibuang.
+        let kodeVoucher: string | null = null;
+        let diskonPersen = 0;
+        const kodeTersimpan = ambilKodeVoucher();
+        if (kodeTersimpan) {
+          try {
+            const hasil = await validateVoucher(kodeTersimpan, subtotal);
+            if (hasil.valid && hasil.kode) {
+              kodeVoucher = hasil.kode;
+              diskonPersen = hasil.diskonPersen ?? 0;
+            }
+          } catch {
+            // Abaikan — createPesanan tetap memvalidasi ulang di server.
+          }
+        }
+
+        const diskon = hitungPotonganDiskon(subtotal, diskonPersen);
+        setData({
+          items,
+          subtotal,
+          diskon,
+          total: subtotal - diskon,
+          kodeVoucher,
+          diskonPersen,
+        });
         setLoading(false);
-        return;
-      }
-      const subtotal = items.reduce((sum, item) => sum + item.harga * item.jumlah, 0);
-      setData({ items, subtotal, total: subtotal });
-      setLoading(false);
+      };
+      void muat();
     }, 0);
     return () => clearTimeout(timer);
   }, []);
@@ -86,6 +119,7 @@ export default function CheckoutPage() {
         items,
         namaPelanggan: nama.trim(),
         metodePembayaran: metode,
+        kodeVoucher: data.kodeVoucher,
       });
 
       if (result && 'error' in result) {
@@ -168,7 +202,17 @@ export default function CheckoutPage() {
                 </div>
               ))}
             </div>
-            <div className="border-t mt-3 pt-3">
+            <div className="border-t mt-3 pt-3 space-y-1">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Subtotal</span>
+                <span>Rp {data.subtotal.toLocaleString("id-ID")}</span>
+              </div>
+              {data.kodeVoucher && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Diskon ({data.kodeVoucher})</span>
+                  <span>-Rp {data.diskon.toLocaleString("id-ID")}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
                 <span className="text-primary">Rp {data.total.toLocaleString("id-ID")}</span>

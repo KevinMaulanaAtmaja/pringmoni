@@ -11,7 +11,8 @@ import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
 import { potongStokDapur } from "@/lib/stok"
-import { butuhBumbu, hitungKetersediaanResep } from "@/lib/resep"
+
+import { hitungPotonganDiskon } from "@/lib/voucher"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()
@@ -23,7 +24,7 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
     return { error: "Owner tidak bisa mengubah status pesanan" }
   }
 
-  const validStatuses = [StatusPesanan.menunggu, StatusPesanan.diproses, StatusPesanan.selesai, StatusPesanan.dibatalkan]
+  const validStatuses: StatusPesanan[] = [StatusPesanan.menunggu, StatusPesanan.diproses, StatusPesanan.selesai, StatusPesanan.dibatalkan]
   if (!validStatuses.includes(status)) {
     return { error: "Status tidak valid" }
   }
@@ -69,6 +70,7 @@ export interface CreatePesananData {
   namaPelanggan?: string | null
   catatan?: string | null
   metodePembayaran?: string | null
+  kodeVoucher?: string | null
 }
 
 export async function getMejaByToken(tokenMeja: string) {
@@ -79,18 +81,19 @@ export async function getMejaByToken(tokenMeja: string) {
 
 export async function getMenusForCustomer() {
   const menus = await prisma.menu.findMany({
-    // Menu 'habis' tetap ditampilkan ke customer (dengan tombol pesan disabled),
-    // hanya 'nonaktif' yang disembunyikan.
-    where: { statusMenu: { in: ['tersedia', 'habis'] }, deletedAt: null },
+    where: { statusMenu: 'tersedia', stokManual: { gt: 0 }, deletedAt: null },
     select: {
       id: true,
       namaMenu: true,
       deskripsi: true,
       harga: true,
       statusMenu: true,
+      stokManual: true,
       kategori: {
         select: {
           namaKategori: true,
+          lokasi: true,
+          pilihanSuhu: true,
         },
       },
       menuFoto: {
@@ -100,54 +103,27 @@ export async function getMenusForCustomer() {
         },
         orderBy: { urutan: 'asc' },
       },
-      resep: {
-        select: {
-          jumlah: true,
-          stokBahan: {
-            select: {
-              namaBahan: true,
-              kategori: true,
-              satuan: true,
-              stokQty: true,
-              deletedAt: true,
-            },
-          },
-        },
-      },
     },
     orderBy: { namaMenu: 'asc' },
   })
 
   return menus.map(menu => {
-    const bahanAktif = menu.resep
-      .filter((r) => !r.stokBahan.deletedAt)
-      .map((r) => ({
-        namaBahan: r.stokBahan.namaBahan,
-        satuan: r.stokBahan.satuan,
-        jumlahPerPorsi: Number(r.jumlah),
-        stokQty: Number(r.stokBahan.stokQty),
-        kategori: r.stokBahan.kategori,
-      }))
-    const ketersediaan = hitungKetersediaanResep(
-      bahanAktif,
-      bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
-      bahanAktif.filter((b) => b.kategori === 'bumbu').length,
-      butuhBumbu(menu.kategori.namaKategori)
-    )
-
+    const porsiManual = menu.stokManual ?? 0
     return {
       id: menu.id,
       namaMenu: menu.namaMenu,
       deskripsi: menu.deskripsi,
       harga: Number(menu.harga),
       kategori: menu.kategori.namaKategori,
+      lokasi: menu.kategori.lokasi,
+      pilihanSuhu: menu.kategori.pilihanSuhu,
       statusMenu: menu.statusMenu as "tersedia" | "habis" | "nonaktif",
       fotoUrl: menu.menuFoto[0]?.fotoUrl || null,
       menuFoto: menu.menuFoto.map(f => ({ id: f.id, fotoUrl: f.fotoUrl })),
-      adaResep: ketersediaan.adaResep,
-      resepLengkap: ketersediaan.lengkap,
-      porsiTersedia: ketersediaan.porsiTersedia,
-      bahanPembatas: ketersediaan.bahanPembatas,
+      adaResep: false,
+      resepLengkap: true,
+      porsiTersedia: porsiManual,
+      bahanPembatas: [],
     }
   })
 }
@@ -167,7 +143,7 @@ export const getCustomerMenuData = cache(async (tokenMeja: string) => {
 })
 
 export async function createPesanan(data: CreatePesananData) {
-  const { tokenMeja, items, namaPelanggan, catatan, metodePembayaran } = data
+  const { tokenMeja, items, namaPelanggan, catatan, metodePembayaran, kodeVoucher } = data
 
   const session = await auth()
   const kasirId = session?.user?.id ? Number(session.user.id) : null
@@ -210,9 +186,6 @@ export async function createPesanan(data: CreatePesananData) {
       where: { id: menuId, deletedAt: null },
       include: {
         kategori: { select: { namaKategori: true } },
-        resep: {
-          include: { stokBahan: true },
-        },
       },
     })
 
@@ -224,41 +197,9 @@ export async function createPesanan(data: CreatePesananData) {
       return { error: `${menu.namaMenu} sedang tidak tersedia` }
     }
 
-    const bahanAktif = menu.resep
-      .filter((r) => !r.stokBahan.deletedAt)
-      .map((r) => ({
-        namaBahan: r.stokBahan.namaBahan,
-        satuan: r.stokBahan.satuan,
-        jumlahPerPorsi: Number(r.jumlah),
-        stokQty: Number(r.stokBahan.stokQty),
-        kategori: r.stokBahan.kategori,
-      }))
-    const wajibBumbu = butuhBumbu(menu.kategori?.namaKategori)
-    const ketersediaan = hitungKetersediaanResep(
-      bahanAktif,
-      bahanAktif.filter((b) => b.kategori === 'bahan_utama').length,
-      bahanAktif.filter((b) => b.kategori === 'bumbu').length,
-      wajibBumbu
-    )
-
-    // Gerbang resep: makanan wajib punya bahan utama + bumbu; minuman & camilan
-    // cukup bahan utama (bumbu opsional). Menu yang belum lengkap tidak boleh
-    // dipesan walau statusMenu 'tersedia'.
-    if (!ketersediaan.lengkap) {
-      const butuh = wajibBumbu
-        ? 'butuh bahan utama & bumbu'
-        : 'butuh minimal 1 bahan utama'
-      return { error: `${menu.namaMenu} belum dapat dipesan — resep belum lengkap (${butuh})` }
-    }
-
-    // Porsi yang boleh dipesan ditentukan stok bahan dapur, bukan hanya
-    // statusMenu — ini gerbang terakhir supaya customer tidak bisa pesan
-    // menu yang porsinya habis.
-    if (ketersediaan.porsiTersedia <= 0) {
-      return { error: `${menu.namaMenu} sedang habis — stok bahan tidak mencukupi` }
-    }
-    if (jumlahTotal > ketersediaan.porsiTersedia) {
-      return { error: `${menu.namaMenu} hanya tersisa ${ketersediaan.porsiTersedia} porsi` }
+    const stokManual = menu.stokManual ?? 0
+    if (stokManual < jumlahTotal) {
+      return { error: `${menu.namaMenu} hanya tersisa ${stokManual} porsi` }
     }
 
     const harga = Number(menu.harga)
@@ -266,29 +207,84 @@ export async function createPesanan(data: CreatePesananData) {
     totalHarga += harga * jumlahTotal
   }
 
+  // Voucher divalidasi ulang di server — nilai dari client tidak pernah dipercaya.
+  let voucherTerpakai: { id: number; kode: string; namaVoucher: string; diskonPersen: number } | null = null
+  let diskonVoucher = 0
+
+  if (kodeVoucher?.trim()) {
+    const kode = kodeVoucher.trim().toUpperCase()
+    const voucher = await prisma.voucher.findFirst({
+      where: { kode, deletedAt: null },
+    })
+
+    if (!voucher) {
+      return { error: "Kode voucher tidak ditemukan" }
+    }
+    if (voucher.statusVoucher !== "aktif") {
+      return { error: "Voucher sedang tidak aktif" }
+    }
+    if (totalHarga < Number(voucher.minimalBelanja)) {
+      return {
+        error: `Minimal belanja untuk voucher ${voucher.kode} adalah Rp ${Number(voucher.minimalBelanja).toLocaleString("id-ID")}`,
+      }
+    }
+
+    diskonVoucher = hitungPotonganDiskon(totalHarga, voucher.diskonPersen)
+    totalHarga = Math.max(totalHarga - diskonVoucher, 0)
+    voucherTerpakai = {
+      id: voucher.id,
+      kode: voucher.kode,
+      namaVoucher: voucher.namaVoucher,
+      diskonPersen: voucher.diskonPersen,
+    }
+  }
+
   const publicId = crypto.randomUUID()
 
-  const pesanan = await prisma.pesanan.create({
-    data: {
-      mejaId: meja.id,
-      kasirId,
-      statusPesanan: StatusPesanan.menunggu,
-      totalHarga: totalHarga,
-      namaPelanggan: namaPelanggan || null,
-      catatan: catatan || null,
-      metodePembayaran: (metodePembayaran as MetodePembayaran) || null,
-      biayaAdmin: 0,
-      ppn: 0,
-      midtransOrderId: publicId,
-      detailPesanan: {
-        create: items.map(item => ({
-          menuId: item.menuId,
-          jumlah: item.jumlah,
-          hargaSaatPesan: itemPrices[item.menuId],
-          catatanItem: item.catatan,
-        })),
+  const pesanan = await prisma.$transaction(async (tx) => {
+    const created = await tx.pesanan.create({
+      data: {
+        mejaId: meja.id,
+        kasirId,
+        statusPesanan: StatusPesanan.menunggu,
+        totalHarga: totalHarga,
+        voucherId: voucherTerpakai?.id ?? null,
+        diskonVoucher: diskonVoucher,
+        namaPelanggan: namaPelanggan || null,
+        catatan: catatan || null,
+        metodePembayaran: (metodePembayaran as MetodePembayaran) || null,
+        biayaAdmin: 0,
+        ppn: 0,
+        midtransOrderId: publicId,
+        detailPesanan: {
+          create: items.map(item => ({
+            menuId: item.menuId,
+            jumlah: item.jumlah,
+            hargaSaatPesan: itemPrices[item.menuId],
+            catatanItem: item.catatan,
+          })),
+        },
       },
-    },
+    })
+
+    for (const [menuId, jumlahTotal] of jumlahPerMenu) {
+      const menuCurrent = await tx.menu.findUnique({
+        where: { id: menuId },
+        select: { stokManual: true, statusMenu: true },
+      })
+      if (!menuCurrent) throw new Error('Menu tidak ditemukan')
+      const newStok = (menuCurrent.stokManual ?? 0) - jumlahTotal
+      if (newStok < 0) throw new Error('Stok tidak mencukupi')
+      await tx.menu.update({
+        where: { id: menuId },
+        data: {
+          stokManual: newStok,
+          statusMenu: newStok <= 0 ? 'habis' : (menuCurrent.statusMenu === 'nonaktif' ? 'nonaktif' : 'tersedia'),
+        },
+      })
+    }
+
+    return created
   })
 
   await prisma.meja.update({
@@ -297,7 +293,10 @@ export async function createPesanan(data: CreatePesananData) {
   })
 
   const itemsSummary = items.map(i => `${i.jumlah}x menu #${i.menuId}`).join(', ')
-  await createLog('CREATE_ORDER', `Pesanan baru #${pesanan.id} dari ${meja.nomorMeja}: ${itemsSummary} (Total: Rp${totalHarga.toLocaleString('id-ID')})`)
+  const voucherSummary = voucherTerpakai
+    ? ` | Voucher ${voucherTerpakai.kode} (${voucherTerpakai.diskonPersen}% - Rp${diskonVoucher.toLocaleString("id-ID")})`
+    : ""
+  await createLog('CREATE_ORDER', `Pesanan baru #${pesanan.id} dari ${meja.nomorMeja}: ${itemsSummary} (Total: Rp${totalHarga.toLocaleString('id-ID')})${voucherSummary}`)
 
   await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.newOrder, {})
 
@@ -418,6 +417,7 @@ export async function getPesananById(id: number) {
       meja: true,
       waiter: true,
       kasir: true,
+      voucher: true,
       detailPesanan: {
         include: {
           menu: {
@@ -442,6 +442,10 @@ export async function getPesananById(id: number) {
     status_pesanan: pesanan.statusPesanan,
     status_pembayaran: pesanan.statusPembayaran,
     total_harga: Number(pesanan.totalHarga),
+    diskon_voucher: Number(pesanan.diskonVoucher || 0),
+    voucher_kode: pesanan.voucher?.kode || null,
+    voucher_nama: pesanan.voucher?.namaVoucher || null,
+    voucher_diskon_persen: pesanan.voucher?.diskonPersen ?? null,
     biaya_admin: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : null,
     ppn: pesanan.ppn ? Number(pesanan.ppn) : null,
     metode_pembayaran: pesanan.metodePembayaran,
@@ -473,12 +477,15 @@ export async function getPesananForCheckout(publicId: string) {
       detailPesanan: {
         include: { menu: true },
       },
+      voucher: true,
     },
   })
 
   if (!pesanan) {
     return null
   }
+
+  const diskon = Number(pesanan.diskonVoucher || 0)
 
   return {
     id: pesanan.id,
@@ -489,8 +496,16 @@ export async function getPesananForCheckout(publicId: string) {
       jumlah: item.jumlah,
       catatan: item.catatanItem,
     })),
-    subtotal: Number(pesanan.totalHarga),
+    subtotal: Number(pesanan.totalHarga) + diskon,
+    diskon,
     total: Number(pesanan.totalHarga),
+    voucher: pesanan.voucher
+      ? {
+          kode: pesanan.voucher.kode,
+          namaVoucher: pesanan.voucher.namaVoucher,
+          diskonPersen: pesanan.voucher.diskonPersen,
+        }
+      : null,
     biayaAdmin: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : null,
     ppn: pesanan.ppn ? Number(pesanan.ppn) : null,
     waktu: pesanan.createdAt.toISOString(),
@@ -877,6 +892,121 @@ export async function cancelExpiredOrders() {
   }
 
   return { success: true }
+}
+
+export interface MejaTersediaPindah {
+  id: number
+  nomorMeja: string
+  tipeMeja: "lesehan" | "kursi"
+  kapasitas: number
+  tokenMeja: string
+}
+
+export async function getMejaTersediaPindah(tokenMejaSaatIni: string): Promise<
+  { mejaSaatIni: { nomorMeja: string; kapasitas: number }; daftar: MejaTersediaPindah[] } | { error: string }
+> {
+  const meja = await getMejaByToken(tokenMejaSaatIni)
+  if (!meja) return { error: "Token meja tidak valid" }
+
+  // Hanya boleh pindah jika ada pesanan aktif yang BELUM dibayar
+  const pesananAktif = await prisma.pesanan.findFirst({
+    where: {
+      mejaId: meja.id,
+      statusPembayaran: StatusBayar.menunggu,
+      deletedAt: null,
+    },
+    select: { id: true },
+  })
+  if (!pesananAktif) {
+    return { error: "Tidak ada pesanan aktif yang bisa dipindah di meja ini" }
+  }
+
+  const mejaTersedia = await prisma.meja.findMany({
+    where: {
+      statusMeja: "kosong",
+      deletedAt: null,
+      id: { not: meja.id },
+    },
+    select: {
+      id: true,
+      nomorMeja: true,
+      kapasitas: true,
+      tokenMeja: true,
+    },
+    orderBy: { nomorMeja: "asc" },
+  })
+
+  return {
+    mejaSaatIni: { nomorMeja: meja.nomorMeja, kapasitas: meja.kapasitas },
+    daftar: mejaTersedia.map((m) => ({
+      id: m.id,
+      nomorMeja: m.nomorMeja,
+      tipeMeja: m.nomorMeja.startsWith("L") ? ("lesehan" as const) : ("kursi" as const),
+      kapasitas: m.kapasitas,
+      tokenMeja: m.tokenMeja!,
+    })),
+  }
+}
+
+export async function pindahMeja(
+  tokenMejaSaatIni: string,
+  tokenMejaBaru: string
+): Promise<
+  { success: true; nomorMejaBaru: string; tokenMejaBaru: string } | { error: string }
+> {
+  if (!tokenMejaBaru?.trim()) return { error: "Meja tujuan belum dipilih" }
+  if (tokenMejaBaru === tokenMejaSaatIni) {
+    return { error: "Tidak bisa pindah ke meja yang sama" }
+  }
+
+  const mejaLama = await getMejaByToken(tokenMejaSaatIni)
+  if (!mejaLama) return { error: "Token meja asal tidak valid" }
+
+  const mejaBaru = await getMejaByToken(tokenMejaBaru)
+  if (!mejaBaru) return { error: "Meja tujuan tidak ditemukan" }
+  if (mejaBaru.statusMeja !== "kosong") {
+    return { error: "Meja tujuan sudah terpakai, silahkan pilih meja lain" }
+  }
+
+  // Hanya boleh pindah jika pesanan aktif BELUM dibayar.
+  // Setelah pembayaran berhasil, meja terkunci → harus konfirmasi kasir.
+  const pesananAktif = await prisma.pesanan.findFirst({
+    where: {
+      mejaId: mejaLama.id,
+      statusPembayaran: StatusBayar.menunggu,
+      deletedAt: null,
+    },
+  })
+  if (!pesananAktif) {
+    return { error: "Tidak ada pesanan aktif yang bisa dipindah" }
+  }
+
+  await prisma.$transaction([
+    prisma.pesanan.update({
+      where: { id: pesananAktif.id },
+      data: { mejaId: mejaBaru.id },
+    }),
+    prisma.meja.update({
+      where: { id: mejaLama.id },
+      data: { statusMeja: "kosong" },
+    }),
+    prisma.meja.update({
+      where: { id: mejaBaru.id },
+      data: { statusMeja: "terpakai" },
+    }),
+  ])
+
+  await createLog(
+    "PINDAH_MEJA",
+    `Pesanan #${pesananAktif.id} dipindah dari meja ${mejaLama.nomorMeja} ke meja ${mejaBaru.nomorMeja}`
+  )
+  await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
+
+  revalidatePath("/dashboard/pesanan")
+  revalidatePath(`/${tokenMejaSaatIni}`)
+  revalidatePath(`/${tokenMejaBaru}`)
+
+  return { success: true, nomorMejaBaru: mejaBaru.nomorMeja, tokenMejaBaru }
 }
 
 export async function updateNamaPelanggan(publicId: string, tokenMeja: string, nama: string) {

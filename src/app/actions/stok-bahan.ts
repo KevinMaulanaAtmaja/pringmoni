@@ -7,12 +7,11 @@ import {
   LokasiStok,
   SatuanStok,
   StatusStok,
-  StatusMenu,
   JenisPerubahanStok,
 } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
-import { butuhBumbu, hitungKetersediaanResep } from "@/lib/resep"
+
 
 export type StokBahanWithType = {
   id: number
@@ -41,11 +40,6 @@ export type RiwayatStokWithType = {
   createdAt: string
 }
 
-export type ResepMenuInput = {
-  stokBahanId: number
-  jumlah: number
-}
-
 async function requireOwner() {
   const session = await auth()
   if (!session?.user || session.user.role !== "owner") {
@@ -58,48 +52,6 @@ function hitungStatus(stokQty: number, stokMinimum: number): StatusStok {
   if (stokQty <= 0) return "habis"
   if (stokQty <= stokMinimum) return "menipis"
   return "tersedia"
-}
-
-type KelengkapanResep = {
-  bahanUtama: number
-  bahanBumbu: number
-}
-
-const kosong: KelengkapanResep = { bahanUtama: 0, bahanBumbu: 0 }
-
-async function hitungKelengkapanResep(
-  bahanIds: number[]
-): Promise<KelengkapanResep> {
-  if (bahanIds.length === 0) return kosong
-
-  const grouped = await prisma.stokBahan.groupBy({
-    by: ["kategori"],
-    where: { id: { in: bahanIds }, tipe: "dapur", deletedAt: null },
-    _count: { _all: true },
-  })
-
-  return {
-    bahanUtama:
-      grouped.find((g) => g.kategori === "bahan_utama")?._count._all ?? 0,
-    bahanBumbu: grouped.find((g) => g.kategori === "bumbu")?._count._all ?? 0,
-  }
-}
-
-/**
- * Peringatan kualitas data resep. Makanan wajib punya bahan utama + bumbu;
- * kategori lain (Minuman/Camilan) cukup bahan utama. Kelengkapan TIDAK menjadi
- * syarat menyimpan: menu dengan resep seadanya tetap bisa dipesan dan dilacak
- * stoknya otomatis selama punya >= 1 bahan.
- */
-function pesanResepTidakLengkap(
-  k: KelengkapanResep,
-  wajibBumbu = true
-): string {
-  const kurang: string[] = []
-  if (k.bahanUtama === 0) kurang.push("1 bahan utama")
-  if (wajibBumbu && k.bahanBumbu === 0) kurang.push("1 bahan bumbu")
-
-  return `Idealnya resep punya 1 bahan utama dan 1 bahan bumbu. Saat ini masih kurang: ${kurang.join(" dan ")}.`
 }
 
 export async function getStokBahanList(tipe: LokasiStok): Promise<StokBahanWithType[]> {
@@ -312,11 +264,11 @@ export async function deleteStokBahan(id: number) {
   }
 }
 
-export async function resetAllStokBahan(tipe: LokasiStok) {
+export async function resetAllStokBahan() {
   try {
     await requireOwner()
     await prisma.stokBahan.updateMany({
-      where: { tipe, deletedAt: null },
+      where: { deletedAt: null },
       data: { deletedAt: new Date() },
     })
     revalidatePath("/dashboard/stok-bahan")
@@ -534,17 +486,6 @@ export async function getRiwayatStok(stokBahanId: number): Promise<RiwayatStokWi
   }
 }
 
-export type ResepMenuWithBahan = {
-  menuId: number
-  namaMenu: string
-  items: Array<{
-    stokBahanId: number
-    namaBahan: string
-    satuan: SatuanStok
-    jumlah: number
-  }>
-}
-
 export async function getBahanDapurList(): Promise<StokBahanWithType[]> {
   await requireOwner()
   const items = await prisma.stokBahan.findMany({
@@ -566,177 +507,3 @@ export async function getBahanDapurList(): Promise<StokBahanWithType[]> {
   }))
 }
 
-export type MenuResepRingkasan = {
-  id: number
-  namaMenu: string
-  kategori: string
-  statusMenu: StatusMenu
-  jumlahBahan: number
-  jumlahBahanUtama: number
-  jumlahBahanBumbu: number
-  /** Punya >= 1 bahan → stok dilacak otomatis; kalau tidak → mode manual */
-  adaResep: boolean
-  /** Resep lengkap: Makanan wajib bahan utama + bumbu; kategori lain cukup bahan utama */
-  lengkap: boolean
-  porsiTersedia: number
-  bahanPembatas: string[]
-  bahan: Array<{
-    resepId: number
-    namaBahan: string
-    satuan: string
-    jumlah: number
-    stokQty: number
-  }>
-}
-
-export async function getDaftarMenuResep(): Promise<MenuResepRingkasan[]> {
-  await requireOwner()
-  const menus = await prisma.menu.findMany({
-    where: { deletedAt: null },
-    include: {
-      kategori: { select: { namaKategori: true } },
-      resep: { include: { stokBahan: true } },
-    },
-    orderBy: { namaMenu: "asc" },
-  })
-
-  return menus.map((m) => {
-    const bahan = m.resep.filter((r) => !r.stokBahan.deletedAt)
-    const jumlahBahanUtama = bahan.filter(
-      (r) => r.stokBahan.kategori === "bahan_utama"
-    ).length
-    const jumlahBahanBumbu = bahan.filter(
-      (r) => r.stokBahan.kategori === "bumbu"
-    ).length
-
-    const ketersediaan = hitungKetersediaanResep(
-      bahan.map((r) => ({
-        namaBahan: r.stokBahan.namaBahan,
-        satuan: r.stokBahan.satuan,
-        jumlahPerPorsi: Number(r.jumlah),
-        stokQty: Number(r.stokBahan.stokQty),
-      })),
-      jumlahBahanUtama,
-      jumlahBahanBumbu,
-      butuhBumbu(m.kategori?.namaKategori)
-    )
-
-    return {
-      id: m.id,
-      namaMenu: m.namaMenu,
-      kategori: m.kategori?.namaKategori ?? "-",
-      statusMenu: m.statusMenu,
-      jumlahBahan: bahan.length,
-      jumlahBahanUtama,
-      jumlahBahanBumbu,
-      adaResep: ketersediaan.adaResep,
-      lengkap: ketersediaan.lengkap,
-      porsiTersedia: ketersediaan.porsiTersedia,
-      bahanPembatas: ketersediaan.bahanPembatas,
-      bahan: bahan.map((r) => ({
-        resepId: r.id,
-        namaBahan: r.stokBahan.namaBahan,
-        satuan: r.stokBahan.satuan,
-        jumlah: Number(r.jumlah),
-        stokQty: Number(r.stokBahan.stokQty),
-      })),
-    }
-  })
-}
-
-export async function getResepMenu(menuId: number): Promise<ResepMenuWithBahan | null> {
-  try {
-    await requireOwner()
-    const menu = await prisma.menu.findFirst({
-      where: { id: menuId, deletedAt: null },
-      include: {
-        resep: {
-          include: { stokBahan: true },
-        },
-      },
-    })
-    if (!menu) return null
-
-    return {
-      menuId: menu.id,
-      namaMenu: menu.namaMenu,
-      items: menu.resep
-        .filter((r) => !r.stokBahan.deletedAt)
-        .map((r) => ({
-          stokBahanId: r.stokBahanId,
-          namaBahan: r.stokBahan.namaBahan,
-          satuan: r.stokBahan.satuan,
-          jumlah: Number(r.jumlah),
-        })),
-    }
-  } catch {
-    return null
-  }
-}
-
-export async function saveResepMenu(menuId: number, items: ResepMenuInput[]) {
-  try {
-    await requireOwner()
-    const menu = await prisma.menu.findFirst({
-      where: { id: menuId, deletedAt: null },
-      include: { kategori: { select: { namaKategori: true } } },
-    })
-    if (!menu) {
-      return { error: "Menu tidak ditemukan" }
-    }
-
-    // Satukan duplikat bahan (unique [menuId, stokBahanId]) supaya createMany
-    // tidak melanggar constraint dan membatalkan seluruh penyimpanan.
-    const itemMap = new Map<number, number>()
-    for (const i of items) {
-      if (i.stokBahanId > 0 && i.jumlah > 0) {
-        itemMap.set(i.stokBahanId, (itemMap.get(i.stokBahanId) ?? 0) + i.jumlah)
-      }
-    }
-    const cleanItems = Array.from(itemMap, ([stokBahanId, jumlah]) => ({
-      stokBahanId,
-      jumlah,
-    }))
-
-    const bahanIds = cleanItems.map((i) => i.stokBahanId)
-    if (bahanIds.length > 0) {
-      const count = await prisma.stokBahan.count({
-        where: { id: { in: bahanIds }, tipe: "dapur", deletedAt: null },
-      })
-      if (count !== bahanIds.length) {
-        return { error: "Beberapa bahan dapur tidak valid" }
-      }
-    }
-
-    await prisma.$transaction([
-      prisma.resepMenu.deleteMany({ where: { menuId } }),
-      ...(cleanItems.length > 0
-        ? [
-            prisma.resepMenu.createMany({
-              data: cleanItems.map((i) => ({
-                menuId,
-                stokBahanId: i.stokBahanId,
-                jumlah: i.jumlah,
-              })),
-            }),
-          ]
-        : []),
-    ])
-
-    // Kelengkapan cuma berupa peringatan, bukan penolakan.
-    // Makanan wajib bahan utama + bumbu; Minuman/Camilan cukup bahan utama.
-    const wajibBumbu = butuhBumbu(menu.kategori?.namaKategori)
-    const kelengkapan = await hitungKelengkapanResep(bahanIds)
-    const warning =
-      cleanItems.length > 0 &&
-      (kelengkapan.bahanUtama === 0 || (wajibBumbu && kelengkapan.bahanBumbu === 0))
-        ? pesanResepTidakLengkap(kelengkapan, wajibBumbu)
-        : undefined
-
-    revalidatePath("/dashboard/stok-bahan")
-    revalidatePath("/dashboard/menu")
-    return { success: true, warning }
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "Gagal menyimpan resep" }
-  }
-}

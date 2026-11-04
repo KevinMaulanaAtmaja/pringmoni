@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Minus, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Minus, Plus, ChevronLeft, ChevronRight, Flame, Snowflake } from "lucide-react";
 
 interface MenuFoto {
   id: number;
@@ -28,6 +28,8 @@ interface Menu {
   kategori: string;
   statusMenu: "tersedia" | "habis" | "nonaktif";
   jumlahDipesan?: number;
+  /** Kategori punya pilihan panas/dingin → tampilkan pemilih varian */
+  pilihanSuhu?: boolean;
   /** Punya >= 1 bahan di resep → stok dilacak otomatis */
   adaResep?: boolean;
   /** Resep lengkap sesuai kategori: Makanan butuh bahan utama + bumbu, lainnya cukup bahan utama */
@@ -38,7 +40,7 @@ interface Menu {
 
 interface MenuCardProps {
   menu: Menu;
-  onTambah?: (menu: Menu, jumlah: number, catatan: string | null) => void;
+  onTambah?: (menu: Menu, jumlah: number, catatan: string | null, varian?: string | null) => void;
   onSuccess: () => void;
   jumlahDipesan?: number;
 }
@@ -60,6 +62,12 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
   const [jumlah, setJumlah] = useState(1);
   const [catatan, setCatatan] = useState("");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  // Varian suhu hanya untuk kategori yang mencentang "bisa panas atau dingin".
+  // Default: "Dingin" untuk menu berawalan "es", selain itu "Panas".
+  const [varianSuhu, setVarianSuhu] = useState<"Panas" | "Dingin">(
+    menu.namaMenu.toLowerCase().includes("es") ? "Dingin" : "Panas"
+  );
+  const punyaPilihanSuhu = menu.pilihanSuhu === true;
   // Jumlah per porsi tidak boleh melebihi sisa porsi yang tersedia, jadi
   // nilainya diderivate langsung (tidak perlu efek untuk menjepit).
   const jumlahValid = bahanHabis ? 1 : Math.min(jumlah, Math.max(1, porsiTersedia));
@@ -90,7 +98,7 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
 
   const handleTambah = () => {
     if (isDisabled) return;
-    onTambah?.(menu, jumlahValid, catatan || null);
+    onTambah?.(menu, jumlahValid, catatan || null, punyaPilihanSuhu ? varianSuhu : null);
     handleReset();
     onSuccess();
   };
@@ -101,7 +109,7 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
         <div
           className={`bg-card rounded-2xl overflow-hidden border transition-all cursor-pointer ${
             isDisabled
-              ? "opacity-60"
+              ? "border-destructive/30"
               : "hover:shadow-lg hover:border-primary/20 active:scale-95"
           }`}
         >
@@ -113,18 +121,19 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
                 alt={menu.namaMenu}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-cover"
+                className={`object-cover ${isDisabled ? "opacity-40 grayscale" : ""}`}
                 loading="lazy"
               />
             ) : (
-              <span className="text-4xl">🍽️</span>
+              <span className={`text-4xl ${isDisabled ? "opacity-40 grayscale" : ""}`}>🍽️</span>
             )}
             {isDisabled && (
               <Badge
                 variant="secondary"
-                className="absolute top-2 right-2 rounded-full bg-destructive/10 text-xs text-destructive"
+                className="absolute top-2 right-2 rounded-full bg-background text-xs font-bold text-destructive shadow-sm ring-1 ring-destructive/40"
               >
-                {bahanHabis ? "Stok Habis" : "Habis"}
+                {bahanHabis                   ? "Habis"
+                    : "Habis"}
               </Badge>
             )}
             {!isDisabled && adaResep && (
@@ -142,7 +151,7 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
             )}
           </div>
 
-          <div className="p-2.5">
+          <div className={`p-2.5 ${isDisabled ? "opacity-60" : ""}`}>
             <h3 className="font-medium text-sm line-clamp-2">{menu.namaMenu}</h3>
             <p className="text-primary font-bold text-sm mt-1">
               Rp {menu.harga.toLocaleString("id-ID")}
@@ -224,8 +233,8 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
               >
                 {isDisabled
                   ? bahanHabis
-                    ? "Stok Habis"
-                    : "Habis"
+                ? "Habis"
+              : "Habis"
                   : `Sisa ${porsiSetelahTambah} porsi`}
               </Badge>
             )}
@@ -247,7 +256,7 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
             /* Menu habis: tidak ada kontrol pemesanan sama sekali */
             <div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-center">
               <p className="text-sm font-semibold text-destructive">
-                {bahanHabis ? "Stok Habis" : "Menu Habis"}
+                {bahanHabis ? "Habis" : "Habis"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {bahanHabis
@@ -257,6 +266,36 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
             </div>
           ) : (
             <>
+              {/* Pilihan panas / dingin (hanya untuk kategori yang mengaktifkan) */}
+              {punyaPilihanSuhu && (
+                <div className="mt-4">
+                  <p className="text-sm font-medium mb-2">Suhu</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { key: "Panas", icon: Flame },
+                      { key: "Dingin", icon: Snowflake },
+                    ] as const).map(({ key, icon: SuhuIcon }) => {
+                      const aktif = varianSuhu === key;
+                      return (
+                        <button
+                          type="button"
+                          key={key}
+                          onClick={() => setVarianSuhu(key)}
+                          className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
+                            aktif
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "bg-background hover:bg-muted"
+                          }`}
+                        >
+                          <SuhuIcon className="size-4" />
+                          {key}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Catatan */}
               <div className="mt-4">
                 <p className="text-sm font-medium mb-2">Catatan (opsional)</p>

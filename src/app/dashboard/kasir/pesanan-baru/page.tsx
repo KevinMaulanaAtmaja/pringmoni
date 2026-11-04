@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select"
 import { Search, Plus, Minus, Trash2, ShoppingCart, Check, ImageIcon, Banknote, CreditCard, ChevronDown } from "lucide-react"
 import { getMenus, getKategoriMenus } from "@/app/actions/menu"
-import { getMeja } from "@/app/actions/meja"
+import { getMeja, type MejaResult } from "@/app/actions/meja"
 import { createPesanan } from "@/app/actions/pesanan"
 import type { KategoriMenu } from "@prisma/client"
 import type { MenuWithKategori } from "@/app/actions/menu"
@@ -31,7 +31,7 @@ export default function PesananBaruPage() {
   const router = useRouter()
   const [menus, setMenus] = useState<MenuWithKategori[]>([])
   const [kategoris, setKategoris] = useState<KategoriMenu[]>([])
-  const [mejas, setMejas] = useState<any[]>([])
+  const [mejas, setMejas] = useState<MejaResult[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [activeKategori, setActiveKategori] = useState<number | "all">("all")
@@ -146,7 +146,7 @@ export default function PesananBaruPage() {
       return
     }
 
-    const meja = mejas.find((m: any) => m.id === Number(selectedMejaId))
+    const meja = mejas.find((m) => m.id === Number(selectedMejaId))
     if (!meja?.tokenMeja) {
       alert("Meja tidak memiliki token")
       return
@@ -226,7 +226,7 @@ export default function PesananBaruPage() {
               <SelectValue placeholder="Pilih Meja" />
             </SelectTrigger>
             <SelectContent position="popper" align="center">
-              {mejas.map((m: any) => {
+              {mejas.map((m) => {
                 const kosong = m.statusMeja === "kosong"
                 return (
                   <SelectItem

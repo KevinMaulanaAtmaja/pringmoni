@@ -7,7 +7,11 @@ import { Loader2 } from "lucide-react"
 
 const COLORS = ["#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#d1fae5"]
 
-function CustomTooltip({ active, payload, label }: any) {
+interface TooltipPayload {
+  payload: MenuTerlaris
+}
+
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
   if (!active || !payload?.length) return null
   const data = payload[0].payload
   return (

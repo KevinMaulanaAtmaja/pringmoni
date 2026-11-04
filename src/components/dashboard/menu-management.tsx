@@ -1,0 +1,2372 @@
+'use client';
+
+import { useEffect, useState, useMemo, useRef, type ReactNode } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SelectLabel,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+  import {
+    Plus,
+    Pencil,
+    Trash2,
+    ChevronLeft,
+    ChevronRight,
+    ImageIcon,
+    Upload,
+    CookingPot,
+    Utensils,
+    GlassWater,
+    Coffee,
+    Cookie,
+    Pizza,
+    Sandwich,
+    Soup,
+    Drumstick,
+    Fish,
+    Shrimp,
+    IceCream,
+    CakeSlice,
+    Popcorn,
+    Hamburger,
+    Carrot,
+    Wheat,
+    ChefHat,
+    Package,
+    Boxes,
+    CupSoda,
+    Salad,
+  } from 'lucide-react';
+  import type { LucideIcon } from 'lucide-react';
+
+import {
+  getMenus,
+  getKategoriMenus,
+  createMenu,
+  updateMenu,
+  deleteMenu,
+  MenuWithKategori,
+  createKategori,
+  updateKategori,
+  deleteKategori,
+  updateStokMenuHarian,
+  setAllStokMenuHarian,
+  setStokMenuHarianByKategori,
+} from '@/app/actions/menu';
+
+type ActionResult = { success: boolean } | { error: string };
+
+import {
+  saveMenuFotoUrls,
+  deleteMenuFoto,
+  getMenuFotos,
+} from '@/app/actions/menu-foto';
+
+
+
+import { useUploadThing } from '@/lib/uploadthing-client';
+
+type StatusMenu = 'tersedia' | 'habis' | 'nonaktif';
+type LokasiMenu = 'resto' | 'cafe';
+
+type KategoriMenu = {
+  id: number;
+  namaKategori: string;
+  lokasi: LokasiMenu;
+  icon?: string | null;
+  pilihanSuhu?: boolean;
+  createdAt: Date;
+  deletedAt: Date | null;
+};
+
+const statusColors: Record<StatusMenu, string> = {
+  tersedia: 'bg-green-100 text-green-800',
+  habis: 'bg-yellow-100 text-yellow-800',
+  nonaktif: 'bg-gray-100 text-gray-800',
+};
+
+const statusLabels: Record<StatusMenu, string> = {
+  tersedia: 'Tersedia',
+  habis: 'Habis',
+  nonaktif: 'Nonaktif',
+};
+
+const ITEMS_PER_PAGE = 5;
+
+const CATEGORY_ICON_OPTIONS = [
+  { key: 'Utensils', label: 'Umum', Icon: Utensils },
+  { key: 'GlassWater', label: 'Minuman', Icon: GlassWater },
+  { key: 'Coffee', label: 'Kopi/Teh', Icon: Coffee },
+  { key: 'Cookie', label: 'Camilan', Icon: Cookie },
+  { key: 'Pizza', label: 'Pizza', Icon: Pizza },
+  { key: 'Hamburger', label: 'Burger', Icon: Hamburger },
+  { key: 'Sandwich', label: 'Sandwich', Icon: Sandwich },
+  { key: 'Carrot', label: 'Sayuran/Gorengan', Icon: Carrot },
+  { key: 'Drumstick', label: 'Ayam', Icon: Drumstick },
+  { key: 'Fish', label: 'Ikan/Seafood', Icon: Fish },
+  { key: 'Shrimp', label: 'Udang', Icon: Shrimp },
+  { key: 'Soup', label: 'Sup', Icon: Soup },
+  { key: 'Wheat', label: 'Mie/Roti', Icon: Wheat },
+  { key: 'Salad', label: 'Salad', Icon: Salad },
+  { key: 'IceCream', label: 'Es Krim', Icon: IceCream },
+  { key: 'CakeSlice', label: 'Kue/Dessert', Icon: CakeSlice },
+  { key: 'Popcorn', label: 'Popcorn', Icon: Popcorn },
+  { key: 'CupSoda', label: 'Soda/Jus', Icon: CupSoda },
+  { key: 'Package', label: 'Paket', Icon: Package },
+  { key: 'Boxes', label: 'Paket Hemat', Icon: Boxes },
+  { key: 'ChefHat', label: 'Spesial', Icon: ChefHat },
+] as const;
+
+const CATEGORY_ICON_MAP: Record<string, LucideIcon> = Object.fromEntries(
+  CATEGORY_ICON_OPTIONS.map((o) => [o.key, o.Icon])
+);
+
+function suggestKategoriIcon(nama: string): string {
+  const n = nama.toLowerCase();
+  if (n.includes('paket') || n.includes('set') || n.includes('bundle')) return 'Package';
+  if (n.includes('minum') || n.includes('drink') || n.includes('jus') || n.includes('teh') || n.includes('soda')) return 'GlassWater';
+  if (n.includes('kopi') || n.includes('coffee')) return 'Coffee';
+  if (n.includes('camil') || n.includes('snack') || n.includes('goreng') || n.includes('kentang')) return 'FrenchFries';
+  if (n.includes('kue') || n.includes('cake') || n.includes('dessert') || n.includes('es krim') || n.includes('ice cream')) return 'CakeSlice';
+  if (n.includes('pizza')) return 'Pizza';
+  if (n.includes('burger')) return 'Burger';
+  if (n.includes('roti') || n.includes('sandwich')) return 'Sandwich';
+  if (n.includes('ayam') || n.includes('chicken')) return 'Drumstick';
+  if (n.includes('ikan') || n.includes('seafood')) return 'Fish';
+  if (n.includes('udang') || n.includes('shrimp')) return 'Shrimp';
+  if (n.includes('mie') || n.includes('noodle')) return 'Noodles';
+  if (n.includes('sup') || n.includes('soup') || n.includes('kuah')) return 'Soup';
+  if (n.includes('salad')) return 'Salad';
+  if (n.includes('makan')) return 'Utensils';
+  return 'Utensils';
+}
+
+export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
+  const [menus, setMenus] = useState<MenuWithKategori[]>([]);
+  const [kategoris, setKategoris] = useState<KategoriMenu[]>([]);
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+
+
+  const [loading, setLoading] = useState(true);
+
+  const [form, setForm] = useState({
+    namaMenu: '',
+    deskripsi: '',
+    harga: '',
+    kategoriId: '',
+    statusMenu: 'tersedia' as StatusMenu,
+    stokManual: '0',
+  });
+
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Delete menu states
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  // Category states
+  const [isKategoriOpen, setIsKategoriOpen] = useState(false);
+  const [editingKategori, setEditingKategori] =
+    useState<KategoriMenu | null>(null);
+
+  const [kategoriForm, setKategoriForm] = useState({
+    namaKategori: '',
+    lokasi: 'resto' as LokasiMenu,
+    icon: null as string | null,
+    /** Menu di kategori ini bisa dipesan panas atau dingin (opsional) */
+    pilihanSuhu: false,
+  });
+
+  const [deleteKategoriId, setDeleteKategoriId] = useState<number | null>(
+    null
+  );
+
+  const [deleteKategoriName, setDeleteKategoriName] = useState('');
+  const [isDeleteKategoriOpen, setIsDeleteKategoriOpen] = useState(false);
+
+  // Filter states
+  const [search, setSearch] = useState('');
+  const [filterKategori, setFilterKategori] = useState<string>('all');
+  const [filterLokasi, setFilterLokasi] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Price formatting
+  const [priceValue, setPriceValue] = useState<number | ''>('');
+
+  // Photo states
+  const [uploadedFotoUrls, setUploadedFotoUrls] = useState<string[]>([]);
+  const [uploadedFileKeys, setUploadedFileKeys] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const [existingFotos, setExistingFotos] = useState<
+    Array<{
+      id: number;
+      fotoUrl: string;
+      fileKey: string | null;
+    }>
+  >([]);
+
+  const [deleteFotoId, setDeleteFotoId] = useState<number | null>(null);
+  const [deleteFotoUrl, setDeleteFotoUrl] = useState('');
+  const [isDeleteFotoOpen, setIsDeleteFotoOpen] = useState(false);
+
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  const [editingStokId, setEditingStokId] = useState<number | null>(null)
+  const [editingStokValue, setEditingStokValue] = useState<string>('')
+  const [savingStok, setSavingStok] = useState(false)
+
+  // Bulk daily stock states
+  const [isBulkStokOpen, setIsBulkStokOpen] = useState(false)
+  const [bulkStokValue, setBulkStokValue] = useState('0')
+  const [bulkStokScope, setBulkStokScope] = useState<'semua' | 'kategori'>('semua')
+  const [bulkKategoriId, setBulkKategoriId] = useState('')
+  const [savingBulkStok, setSavingBulkStok] = useState(false)
+
+  const totalPhotos =
+    existingFotos.length + uploadedFotoUrls.length;
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { startUpload } = useUploadThing('menuFoto', {
+    onClientUploadComplete: (
+      res: { url: string; key: string }[]
+    ) => {
+      setUploading(false);
+
+      if (res) {
+        const urls = res.map((file) => file.url);
+        const keys = res.map((file) => file.key);
+
+        const currentTotal =
+          existingFotos.length + uploadedFotoUrls.length;
+
+        if (currentTotal + urls.length > 5) {
+          alert(
+            'Maksimal 5 foto per menu. Hapus foto lama jika ingin menambah foto baru.'
+          );
+
+          keys.forEach(async (key) => {
+            try {
+              await fetch('/api/uploadthing/delete', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  fileKey: key,
+                }),
+              });
+            } catch (error) {
+              console.error(
+                'Error deleting file:',
+                error
+              );
+            }
+          });
+
+          return;
+        }
+
+        setUploadedFotoUrls((prev) => [
+          ...prev,
+          ...urls,
+        ]);
+
+        setUploadedFileKeys((prev) => [
+          ...prev,
+          ...keys,
+        ]);
+      }
+    },
+
+    onUploadError: (error: Error) => {
+      setUploading(false);
+      alert('Gagal upload: ' + error.message);
+    },
+
+    onUploadBegin: () => setUploading(true),
+  });
+
+  // Menu name states
+  const [duplicateWarning, setDuplicateWarning] =
+    useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterKategori, filterLokasi, filterStatus]);
+
+  async function loadData() {
+    setLoading(true);
+
+    try {
+      const [menusData, kategorisData] =
+        await Promise.all([
+          getMenus(),
+          getKategoriMenus(),
+        ]);
+
+      setMenus(menusData);
+      setKategoris(kategorisData);
+    } catch {
+      setMenus([]);
+      setKategoris([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function openDialog(menu?: MenuWithKategori) {
+    if (menu) {
+      setEditingId(menu.id);
+
+      setForm({
+        namaMenu: menu.namaMenu,
+        deskripsi: menu.deskripsi || '',
+        harga: menu.harga.toString(),
+        kategoriId: menu.kategoriId.toString(),
+        statusMenu: menu.statusMenu,
+        stokManual: (menu.stokManual ?? 0).toString(),
+      });
+
+      // Set price value in thousands
+      setPriceValue(Math.floor(menu.harga / 1000));
+
+      // Load existing photos
+      loadMenuFotos(menu.id);
+    } else {
+      setEditingId(null);
+
+      setForm({
+        namaMenu: '',
+        deskripsi: '',
+        harga: '',
+        kategoriId:
+          kategoris[0]?.id.toString() || '',
+        statusMenu: 'tersedia',
+        stokManual: '0',
+      });
+
+      setPriceValue('');
+      setExistingFotos([]);
+    }
+
+    setDuplicateWarning('');
+    setUploadedFotoUrls([]);
+    setUploadedFileKeys([]);
+    setIsOpen(true);
+  }
+
+  async function loadMenuFotos(menuId: number) {
+    try {
+      const fotos = await getMenuFotos(menuId);
+
+      const mappedFotos = fotos.map((f) => {
+        const foto = f as unknown as {
+          id: number;
+          fotoUrl: string;
+          fileKey?: string | null;
+        };
+
+        return {
+          id: foto.id,
+          fotoUrl: foto.fotoUrl,
+          fileKey: foto.fileKey ?? null,
+        };
+      });
+
+      setExistingFotos(mappedFotos);
+    } catch {
+      setExistingFotos([]);
+    }
+  }
+
+  function handleDeleteFoto(
+    fotoId: number,
+    fotoUrl: string
+  ) {
+    setDeleteFotoId(fotoId);
+    setDeleteFotoUrl(fotoUrl);
+    setIsDeleteFotoOpen(true);
+  }
+
+  async function confirmDeleteFoto() {
+    if (!deleteFotoId) return;
+
+    try {
+      await deleteMenuFoto(deleteFotoId);
+
+      if (editingId) {
+        loadMenuFotos(editingId);
+      }
+
+      setIsDeleteFotoOpen(false);
+      setDeleteFotoId(null);
+      setDeleteFotoUrl('');
+    } catch {
+      alert('Gagal menghapus foto');
+    }
+  }
+
+  async function handleSubmit(
+    e: React.FormEvent
+  ) {
+    e.preventDefault();
+
+    setSubmitting(true);
+
+    try {
+      const stokManual = parseInt(form.stokManual || '0', 10);
+
+      const data = {
+        namaMenu: form.namaMenu,
+        deskripsi: form.deskripsi || undefined,
+        harga: parseFloat(form.harga),
+        kategoriId: parseInt(form.kategoriId),
+        statusMenu: form.statusMenu,
+        stokManual: Number.isNaN(stokManual) ? 0 : stokManual,
+      };
+
+      // Validation
+      if (!data.namaMenu?.trim()) {
+        alert('Nama menu wajib diisi');
+        setSubmitting(false);
+        return;
+      }
+
+      if (data.harga <= 0) {
+        alert('Harga harus lebih dari 0');
+        setSubmitting(false);
+        return;
+      }
+
+      if (data.stokManual < 0) {
+        alert('Stok siap jual tidak boleh negatif');
+        setSubmitting(false);
+        return;
+      }
+
+      let menuId = editingId;
+
+      if (editingId) {
+        const result = await updateMenu({
+          id: editingId,
+          ...data,
+        });
+
+        if (
+          result &&
+          'error' in result &&
+          result.error
+        ) {
+          alert(result.error);
+          setSubmitting(false);
+          return;
+        }
+
+        // Add new photos without deleting old ones
+        if (uploadedFotoUrls.length > 0) {
+          await saveMenuFotoUrls(
+            editingId,
+            uploadedFotoUrls,
+            uploadedFileKeys
+          );
+        }
+      } else {
+        const result = await createMenu(data);
+
+        if (
+          result &&
+          'error' in result &&
+          result.error
+        ) {
+          alert(result.error);
+          setSubmitting(false);
+          return;
+        }
+
+        menuId = (
+          result as {
+            id: number;
+          }
+        ).id;
+
+        // Save uploaded photo URLs
+        if (
+          uploadedFotoUrls.length > 0 &&
+          menuId
+        ) {
+          await saveMenuFotoUrls(
+            menuId,
+            uploadedFotoUrls,
+            uploadedFileKeys
+          );
+        }
+      }
+
+      setIsOpen(false);
+      loadData();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleBulkStokSubmit() {
+    const jumlah = parseInt(bulkStokValue, 10)
+
+    if (Number.isNaN(jumlah) || jumlah < 0) {
+      alert('Jumlah porsi siap jual tidak valid')
+      return
+    }
+
+    if (bulkStokScope === 'kategori' && !bulkKategoriId) {
+      alert('Pilih kategori terlebih dahulu')
+      return
+    }
+
+    setSavingBulkStok(true)
+    try {
+      const res = bulkStokScope === 'kategori'
+        ? await setStokMenuHarianByKategori(parseInt(bulkKategoriId, 10), jumlah)
+        : await setAllStokMenuHarian(jumlah)
+
+      if (res && 'error' in res) {
+        alert(res.error)
+        return
+      }
+      setIsBulkStokOpen(false)
+      await loadData()
+    } finally {
+      setSavingBulkStok(false)
+    }
+  }
+
+  async function handleDelete(id: number) {
+    setDeleteId(id);
+    setIsDeleteOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!deleteId) return;
+
+    const result = await deleteMenu(deleteId);
+
+    if ('error' in result && result.error) {
+      alert(result.error);
+      setIsDeleteOpen(false);
+      setDeleteId(null);
+      return;
+    }
+
+    setIsDeleteOpen(false);
+    setDeleteId(null);
+
+    loadData();
+  }
+
+  // Category handlers
+  function openKategoriDialog(
+    kategori?: KategoriMenu
+  ) {
+    if (kategori) {
+      setEditingKategori(kategori);
+
+      setKategoriForm({
+        namaKategori: kategori.namaKategori,
+        lokasi: kategori.lokasi ?? 'resto',
+        icon: kategori.icon ?? null,
+        pilihanSuhu: kategori.pilihanSuhu ?? false,
+      });
+    } else {
+      setEditingKategori(null);
+
+      setKategoriForm({
+        namaKategori: '',
+        lokasi: 'resto',
+        icon: null,
+        pilihanSuhu: false,
+      });
+    }
+
+    setIsKategoriOpen(true);
+  }
+
+  async function handleKategoriSubmit(
+    e: React.FormEvent
+  ) {
+    e.preventDefault();
+
+    setSubmitting(true);
+
+    try {
+      if (editingKategori) {
+        const result =
+          (await updateKategori(
+            editingKategori.id,
+            kategoriForm
+          )) as ActionResult;
+
+        if (
+          'error' in result &&
+          result.error
+        ) {
+          setError(result.error);
+          return;
+        }
+      } else {
+        const result =
+          (await createKategori(
+            kategoriForm
+          )) as ActionResult;
+
+        if (
+          'error' in result &&
+          result.error
+        ) {
+          setError(result.error);
+          return;
+        }
+      }
+
+      setIsKategoriOpen(false);
+      loadData();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleDeleteKategori(
+    id: number,
+    name: string
+  ) {
+    setDeleteKategoriId(id);
+    setDeleteKategoriName(name);
+    setIsDeleteKategoriOpen(true);
+  }
+
+  async function confirmDeleteKategori() {
+    if (!deleteKategoriId) return;
+
+    const result =
+      await deleteKategori(deleteKategoriId);
+
+    if (
+      'error' in result &&
+      result.error
+    ) {
+      alert(result.error);
+      return;
+    }
+
+    setIsDeleteKategoriOpen(false);
+    setDeleteKategoriId(null);
+    setDeleteKategoriName('');
+
+    loadData();
+  }
+
+  function formatHarga(harga: number) {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(harga);
+  }
+
+  // Filter logic
+  const filteredMenus = useMemo(() => {
+    let result = menus;
+
+    if (search) {
+      const s = search.toLowerCase();
+
+      result = result.filter(
+        (m) =>
+          m.namaMenu
+            .toLowerCase()
+            .includes(s) ||
+          (m.deskripsi &&
+            m.deskripsi
+              .toLowerCase()
+              .includes(s))
+      );
+    }
+
+    if (filterKategori !== 'all') {
+      result = result.filter(
+        (m) =>
+          m.kategoriId ===
+          parseInt(filterKategori)
+      );
+    }
+
+    if (filterLokasi !== 'all') {
+      result = result.filter(
+        (m) => m.kategori?.lokasi === filterLokasi
+      );
+    }
+
+    if (filterStatus !== 'all') {
+      result = result.filter(
+        (m) =>
+          m.statusMenu === filterStatus
+      );
+    }
+
+    return result;
+  }, [
+    menus,
+    search,
+    filterKategori,
+    filterLokasi,
+    filterStatus,
+  ]);
+
+  // Pagination
+  const totalPages = Math.ceil(
+    filteredMenus.length /
+      ITEMS_PER_PAGE
+  );
+
+  const paginatedMenus =
+    filteredMenus.slice(
+      (currentPage - 1) *
+        ITEMS_PER_PAGE,
+      currentPage *
+        ITEMS_PER_PAGE
+    );
+
+  return (
+    <div className="p-3 space-y-2">
+      <div className="space-y-2">
+        <h1 className="text-lg font-bold">
+          Kelola Menu
+        </h1>
+        {tabs}
+      </div>
+
+      {/* Filters + Tambah Button */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Cari..."
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value)
+          }
+          className="h-8 w-[200px] text-sm px-3"
+        />
+
+        <Select
+          value={filterKategori}
+          onValueChange={
+            setFilterKategori
+          }
+        >
+          <SelectTrigger className="h-8 w-[130px] text-sm">
+            <SelectValue placeholder="Kategori" />
+          </SelectTrigger>
+
+          <SelectContent>
+            <SelectItem value="all">
+              Semua
+            </SelectItem>
+
+            {kategoris.map((kat) => (
+              <SelectItem
+                key={kat.id}
+                value={kat.id.toString()}
+              >
+                {kat.lokasi === 'cafe'
+                  ? `☕ ${kat.namaKategori}`
+                  : kat.namaKategori}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filterLokasi}
+          onValueChange={setFilterLokasi}
+        >
+          <SelectTrigger className="h-8 w-[110px] text-sm">
+            <SelectValue placeholder="Lokasi" />
+          </SelectTrigger>
+
+          <SelectContent>
+            <SelectItem value="all">
+              Semua Lokasi
+            </SelectItem>
+
+            <SelectItem value="resto">
+              Resto
+            </SelectItem>
+
+            <SelectItem value="cafe">
+              Cafe
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filterStatus}
+          onValueChange={setFilterStatus}
+        >
+          <SelectTrigger className="h-8 w-[130px] text-sm">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+
+          <SelectContent>
+            <SelectItem value="all">
+              Semua
+            </SelectItem>
+
+            <SelectItem value="tersedia">
+              Tersedia
+            </SelectItem>
+
+            <SelectItem value="habis">
+              Habis
+            </SelectItem>
+
+            <SelectItem value="nonaktif">
+              Nonaktif
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="h-8"
+            onClick={() => {
+              setBulkStokValue('0')
+              setBulkStokScope('semua')
+              setBulkKategoriId('')
+              setIsBulkStokOpen(true)
+            }}
+          >
+            <CookingPot className="w-4 h-4 mr-2" />
+            Stok Harian
+          </Button>
+
+          <Button
+            onClick={() => openDialog()}
+            className="h-8"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Tambah Menu
+          </Button>
+
+          <Button
+            onClick={() =>
+              openKategoriDialog()
+            }
+            variant="outline"
+            className="h-8"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Tambah Kategori
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border overflow-hidden">
+        <Table className="w-full table-fixed">
+          <TableHeader>
+            <TableRow className="h-9">
+              <TableHead className="h-9 w-10">
+                No
+              </TableHead>
+
+              <TableHead className="h-9 w-16">
+                Foto
+              </TableHead>
+
+              <TableHead className="h-9">
+                Menu
+              </TableHead>
+
+              <TableHead className="h-9 w-24">
+                Kategori
+              </TableHead>
+
+              <TableHead className="h-9 w-28">
+                Ketersediaan
+              </TableHead>
+
+              <TableHead className="h-9 w-24">
+                Harga
+              </TableHead>
+
+              <TableHead className="h-9 w-20">
+                Status
+              </TableHead>
+
+              <TableHead className="h-9 w-24 text-right">
+                Aksi
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {loading ? (
+              /* FIX CONFLICT:
+                 gunakan loading skeleton dari commit lokal */
+              Array.from({
+                length: ITEMS_PER_PAGE,
+              }).map((_, i) => (
+                <TableRow
+                  key={i}
+                  className="h-12"
+                >
+                  <TableCell className="py-2">
+                    <div className="h-4 w-5 bg-gray-200 rounded animate-pulse" />
+                  </TableCell>
+
+                  <TableCell className="py-2">
+                    <div className="w-10 h-10 bg-gray-200 rounded animate-pulse" />
+                  </TableCell>
+
+                  <TableCell className="py-2">
+                    <div className="space-y-1.5 max-w-xs">
+                      <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-3 w-48 bg-gray-100 rounded animate-pulse" />
+                    </div>
+                  </TableCell>
+
+                  <TableCell className="py-2">
+                    <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                  </TableCell>
+
+                  <TableCell className="py-2">
+                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                  </TableCell>
+
+                  <TableCell className="py-2">
+                    <div className="h-5 w-16 bg-gray-200 rounded-full animate-pulse" />
+                  </TableCell>
+
+                  <TableCell className="py-2 text-right">
+                    <div className="flex justify-end gap-1">
+                      <div className="h-7 w-7 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-7 w-7 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : paginatedMenus.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={8}
+                  className="text-center py-4"
+                >
+                  {search ||
+                  filterLokasi !== 'all' ||
+                  filterStatus !== 'all'
+                    ? 'Tidak ada menu yang sesuai filter'
+                    : 'Belum ada menu'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedMenus.map(
+                (menu, index) => (
+                  <TableRow
+                    key={menu.id}
+                    className="h-12"
+                  >
+                    <TableCell className="py-2">
+                      {(currentPage - 1) *
+                        ITEMS_PER_PAGE +
+                        index +
+                        1}
+                    </TableCell>
+
+                    <TableCell className="py-2">
+                      {menu.fotoUrl ? (
+                        <div className="flex flex-wrap gap-1">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={menu.fotoUrl}
+                            alt={menu.namaMenu}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-10 h-10 object-cover rounded flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() =>
+                              setPreviewImage(
+                                menu.fotoUrl
+                              )
+                            }
+                            onError={(e) => {
+                              (
+                                e.target as HTMLImageElement
+                              ).src =
+                                'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFRUVGRUYiIHJ4PSI0Ii8+PHBhdGggZD0iTTE2IDMwTDI0IDMwTTIwIDI2TDIwIDM0TTIwIDI2QzE3Ljc5IDE2IDE2IDE2IDE2IDE2QzE2IDE2IDE0IDE4IDE0IDIwQzE0IDIyIDE2IDI0IDIwIDI2Wk0yNiAyMEMyNiAxOCAyNCAxNiAyNCAxNkMyNCAxNiAyMiAxOCAyMiAyMEMyMiAyMiAyNCAyNCAyNiAyNloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==';
+                            }}
+                          />
+
+                          {menu.fotoUrls
+                            ?.slice(1)
+                            .map(
+                              (
+                                url,
+                                idx
+                              ) => (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  key={idx}
+                                  src={url}
+                                  alt={`${menu.namaMenu} ${
+                                    idx + 2
+                                  }`}
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="w-10 h-10 object-cover rounded flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() =>
+                                    setPreviewImage(
+                                      url
+                                    )
+                                  }
+                                  onError={(
+                                    e
+                                  ) => {
+                                    (
+                                      e.target as HTMLImageElement
+                                    ).src =
+                                      'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIGZpbGw9IiNFRUVGRUYiIHJ4PSI0Ii8+PHBhdGggZD0iTTE2IDMwTDI0IDMwTTIwIDI2TDIwIDM0TTIwIDI2QzE3Ljc5IDE2IDE2IDE2IDE2IDE2QzE2IDE2IDE0IDE4IDE0IDIwQzE0IDIyIDE2IDI0IDIwIDI2Wk0yNiAyMEMyNiAxOCAyNCAxNiAyNCAxNkMyNCAxNiAyMiAxOCAyMiAyMEMyMiAyMiAyNCAyNCAyNiAyNloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==';
+                                  }}
+                                />
+                              )
+                            )}
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                          <ImageIcon className="w-4 h-4 text-gray-400" />
+                        </div>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="py-2 whitespace-normal">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {menu.namaMenu}
+                        </p>
+
+                        {menu.deskripsi && (
+                          <p
+                            className="text-xs text-gray-500 truncate"
+                            title={
+                              menu.deskripsi
+                            }
+                          >
+                            {menu.deskripsi}
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="py-2 text-sm">
+                      <p
+                        className="truncate"
+                        title={menu.kategori.namaKategori}
+                      >
+                        {menu.kategori.namaKategori}
+                      </p>
+                    </TableCell>
+
+                    <TableCell className="py-2">
+                      {menu.statusMenu === 'nonaktif' ? (
+                        <Badge variant="outline" className="text-[10px] text-gray-500 border-gray-300">Nonaktif</Badge>
+                      ) : editingStokId === menu.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            className="w-16 h-6 px-1 text-xs border rounded"
+                            value={editingStokValue}
+                            onChange={(e) => setEditingStokValue(e.target.value)}
+                          />
+                          <Button
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            disabled={savingStok}
+                            onClick={async () => {
+                              const val = parseInt(editingStokValue) || 0
+                              if (val < 0) return
+                              setSavingStok(true)
+                              const res = await updateStokMenuHarian(menu.id, val)
+                              setSavingStok(false)
+                              if (res && 'error' in res) {
+                                alert(res.error)
+                                return
+                              }
+                              setEditingStokId(null)
+                              loadData()
+                            }}
+                          >
+                            Simpan
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => setEditingStokId(null)}
+                          >
+                            Batal
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          className="text-sm font-medium hover:underline"
+                          onClick={() => {
+                            setEditingStokId(menu.id)
+                            setEditingStokValue(String(menu.stokManual ?? 0))
+                          }}
+                        >
+                          {menu.stokManual ?? 0}
+                        </button>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="py-2 text-sm">
+                      {formatHarga(
+                        menu.harga
+                      )}
+                    </TableCell>
+
+                    <TableCell className="py-2">
+                      <Badge
+                        className={`${statusColors[menu.statusMenu]} text-xs`}
+                      >
+                        {
+                          statusLabels[
+                            menu.statusMenu
+                          ]
+                        }
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell className="py-2 text-right">
+                      <div className="flex justify-end gap-1">
+
+
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() =>
+                            openDialog(menu)
+                          }
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() =>
+                            handleDelete(
+                              menu.id
+                            )
+                          }
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              )
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() =>
+              setCurrentPage((p) =>
+                Math.max(1, p - 1)
+              )
+            }
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="w-3 h-3" />
+          </Button>
+
+          <span className="text-xs">
+            {currentPage}/{totalPages}
+          </span>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() =>
+              setCurrentPage((p) =>
+                Math.min(
+                  totalPages,
+                  p + 1
+                )
+              )
+            }
+            disabled={
+              currentPage === totalPages
+            }
+          >
+            <ChevronRight className="w-3 h-3" />
+          </Button>
+        </div>
+      )}
+
+      {/* Menu Dialog */}
+      <Dialog
+        open={isOpen}
+        onOpenChange={setIsOpen}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              {editingId
+                ? 'Edit Menu'
+                : 'Tambah Menu Baru'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-1 py-1">
+              {/* Nama Menu */}
+              <div className="grid gap-1">
+                <Label
+                  htmlFor="namaMenu"
+                  className="text-xs"
+                >
+                  Nama Menu
+                </Label>
+
+                <Input
+                  id="namaMenu"
+                  value={form.namaMenu}
+                  onChange={(e) => {
+                    const value =
+                      e.target.value;
+
+                    setForm({
+                      ...form,
+                      namaMenu: value,
+                    });
+
+                    if (
+                      value &&
+                      !editingId
+                    ) {
+                      const duplicate =
+                        menus.find(
+                          (m) =>
+                            m.namaMenu
+                              .toLowerCase() ===
+                              value.toLowerCase() &&
+                            m.deletedAt ===
+                              null
+                        );
+
+                      setDuplicateWarning(
+                        duplicate
+                          ? 'Menu dengan nama ini sudah ada'
+                          : ''
+                      );
+                    } else if (
+                      editingId &&
+                      value
+                    ) {
+                      const duplicate =
+                        menus.find(
+                          (m) =>
+                            m.namaMenu
+                              .toLowerCase() ===
+                              value.toLowerCase() &&
+                            m.id !==
+                              editingId &&
+                            m.deletedAt ===
+                              null
+                        );
+
+                      setDuplicateWarning(
+                        duplicate
+                          ? 'Menu dengan nama ini sudah ada'
+                          : ''
+                      );
+                    } else {
+                      setDuplicateWarning(
+                        ''
+                      );
+                    }
+                  }}
+                  className={`h-7 text-xs ${
+                    duplicateWarning
+                      ? 'border-red-500'
+                      : ''
+                  }`}
+                  required
+                />
+
+                {duplicateWarning && (
+                  <p className="text-xs text-red-500">
+                    {duplicateWarning}
+                  </p>
+                )}
+              </div>
+
+              {/* Deskripsi */}
+              <div className="grid gap-1">
+                <Label
+                  htmlFor="deskripsi"
+                  className="text-xs"
+                >
+                  Deskripsi
+                </Label>
+
+                <textarea
+                  id="deskripsi"
+                  value={form.deskripsi}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      deskripsi:
+                        e.target.value,
+                    })
+                  }
+                  className="w-full min-h-[60px] rounded-lg border border-input bg-input/30 px-3 py-1 text-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[2px] focus-visible:ring-ring/50 resize-y"
+                  rows={2}
+                />
+              </div>
+
+              {/* Harga */}
+              <div className="grid gap-2 mt-2">
+                <div className="grid gap-1">
+                  <Label
+                    htmlFor="harga"
+                    className="text-xs"
+                  >
+                    Harga (Ribuan) *
+                  </Label>
+
+                  <div className="relative">
+                    <Input
+                      id="harga"
+                      type="text"
+                      inputMode="numeric"
+                      value={
+                        priceValue || ''
+                      }
+                      onChange={(e) => {
+                        const raw =
+                          e.target.value.replace(
+                            /[^\d]/g,
+                            ''
+                          );
+
+                        const num =
+                          parseInt(raw) ||
+                          0;
+
+                        setPriceValue(num);
+
+                        setForm({
+                          ...form,
+                          harga: (
+                            num * 1000
+                          ).toString(),
+                        });
+                      }}
+                      className="h-6 text-xs pr-10"
+                      placeholder="Contoh: 25"
+                      required
+                    />
+
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs pointer-events-none">
+                      .000
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground">
+                    Isi angka dalam ribuan,
+                    misal: 25 untuk Rp
+                    25.000
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1">
+                  {/* Kategori */}
+                  <div className="grid gap-1">
+                    <Label
+                      htmlFor="kategoriId"
+                      className="text-xs"
+                    >
+                      Kategori
+                    </Label>
+
+                    <Select
+                      value={
+                        form.kategoriId
+                      }
+                      onValueChange={(
+                        value
+                      ) =>
+                        setForm({
+                          ...form,
+                          kategoriId:
+                            value,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-6 text-xs">
+                        <SelectValue placeholder="Kategori" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Resto</SelectLabel>
+                          {kategoris
+                            .filter((k) => k.lokasi === 'resto')
+                            .map((kat) => (
+                              <SelectItem
+                                key={kat.id}
+                                value={kat.id.toString()}
+                              >
+                                {kat.namaKategori}
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel>Cafe</SelectLabel>
+                          {kategoris
+                            .filter((k) => k.lokasi === 'cafe')
+                            .map((kat) => (
+                              <SelectItem
+                                key={kat.id}
+                                value={kat.id.toString()}
+                              >
+                                {kat.namaKategori}
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Status */}
+                  <div className="grid gap-1">
+                    <Label
+                      htmlFor="statusMenu"
+                      className="text-xs"
+                    >
+                      Status
+                    </Label>
+
+                    <Select
+                      value={
+                        form.statusMenu
+                      }
+                      onValueChange={(
+                        value
+                      ) =>
+                        setForm({
+                          ...form,
+                          statusMenu:
+                            value as StatusMenu,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-6 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectItem value="tersedia">
+                          Tersedia
+                        </SelectItem>
+
+                        <SelectItem value="habis">
+                          Habis
+                        </SelectItem>
+
+                        <SelectItem value="nonaktif">
+                          Nonaktif
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Stok Harian */}
+                  <div className="grid gap-1">
+                    <Label htmlFor="stokManual" className="text-xs">
+                      Stok Harian
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="stokManual"
+                        type="number"
+                        min="0"
+                        value={form.stokManual}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            stokManual: e.target.value,
+                          })
+                        }
+                        className="h-6 pr-10 text-center text-xs font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                        porsi
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      0 = otomatis Habis
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Photo Upload */}
+              <div className="grid gap-1">
+                <Label className="text-xs font-medium">
+                  Foto Menu
+                </Label>
+
+                {/* Existing Photos */}
+                {existingFotos.length >
+                  0 && (
+                  <div className="flex gap-1 overflow-x-auto pb-1 max-w-full">
+                    {existingFotos.map(
+                      (foto) => (
+                        <div
+                          key={foto.id}
+                          className="relative group flex-shrink-0"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={
+                              foto.fotoUrl
+                            }
+                            alt="Menu"
+                            className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() =>
+                              setPreviewImage(
+                                foto.fotoUrl
+                              )
+                            }
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDeleteFoto(
+                                foto.id,
+                                foto.fotoUrl
+                              )
+                            }
+                            className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* Newly Uploaded Photos */}
+                {uploadedFotoUrls.length >
+                  0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {uploadedFotoUrls.map(
+                      (url, index) => (
+                        <div
+                          key={index}
+                          className="relative group"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt="Preview"
+                            className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() =>
+                              setPreviewImage(
+                                url
+                              )
+                            }
+                          />
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const fileKey =
+                                uploadedFileKeys[
+                                  index
+                                ];
+
+                              if (fileKey) {
+                                try {
+                                  const response =
+                                    await fetch(
+                                      '/api/uploadthing/delete',
+                                      {
+                                        method:
+                                          'POST',
+                                        headers:
+                                          {
+                                            'Content-Type':
+                                              'application/json',
+                                          },
+                                        body: JSON.stringify(
+                                          {
+                                            fileKey,
+                                          }
+                                        ),
+                                      }
+                                    );
+
+                                  if (
+                                    !response.ok
+                                  ) {
+                                    console.error(
+                                      'Failed to delete file from UploadThing'
+                                    );
+                                  }
+                                } catch (
+                                  error
+                                ) {
+                                  console.error(
+                                    'Error deleting file:',
+                                    error
+                                  );
+                                }
+                              }
+
+                              setUploadedFotoUrls(
+                                (prev) =>
+                                  prev.filter(
+                                    (
+                                      _,
+                                      i
+                                    ) =>
+                                      i !==
+                                      index
+                                  )
+                              );
+
+                              setUploadedFileKeys(
+                                (prev) =>
+                                  prev.filter(
+                                    (
+                                      _,
+                                      i
+                                    ) =>
+                                      i !==
+                                      index
+                                  )
+                              );
+                            }}
+                            className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* UploadThing Upload Button */}
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    hidden
+                    onChange={async (
+                      e
+                    ) => {
+                      const files =
+                        Array.from(
+                          e.target.files ||
+                            []
+                        );
+
+                      if (
+                        files.length ===
+                        0
+                      )
+                        return;
+
+                      const renamed =
+                        files.map(
+                          (f) =>
+                            new File(
+                              [
+                                f,
+                              ],
+                              `${crypto.randomUUID()}.${f.name.split('.').pop()}`,
+                              {
+                                type: f.type,
+                              }
+                            )
+                        );
+
+                      await startUpload(
+                        renamed
+                      );
+
+                      e.target.value =
+                        '';
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fileInputRef.current?.click()
+                    }
+                    disabled={
+                      totalPhotos >=
+                        5 ||
+                      uploading
+                    }
+                    className="w-12 h-12 flex items-center justify-center border-none bg-transparent cursor-pointer disabled:opacity-50"
+                  >
+                    {uploading ? (
+                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Upload className="w-10 h-10 text-blue-600 hover:text-blue-800" />
+                    )}
+                  </button>
+
+                  <p className="text-[10px] text-gray-500">
+                    {`${totalPhotos}/5 foto`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-1">
+
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setIsOpen(false)
+                }
+                className="h-7 text-xs px-3"
+              >
+                Batal
+              </Button>
+
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="h-7 text-xs px-3"
+              >
+                {submitting
+                  ? '...'
+                  : 'Simpan'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Dialog */}
+      <Dialog
+        open={isKategoriOpen}
+        onOpenChange={(open) => {
+          setIsKategoriOpen(open);
+
+          if (!open) {
+            setEditingKategori(null);
+      setKategoriForm({
+        namaKategori: '',
+        lokasi: 'resto',
+        icon: null,
+        pilihanSuhu: false,
+      });
+      setError(null);
+    }
+  }}
+>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Kelola Kategori Menu
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Daftar Kategori */}
+          <div className="max-h-48 overflow-y-auto space-y-2 my-3">
+            {kategoris.length === 0 ? (
+              <p className="text-center text-sm text-gray-500 py-4">
+                Belum ada kategori
+              </p>
+            ) : (
+              kategoris.map((kat) => {
+                const CatIcon = kat.icon && CATEGORY_ICON_MAP[kat.icon] ? CATEGORY_ICON_MAP[kat.icon] : CATEGORY_ICON_MAP[suggestKategoriIcon(kat.namaKategori)] || Utensils;
+                return (
+                <div
+                  key={kat.id}
+                  className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 rounded-md bg-white border flex items-center justify-center shrink-0">
+                      <CatIcon className="w-3.5 h-3.5 text-gray-600" />
+                    </div>
+                    <span className="text-sm font-medium truncate">
+                      {
+                        kat.namaKategori
+                      }
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] shrink-0 ${
+                        kat.lokasi === 'cafe'
+                          ? 'text-amber-700 border-amber-300 bg-amber-50'
+                          : 'text-emerald-700 border-emerald-300 bg-emerald-50'
+                      }`}
+                    >
+                      {kat.lokasi === 'cafe' ? 'Cafe' : 'Resto'}
+                    </Badge>
+                  </div>
+
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() =>
+                        openKategoriDialog(
+                          kat
+                        )
+                      }
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                      onClick={() =>
+                        handleDeleteKategori(
+                          kat.id,
+                          kat.namaKategori
+                        )
+                      }
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              );
+              })
+            )}
+          </div>
+
+          {/* Form Tambah/Edit */}
+          <form
+            onSubmit={
+              handleKategoriSubmit
+            }
+          >
+            <div className="grid gap-2 py-2 border-t pt-3">
+              <Label
+                htmlFor="namaKategori"
+                className="text-xs"
+              >
+                {editingKategori
+                  ? 'Edit Kategori'
+                  : 'Tambah Kategori Baru'}
+              </Label>
+
+              <div className="flex gap-2 items-center">
+                <Input
+                  id="namaKategori"
+                  value={
+                    kategoriForm.namaKategori
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setKategoriForm((prev) => ({
+                      ...prev,
+                      namaKategori: val,
+                      icon: prev.icon || suggestKategoriIcon(val),
+                    }));
+                  }}
+                  placeholder="Nama kategori... (contoh: Paket Hemat, Minuman)"
+                  className="h-8 text-xs flex-1"
+                  required
+                />
+                {(() => {
+                  const IconSel = kategoriForm.icon && CATEGORY_ICON_MAP[kategoriForm.icon] ? CATEGORY_ICON_MAP[kategoriForm.icon] : (kategoriForm.namaKategori ? CATEGORY_ICON_MAP[suggestKategoriIcon(kategoriForm.namaKategori)] : Utensils);
+                  return (
+                    <div className="w-8 h-8 rounded-md border bg-white flex items-center justify-center">
+                      <IconSel className="w-4 h-4 text-gray-700" />
+                    </div>
+                  );
+                })()}
+
+                <Select
+                  value={kategoriForm.lokasi}
+                  onValueChange={(value) =>
+                    setKategoriForm((prev) => ({
+                      ...prev,
+                      lokasi: value as LokasiMenu,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-8 w-[110px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="resto">
+                      Resto
+                    </SelectItem>
+
+                    <SelectItem value="cafe">
+                      Cafe
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="h-8"
+                >
+                  {submitting
+                    ? '...'
+                    : editingKategori
+                      ? 'Update'
+                      : 'Tambah'}
+                </Button>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-gray-600">Pilih Icon (saran otomatis)</Label>
+                <div className="flex flex-wrap gap-1">
+                  {CATEGORY_ICON_OPTIONS.map((opt) => {
+                    const OptIcon = opt.Icon;
+                    const isSelected = kategoriForm.icon === opt.key;
+                    return (
+                      <button
+                        type="button"
+                        key={opt.key}
+                        title={opt.label}
+                        onClick={() =>
+                          setKategoriForm((prev) => ({ ...prev, icon: opt.key }))
+                        }
+                        className={`w-7 h-7 rounded-md border flex items-center justify-center ${
+                          isSelected
+                            ? 'bg-primary/10 border-primary'
+                            : 'bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        <OptIcon className="w-3.5 h-3.5" />
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setKategoriForm((prev) => ({
+                        ...prev,
+                        icon: suggestKategoriIcon(prev.namaKategori || ''),
+                      }))
+                    }
+                    className="px-2 h-7 text-[10px] rounded-md border bg-white hover:bg-gray-50"
+                  >
+                    Pakai Saran
+                  </button>
+                </div>
+              </div>
+
+              {/* Pilihan panas/dingin (opsional) */}
+              <label
+                htmlFor="pilihanSuhu"
+                className="flex items-start gap-2 rounded-lg border bg-gray-50 px-3 py-2 cursor-pointer"
+              >
+                <Checkbox
+                  id="pilihanSuhu"
+                  checked={kategoriForm.pilihanSuhu}
+                  onCheckedChange={(checked) =>
+                    setKategoriForm((prev) => ({
+                      ...prev,
+                      pilihanSuhu: checked === true,
+                    }))
+                  }
+                  className="mt-0.5"
+                />
+                <span className="grid gap-0.5">
+                  <span className="text-xs font-medium">
+                    Bisa disajikan panas atau dingin
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Menu di kategori ini akan tampil pilihan Panas / Dingin
+                    untuk pelanggan (opsional).
+                  </span>
+                </span>
+              </label>
+
+              {error && (
+                <p className="text-xs text-red-500">
+                  {error}
+                </p>
+              )}
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Foto Dialog */}
+      <Dialog
+        open={isDeleteFotoOpen}
+        onOpenChange={
+          setIsDeleteFotoOpen
+        }
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Konfirmasi Hapus Foto
+            </DialogTitle>
+
+            <DialogDescription className="text-sm text-gray-500">
+              Yakin ingin menghapus foto
+              ini? Tindakan ini tidak
+              dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteFotoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={deleteFotoUrl}
+              alt="Preview"
+              className="w-full max-h-48 object-contain rounded-lg my-2"
+            />
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setIsDeleteFotoOpen(false)
+              }
+            >
+              Batal
+            </Button>
+
+            <Button
+              variant="destructive"
+              onClick={
+                confirmDeleteFoto
+              }
+            >
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Daily Stock Dialog */}
+      <Dialog
+        open={isBulkStokOpen}
+        onOpenChange={setIsBulkStokOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Atur Stok Harian
+            </DialogTitle>
+
+            <DialogDescription className="text-sm text-gray-500">
+              {bulkStokScope === 'kategori'
+                ? 'Akan diterapkan ke menu pada kategori terpilih. Menu Nonaktif tidak akan diubah.'
+                : 'Akan diterapkan ke semua menu dengan status bukan Nonaktif. Menu Nonaktif tidak akan diubah.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-2 py-2">
+            <div
+              className={`grid gap-2 ${
+                bulkStokScope === 'kategori' ? 'grid-cols-2' : 'grid-cols-1'
+              }`}
+            >
+              <div className="grid gap-1">
+                <Label className="text-xs">
+                  Terapkan ke
+                </Label>
+                <Select
+                  value={bulkStokScope}
+                  onValueChange={(value) =>
+                    setBulkStokScope(value as 'semua' | 'kategori')
+                  }
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semua">
+                      Semua Menu Aktif
+                    </SelectItem>
+                    <SelectItem value="kategori">
+                      Per Kategori
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {bulkStokScope === 'kategori' && (
+                <div className="grid gap-1">
+                  <Label className="text-xs">
+                    Kategori
+                  </Label>
+                  <Select
+                    value={bulkKategoriId}
+                    onValueChange={setBulkKategoriId}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Pilih kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {kategoris.map((kat) => (
+                        <SelectItem
+                          key={kat.id}
+                          value={kat.id.toString()}
+                        >
+                          {kat.lokasi === 'cafe'
+                            ? `☕ ${kat.namaKategori}`
+                            : kat.namaKategori}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-1">
+              <Label htmlFor="bulkStok" className="text-xs">
+                Jumlah porsi siap jual
+              </Label>
+              <Input
+                id="bulkStok"
+                type="number"
+                min="0"
+                value={bulkStokValue}
+                onChange={(e) => setBulkStokValue(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Isi 0 untuk mengosongkan stok{' '}
+                {bulkStokScope === 'kategori'
+                  ? 'pada kategori ini'
+                  : 'semua menu aktif'}.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsBulkStokOpen(false)}
+            >
+              Batal
+            </Button>
+
+            <Button
+              onClick={handleBulkStokSubmit}
+              disabled={
+                savingBulkStok ||
+                (bulkStokScope === 'kategori' && !bulkKategoriId)
+              }
+            >
+              {savingBulkStok ? '...' : 'Terapkan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Menu Dialog */}
+      <Dialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Konfirmasi Hapus Menu
+            </DialogTitle>
+
+            <DialogDescription className="text-sm text-gray-500">
+              Menu akan dihapus permanen.
+              Tindakan ini tidak dapat
+              dibatalkan. Yakin ingin
+              melanjutkan?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setIsDeleteOpen(false)
+              }
+            >
+              Batal
+            </Button>
+
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+            >
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Kategori Dialog */}
+      <Dialog
+        open={isDeleteKategoriOpen}
+        onOpenChange={
+          setIsDeleteKategoriOpen
+        }
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Konfirmasi Hapus Kategori
+            </DialogTitle>
+
+            <DialogDescription className="text-sm text-gray-500">
+              Kategori{' '}
+              <strong>
+                {deleteKategoriName}
+              </strong>{' '}
+              akan dihapus permanen.
+              Menu yang menggunakan
+              kategori ini tidak akan
+              terhapus, tetapi akan
+              kehilangan kategori-nya.
+              Yakin ingin melanjutkan?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setIsDeleteKategoriOpen(
+                  false
+                )
+              }
+            >
+              Batal
+            </Button>
+
+            <Button
+              variant="destructive"
+              onClick={
+                confirmDeleteKategori
+              }
+            >
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Preview Dialog */}
+      <Dialog
+        open={previewImage !== null}
+        onOpenChange={() =>
+          setPreviewImage(null)
+        }
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              Preview Foto
+            </DialogTitle>
+          </DialogHeader>
+
+          {previewImage && (
+            <div className="flex items-center justify-center p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewImage}
+                alt="Preview"
+                className="max-w-full max-h-[60vh] object-contain rounded-lg"
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setPreviewImage(null)
+              }
+            >
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

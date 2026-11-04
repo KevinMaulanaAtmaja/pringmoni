@@ -120,8 +120,11 @@ export function tanggalShiftSekarang(now: Date = new Date()): Date {
 export function validasiNominal(nilai: unknown): { nilai: number } | { error: string } {
   const nominal = typeof nilai === "number" ? nilai : Number(nilai)
 
-  if (!Number.isFinite(nominal) || nominal <= 0) {
-    return { error: "Nominal uang kas harus lebih dari 0" }
+  if (!Number.isFinite(nominal) || nominal < 0) {
+    return { error: "Nominal uang kas tidak valid" }
+  }
+  if (nominal === 0) {
+    return { nilai: 0 }
   }
   if (nominal > MAKS_NOMINAL) {
     return { error: "Nominal melebihi batas yang wajar" }

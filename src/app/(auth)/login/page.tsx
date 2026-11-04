@@ -1,23 +1,39 @@
-'use client'
+"use client"
 
-import { useActionState, useEffect, useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useActionState, useEffect, useState, useTransition } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { loginAction } from '@/app/actions/login'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Eye, EyeOff } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Eye, EyeOff, ShieldAlert } from "lucide-react"
 
 const initialState = {
   error: '',
   success: false,
+  perluKonfirmasi: false,
+  info: '',
 }
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, initialState)
+  const [, startTransition] = useTransition()
   const [showPassword, setShowPassword] = useState(false)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [sesiDiambilAlih, setSesiDiambilAlih] = useState(false)
+  const [batalAlih, setBatalAlih] = useState(false)
+  const konfirmasiAlih = state.perluKonfirmasi && !batalAlih
   const router = useRouter()
 
   useEffect(() => {
@@ -26,6 +42,26 @@ export default function LoginPage() {
       router.refresh()
     }
   }, [state.success, router])
+
+  function ambilAlihSekarang() {
+    const data = new FormData()
+    data.set('username', username)
+    data.set('password', password)
+    data.set('takeover', '1')
+    setBatalAlih(true)
+    startTransition(() => formAction(data))
+  }
+
+  // Sesi ini sebelumnya digantikan login dari perangkat lain (proxy mengarahkan
+  // ke ?takenOver=1). Dialog hanya tampil sekali: parameter URL langsung
+  // dibersihkan supaya tidak muncul lagi saat halaman di-refresh.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('takenOver') !== '1') return
+    const timer = setTimeout(() => setSesiDiambilAlih(true), 0)
+    window.history.replaceState(null, '', '/login')
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 md:p-8 overflow-y-auto">
@@ -37,7 +73,11 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-2 px-4 md:px-8">
-          <form action={formAction} className="space-y-4">
+          <form
+            action={formAction}
+            onSubmit={() => setBatalAlih(false)}
+            className="space-y-4"
+          >
             {state?.error && !state.success && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg">
                 {state.error}
@@ -51,6 +91,8 @@ export default function LoginPage() {
               <Input
                 id="username"
                 name="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 placeholder="contoh@email.com"
                 autoComplete="username"
                 required
@@ -67,6 +109,8 @@ export default function LoginPage() {
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="current-password"
                   required
@@ -77,7 +121,7 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-4 flex items-center text-gray-500 hover:text-gray-700 z-10"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -87,10 +131,10 @@ export default function LoginPage() {
                 Lupa password?
               </Link>
             </div>
-            
+
             <Button 
               type="submit" 
-              disabled={isPending} 
+              disabled={isPending}
               className="w-full h-12 text-lg font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg mt-2"
             >
               {isPending ? 'Loading...' : 'Masuk'}
@@ -98,6 +142,50 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={konfirmasiAlih} onOpenChange={(open) => !open && setBatalAlih(true)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <ShieldAlert className="h-5 w-5 text-amber-600" />
+              Ambil alih sesi?
+            </DialogTitle>
+            <DialogDescription>{state.info}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setBatalAlih(true)}
+            >
+              Batal
+            </Button>
+            <Button className="flex-1" disabled={isPending} onClick={ambilAlihSekarang}>
+              {isPending ? 'Memproses...' : 'Ya, ambil alih'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sesiDiambilAlih} onOpenChange={setSesiDiambilAlih}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <ShieldAlert className="h-5 w-5 text-amber-600" />
+              Sesi diambil alih
+            </DialogTitle>
+            <DialogDescription>
+              Akun ini baru saja dipakai login di perangkat lain, sehingga sesi
+              Anda di perangkat ini telah berakhir. Silakan login kembali.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button className="w-full" onClick={() => setSesiDiambilAlih(false)}>
+              Mengerti
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

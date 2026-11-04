@@ -37,6 +37,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 dev-server.log
+debug.log
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -55,3 +56,5 @@ next-env.d.ts
 graphify-out/cost.json
 graphify-out/cache/
 graphify-out/*.pending.json
+# snapshot harian graphify (backup otomatis) - tidak perlu di-commit
+graphify-out/20*/

@@ -19,7 +19,6 @@ import {
   ScrollText,
   History,
   Boxes,
-  CookingPot,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
@@ -76,9 +75,9 @@ export function DashboardClient({ role, header, children }: DashboardClientProps
         />
       </div>
 
-      <main className={`flex-1 ${marginLeft} min-h-screen flex flex-col transition-all duration-300`}>
+      <main className={`flex-1 ${marginLeft} min-w-0 min-h-screen flex flex-col transition-all duration-300`}>
         <div className="sticky top-0 z-10 w-full border-b bg-gray-50/95 backdrop-blur supports-[backdrop-filter]:bg-gray-50/60">
-          <div className="px-4 md:px-6 pt-4 md:pt-6 flex items-center gap-3">
+          <div className="px-4 md:px-6 pt-4 md:pt-6 flex items-center gap-3 min-w-0">
             <Button
               variant="ghost"
               size="icon"
@@ -91,7 +90,7 @@ export function DashboardClient({ role, header, children }: DashboardClientProps
             {header}
           </div>
         </div>
-        <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6">
+        <div className="flex-1 min-w-0 px-4 md:px-6 pb-4 md:pb-6">
           {children}
         </div>
       </main>
@@ -119,12 +118,17 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
+    : (role === 'kitchen')
+    ? [
+        { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+        { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
+        { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
+      ]
     : [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
         { name: "Stok Bahan", icon: Boxes, href: "/dashboard/stok-bahan" },
-        { name: "Resep", icon: CookingPot, href: "/dashboard/resep" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Akun", icon: User, href: "/dashboard/users" },
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },

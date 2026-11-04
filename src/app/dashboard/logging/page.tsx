@@ -93,6 +93,7 @@ export default function LoggingPage() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData()
     const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
@@ -101,6 +102,7 @@ export default function LoggingPage() {
   useOrdersRealtime(fetchData)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1)
   }, [search, filterUser, filterKategori])
 

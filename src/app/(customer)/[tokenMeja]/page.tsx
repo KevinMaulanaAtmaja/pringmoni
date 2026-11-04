@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
-import { Search, ShoppingCart, Camera, X, AlertTriangle } from "lucide-react";
+import { PindahMejaSheet } from "@/components/customer/pindah-meja-sheet";
+import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, UtensilsCrossed, GlassWater, Cookie, Package, ChevronDown, ArrowLeft, ArrowRightLeft, Ticket, Tag, Pizza, Hamburger, Sandwich, Carrot, Drumstick, Fish, Shrimp, Soup, Wheat, Salad, IceCream, CakeSlice, Popcorn, CupSoda, Boxes, ChefHat } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
-import { simpanKeranjangCheckout, ambilKeranjangCheckout } from "@/lib/checkout-storage";
+import { getVoucherAktif } from "@/app/actions/voucher";
+import { simpanKeranjangCheckout, simpanKodeVoucher, ambilKeranjangCheckout } from "@/lib/checkout-storage";
+import { hitungPotonganDiskon } from "@/lib/voucher";
 import type { CustomerMenu } from "@/types";
+import type { VoucherOpsi, VoucherTerpakai } from "@/types";
 import type { KeranjangItem } from "@/components/customer/cart-sheet";
 
 type Menu = CustomerMenu;
@@ -20,18 +25,57 @@ export default function CustomerMenuPage() {
     const router = useRouter();
     const params = useParams();
     const tokenMeja = params.tokenMeja as string;
-const [menus, setMenus] = useState<Menu[]>([]);
-const [mejaData, setMejaData] = useState<{ nomorMeja: string; statusMeja: string } | null>(null);
-const [kategoris, setKategoris] = useState<{ id: number; nama: string }[]>([]);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState<string | null>(null);
+    const [menus, setMenus] = useState<Menu[]>([]);
+    const [mejaData, setMejaData] = useState<{ nomorMeja: string; statusMeja: string } | null>(null);
+    const [kategoris, setKategoris] = useState<{ id: number; nama: string; lokasi: "resto" | "cafe"; icon?: string | null }[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [keranjang, setKeranjang] = useState<KeranjangItem[]>([]);
     const [showToastBerhasil, setShowToastBerhasil] = useState(false);
     const [menuHabisTerhapus, setMenuHabisTerhapus] = useState<string[]>([]);
     const [activeKategori, setActiveKategori] = useState("Semua");
+    const [activeTempat, setActiveTempat] = useState<"resto" | "cafe">("resto");
     const [searchQuery, setSearchQuery] = useState("");
 
-    const [voucher, setVoucher] = useState<Voucher | null>(null);
+    const [voucher, setVoucher] = useState<VoucherTerpakai | null>(null);
+    const [vouchers, setVouchers] = useState<VoucherOpsi[]>([]);
+    const [voucherNotice, setVoucherNotice] = useState<string | null>(null);
+
+    const CATEGORY_ICON_MAP_CUSTOMER: Record<string, LucideIcon> = {
+        Utensils,
+        GlassWater,
+        Coffee,
+        Cookie,
+        Pizza,
+        Hamburger,
+        Sandwich,
+        Carrot,
+        Drumstick,
+        Fish,
+        Shrimp,
+        Soup,
+        Wheat,
+        Salad,
+        IceCream,
+        CakeSlice,
+        Popcorn,
+        CupSoda,
+        Package,
+        Boxes,
+        ChefHat,
+    };
+
+    const getKategoriIcon = (nama: string, iconKey?: string | null) => {
+        if (iconKey && CATEGORY_ICON_MAP_CUSTOMER[iconKey]) return CATEGORY_ICON_MAP_CUSTOMER[iconKey];
+        const n = nama.toLowerCase();
+        if (n.includes("minum") || n.includes("drink") || n.includes("jus") || n.includes("teh") || n.includes("soda")) return GlassWater;
+        if (n.includes("kopi") || n.includes("coffee")) return Coffee;
+        if (n.includes("camilan") || n.includes("snack") || n.includes("goreng") || n.includes("kentang") || n.includes("kue") || n.includes("dessert") || n.includes("es krim")) return Cookie;
+        if (n.includes("paket") || n.includes("set") || n.includes("bundle")) return Package;
+        if (n.includes("makan")) return Utensils;
+        return Utensils;
+    };
+
     const [itemsToShow, setItemsToShow] = useState(12);
     const [showScanner, setShowScanner] = useState(false);
     const [scanError, setScanError] = useState<string | null>(null);
@@ -40,14 +84,9 @@ const [error, setError] = useState<string | null>(null);
     const [validating, setValidating] = useState(false);
     const [scanResultError, setScanResultError] = useState<string | null>(null);
     const [mejaTerpakaiWarning, setMejaTerpakaiWarning] = useState(false);
+    const [adaPesananAktif, setAdaPesananAktif] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const scannerRef = useRef<{ stream?: MediaStream }>({});
-
-    interface Voucher {
-        kode: string;
-        potongan: number;
-        minPembelian: number;
-    }
 
     useEffect(() => {
         const loadData = async () => {
@@ -55,9 +94,10 @@ const [error, setError] = useState<string | null>(null);
                 setLoading(true);
                 setError(null);
 
-                const [data, statusAktif] = await Promise.all([
+                const [data, statusAktif, voucherAktif] = await Promise.all([
                     getCustomerMenuData(tokenMeja),
                     getStatusPesananAktifMeja(tokenMeja),
+                    getVoucherAktif(),
                 ]);
 
                 if (!data.meja) {
@@ -70,16 +110,27 @@ const [error, setError] = useState<string | null>(null);
                     setLoading(false);
                     return;
                 }
-                if (data.meja.statusMeja === 'terpakai') {
+                setAdaPesananAktif(statusAktif?.adaPesananAktif ?? false);
+                // Hanya tampilkan peringatan "meja terpakai" jika customer
+                // TIDAK punya pesanan aktif di meja ini (artinya meja dipakai orang lain).
+                if (data.meja.statusMeja === 'terpakai' && !statusAktif?.adaPesananAktif) {
                     setMejaTerpakaiWarning(true);
                 }
                 setMejaData(data.meja);
 
                 setMenus(data.menus);
-                setKategoris([
-                    { id: 0, nama: "Semua" },
-                    ...data.kategoris.map((kat) => ({ id: kat.id, nama: kat.namaKategori }))
-                ]);
+                setVouchers(voucherAktif);
+                // Semua kategori (resto + cafe) disimpan. Pill kategori
+                // untuk tab aktif dihitung ulang saat tab berubah, supaya
+                // kategori cafe (mis. "Paket Ramadhan") ikut terlihat.
+                setKategoris(
+                    data.kategoris.map((kat) => ({
+                        id: kat.id,
+                        nama: kat.namaKategori,
+                        lokasi: kat.lokasi,
+                        icon: kat.icon ?? null,
+                    })),
+                );
                 setLoading(false);
             } catch {
                 setError("Terjadi kesalahan saat memuat data");
@@ -88,6 +139,20 @@ const [error, setError] = useState<string | null>(null);
         };
         loadData();
     }, [tokenMeja]);
+
+    // Pill kategori untuk tab aktif (resto/cafe) + opsi "Semua"
+    const kategoriPill = useMemo(() => {
+        const list = kategoris.filter((kat) => kat.lokasi === activeTempat);
+        return [{ id: 0, nama: "Semua", lokasi: activeTempat, icon: null }, ...list];
+    }, [kategoris, activeTempat]);
+
+    // Nama kategori di DB bisa lowercase (mis. "paket ramadhan"),
+    // ditampilkan dengan huruf awal kapital.
+    const formatKategoriNama = (nama: string) =>
+        nama
+            .split(" ")
+            .map((kata) => kata.charAt(0).toUpperCase() + kata.slice(1))
+            .join(" ");
 
     // Pulihkan keranjang dari checkout yang belum selesai agar tidak hilang
     // saat customer kembali dari halaman checkout.
@@ -99,9 +164,12 @@ const [error, setError] = useState<string | null>(null);
     }, []);
 
     const filteredMenu = menus.filter((menu) => {
-        const matchKategori = activeKategori === "Semua" || menu.kategori === activeKategori;
+        const matchTempat =
+            activeTempat === "cafe" ? menu.lokasi === "cafe" : menu.lokasi !== "cafe";
+        const matchKategori =
+            activeKategori === "Semua" ? true : menu.kategori === activeKategori;
         const matchSearch = menu.namaMenu.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchKategori && matchSearch;
+        return matchTempat && matchKategori && matchSearch;
     });
 
     const displayedMenu = filteredMenu.slice(0, itemsToShow);
@@ -110,9 +178,29 @@ const [error, setError] = useState<string | null>(null);
     const totalItem = keranjang.reduce((sum, item) => sum + item.jumlah, 0);
     const subtotal = keranjang.reduce((sum, item) => sum + item.harga * item.jumlah, 0);
 
-    // Validasi voucher: reset jika subtotal < minPembelian
-    const effectiveVoucher = voucher && subtotal >= voucher.minPembelian ? voucher : null;
-    const totalHarga = effectiveVoucher ? subtotal - effectiveVoucher.potongan : subtotal;
+    // Validasi voucher: dipakai hanya jika subtotal >= minimal belanja.
+    const effectiveVoucher = voucher && subtotal >= voucher.minimalBelanja ? voucher : null;
+    const potonganVoucher = effectiveVoucher
+        ? hitungPotonganDiskon(subtotal, effectiveVoucher.diskonPersen)
+        : 0;
+    const totalHarga = subtotal - potonganVoucher;
+
+    const handlePilihVoucher = (v: VoucherOpsi) => {
+        if (subtotal < v.minimalBelanja) {
+            setVoucherNotice(
+                `Minimal belanja voucher ${v.kode} adalah Rp ${v.minimalBelanja.toLocaleString("id-ID")}`,
+            );
+        } else {
+            setVoucher({
+                kode: v.kode,
+                namaVoucher: v.namaVoucher,
+                diskonPersen: v.diskonPersen,
+                minimalBelanja: v.minimalBelanja,
+            });
+            setVoucherNotice(`Voucher ${v.kode} diterapkan`);
+        }
+        setTimeout(() => setVoucherNotice(null), 4000);
+    };
 
     const tambahKeranjang = (menu: Menu, jumlah: number = 1, catatan: string | null = null) => {
         // Jaring pengaman: menu habis / resep belum lengkap / porsi habis
@@ -211,11 +299,13 @@ const [error, setError] = useState<string | null>(null);
 
             setKeranjang(keranjangValid);
             simpanKeranjangCheckout(keranjangValid);
+            simpanKodeVoucher(effectiveVoucher?.kode ?? null);
             router.push(`/${tokenMeja}/checkout`);
         } catch {
             // Jika validasi daring gagal, tetap lanjut — createPesanan tetap
             // jadi gerbang terakhir di server.
             simpanKeranjangCheckout(keranjang);
+            simpanKodeVoucher(effectiveVoucher?.kode ?? null);
             router.push(`/${tokenMeja}/checkout`);
         }
     };
@@ -354,7 +444,24 @@ return (
                     </div>
 
                     {!loading && !error && (
-                     <CartSheet
+                     <div className="flex items-center gap-2">
+                         {adaPesananAktif && (
+                             <PindahMejaSheet
+                                 tokenMejaSaatIni={tokenMeja}
+                                 nomorMejaSaatIni={mejaData?.nomorMeja || tokenMeja}
+                                 onPindah={(tokenBaru, nomorBaru) => {
+                                     setMejaData({ nomorMeja: nomorBaru, statusMeja: 'terpakai' });
+                                     setMejaTerpakaiWarning(false);
+                                     window.location.href = `/${tokenBaru}`;
+                                 }}
+                             >
+                                 <Button variant="outline" size="sm" className="rounded-full">
+                                     <ArrowRightLeft className="size-4 mr-1.5" />
+                                     Pindah
+                                 </Button>
+                             </PindahMejaSheet>
+                         )}
+                         <CartSheet
                               keranjang={keranjang}
                               onUpdateJumlah={updateJumlah}
                               onHapus={hapusDariKeranjang}
@@ -363,6 +470,7 @@ return (
                              totalHarga={totalHarga}
                              voucher={effectiveVoucher}
                              onApplyVoucher={setVoucher}
+                             vouchers={vouchers}
                          >
                              <Button variant="outline" size="icon" className="relative" data-cart-button>
                                  <ShoppingCart className="size-5" />
@@ -373,6 +481,7 @@ return (
                                  )}
                              </Button>
                          </CartSheet>
+                     </div>
                      )}
                 </div>
             </header>
@@ -486,9 +595,54 @@ return (
                     </Card>
                 )}
 
-                {!loading && !error && (
-                    <>
-                        {mejaTerpakaiWarning && (
+                        {!loading && !error && (
+                            <>
+                                {/* Tab tempat: Resto | Cafe */}
+                                <div className="flex gap-2 mb-4">
+                                    <Button
+                                        variant={activeTempat === "resto" ? "default" : "outline"}
+                                        size="sm"
+                                        className="rounded-full px-5"
+                                        onClick={() => {
+                                            setActiveTempat("resto");
+                                            setActiveKategori("Semua");
+                                            setItemsToShow(12);
+                                        }}
+                                    >
+                                        <Utensils className="size-3.5 mr-1.5" />
+                                        Resto
+                                    </Button>
+                                    <Button
+                                        variant={activeTempat === "cafe" ? "default" : "outline"}
+                                        size="sm"
+                                        className={`rounded-full px-5 ${
+                                            activeTempat === "cafe"
+                                                ? "bg-amber-600 text-white hover:bg-amber-700"
+                                                : "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                                        }`}
+                                        onClick={() => {
+                                            setActiveTempat("cafe");
+                                            setActiveKategori("Semua");
+                                            setItemsToShow(12);
+                                        }}
+                                    >
+                                        <Coffee className="size-3.5 mr-1.5" />
+                                        Cafe
+                                    </Button>
+                                </div>
+
+                                {activeTempat === "cafe" && (
+                                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                                            <Coffee className="size-5 text-amber-700" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-amber-900">Pringmoni Cafe</p>
+                                            <p className="text-xs text-amber-700">Menu khusus cafe — pesan langsung ke meja.</p>
+                                        </div>
+                                    </div>
+                                )}
+                                {mejaTerpakaiWarning && (
                             <Card className="mb-4 border-yellow-400 bg-yellow-50">
                                 <CardContent className="flex items-start gap-3 py-3">
                                     <AlertTriangle className="size-5 text-yellow-600 shrink-0 mt-0.5" />
@@ -517,22 +671,59 @@ return (
                             />
                         </div>
 
-                        {/* Kategori - Pill buttons */}
+                        {/* Voucher (PBI-10.4) */}
+                        {vouchers.length > 0 && (
+                            <div className="mb-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Ticket className="size-4 text-primary" />
+                                    <p className="text-sm font-semibold">Voucher</p>
+                                    <span className="text-xs text-muted-foreground">
+                                        Min. pembelian Rp{" "}
+                                        {Math.min(...vouchers.map((v) => v.minimalBelanja)).toLocaleString("id-ID")}
+                                    </span>
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                    {vouchers.map((v) => (
+                                        <Button
+                                            key={v.kode}
+                                            variant={effectiveVoucher?.kode === v.kode ? "default" : "outline"}
+                                            size="sm"
+                                            className="rounded-full px-4 shrink-0"
+                                            onClick={() => handlePilihVoucher(v)}
+                                        >
+                                            <Tag className="size-3.5 mr-1.5" />
+                                            {v.kode} · {v.diskonPersen}%
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Kategori - Pill buttons (sesuai tab aktif: Resto / Cafe) */}
                         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                            {kategoris.map((kat) => (
-                                <Button
-                                    key={kat.id}
-                                    variant={activeKategori === kat.nama ? "default" : "outline"}
-                                    size="sm"
-                                    className="rounded-full px-4 shrink-0"
-                                    onClick={() => {
-                                    setActiveKategori(kat.nama);
-                                    setItemsToShow(12);
-                                }}
-                                >
-                                    {kat.nama}
-                                </Button>
-                            ))}
+                            {kategoriPill.map((kat) => {
+                                const Icon = kat.nama === "Semua" ? null : getKategoriIcon(kat.nama, kat.icon);
+                                const aktif = activeKategori === kat.nama;
+                                return (
+                                    <Button
+                                        key={kat.id}
+                                        variant={aktif ? "default" : "outline"}
+                                        size="sm"
+                                        className={`rounded-full px-4 shrink-0 ${
+                                            aktif && activeTempat === "cafe"
+                                                ? "bg-amber-600 text-white hover:bg-amber-700"
+                                                : ""
+                                        }`}
+                                        onClick={() => {
+                                            setActiveKategori(kat.nama);
+                                            setItemsToShow(12);
+                                        }}
+                                    >
+                                        {Icon && <Icon className="size-3.5 mr-1.5" />}
+                                        {formatKategoriNama(kat.nama)}
+                                    </Button>
+                                );
+                            })}
                         </div>
 
                         {/* Menu Grid */}
@@ -557,20 +748,39 @@ return (
 
                         {hasMore && (
                             <div className="mt-4 text-center">
-                                <Button
-                                    variant="outline"
-                                    className="rounded-full px-6"
-                                    onClick={() => setItemsToShow((prev) => prev + 12)}
-                                >
-                                    Tampilkan Lainnya ({filteredMenu.length - itemsToShow} menu)
-                                </Button>
+                                 <Button
+                                     variant="outline"
+                                     className="rounded-full px-6"
+                                     onClick={() => setItemsToShow((prev) => prev + 12)}
+                                 >
+                                     <ChevronDown className="size-4 mr-2" />
+                                     Tampilkan Lainnya ({filteredMenu.length - itemsToShow} menu)
+                                 </Button>
                             </div>
                         )}
 
                         {filteredMenu.length === 0 && (
                             <Card className="py-12">
                                 <CardContent className="text-center text-muted-foreground">
-                                    <p>Menu tidak ditemukan</p>
+                                    <p>
+                                        {activeKategori !== "Semua"
+                                            ? `Belum ada menu di kategori ${formatKategoriNama(activeKategori)}`
+                                            : "Menu tidak ditemukan"}
+                                    </p>
+                                    {activeTempat === "cafe" && (
+                                        <Button
+                                            variant="ghost"
+                                            className="mt-3 rounded-full"
+                                            onClick={() => {
+                                                setActiveTempat("resto");
+                                                setActiveKategori("Semua");
+                                                setItemsToShow(12);
+                                            }}
+                                        >
+                                            <ArrowLeft className="size-4 mr-2" />
+                                            Lihat Menu Resto
+                                        </Button>
+                                    )}
                                 </CardContent>
                             </Card>
                         )}
@@ -584,7 +794,7 @@ return (
                     <div className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">
-                                {totalItem} item{voucher && <span className="text-green-600"> + Voucher</span>}
+                                {totalItem} item{effectiveVoucher && <span className="text-green-600"> + Voucher</span>}
                             </p>
                             <p className="text-lg font-bold">Rp {totalHarga.toLocaleString("id-ID")}</p>
                         </div>
@@ -606,6 +816,17 @@ return (
                     <Card className="bg-primary text-primary-foreground shadow-lg py-2 px-3 rounded-full">
                         <CardContent className="flex items-center gap-2 p-0">
                             <span className="text-xs">Menu ditambahkan</span>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {/* Toast Voucher */}
+            {voucherNotice && (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-2">
+                    <Card className="bg-primary text-primary-foreground shadow-lg py-2 px-3 rounded-full">
+                        <CardContent className="flex items-center gap-2 p-0">
+                            <span className="text-xs">{voucherNotice}</span>
                         </CardContent>
                     </Card>
                 </div>

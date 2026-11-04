@@ -7,7 +7,13 @@ import { Loader2, Utensils } from "lucide-react"
 
 const CATEGORY_COLORS = ["#f97316", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#eab308", "#6366f1"]
 
-function PieTooltip({ active, payload }: any) {
+interface PieTooltipPayload {
+  name: string
+  value: number
+  payload: { terjual: number }
+}
+
+function PieTooltip({ active, payload }: { active?: boolean; payload?: PieTooltipPayload[] }) {
   if (!active || !payload?.length) return null
   const d = payload[0]
   return (

@@ -11,9 +11,14 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import {
   Banknote,
+  CheckCircle2,
   Clock,
+  HandCoins,
+  Loader2,
   LogOut,
   Timer,
   TrendingDown,
@@ -22,6 +27,7 @@ import {
   X,
 } from "lucide-react"
 import { bukaShift, getShiftAktif, tutupShift } from "@/app/actions/shift"
+import type { ShiftLainAktif, SaranUangAwalSendiri } from "@/app/actions/shift"
 import type { ShiftAktif } from "@/types"
 
 const rupiah = (n: number) => `Rp${Math.round(n).toLocaleString("id-ID")}`
@@ -36,6 +42,8 @@ type HasilShiftAktif = {
   shift: ShiftAktif | null
   canManage: boolean
   saranUangAwal: SaranUangAwal | null
+  saranUangAwalSendiri: SaranUangAwalSendiri | null
+  shiftLainAktif: ShiftLainAktif | null
 }
 
 type RingkasanTutupShift = {
@@ -112,9 +120,13 @@ export function ShiftKasirPanel({
   const [data, setData] = useState<HasilShiftAktif | null>(null)
   const [loading, setLoading] = useState(true)
   const [sudahMuat, setSudahMuat] = useState(false)
-
   const [dialogBuka, setDialogBuka] = useState(false)
   const [dialogTutup, setDialogTutup] = useState(false)
+  const [dialogReopen, setDialogReopen] = useState(false)
+  const [reopenInfo, setReopenInfo] = useState<{
+    pesan: string
+    shiftTertutup: { id: number; waktuKeluar: string | null; uangAkhir: number | null }
+  } | null>(null)
   const [uangAwal, setUangAwal] = useState("")
   const [uangAkhir, setUangAkhir] = useState("")
   const [keterangan, setKeterangan] = useState("")
@@ -122,6 +134,7 @@ export function ShiftKasirPanel({
   const [error, setError] = useState<string | null>(null)
   const [ringkasan, setRingkasan] = useState<RingkasanTutupShift | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [pakaiSisaSebelumnya, setPakaiSisaSebelumnya] = useState(true)
   const ringkasanSudahInit = useRef(false)
 
   // Catatan tutup shift hanya hilang saat kasir menekan tombol X.
@@ -163,13 +176,24 @@ export function ShiftKasirPanel({
     return () => clearInterval(interval)
   }, [data?.shift, muatShift])
 
-  if (!sudahMuat && loading) return null
+  if (!sudahMuat && loading) {
+    return (
+      <div className="bg-white border-2 border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <p className="text-sm text-gray-500">Memuat data shift...</p>
+      </div>
+    )
+  }
   if (!data?.canManage) return null
 
   const shift = data.shift
   const uangHarapAkhir = shift ? shift.uangAwal + shift.totalTunai : 0
+  const saran = data.saranUangAwal
+  const modalDariSaran = saran !== null && sumberShiftId === saran.shiftId
+  const saranSendiri = data.saranUangAwalSendiri
+  const shiftLainAktif = data.shiftLainAktif
 
-  async function submitBuka() {
+  async function submitBuka(konfirmasiReopen = false) {
     const nominal = Number(uangAwal.replace(/\D/g, ""))
     if (!nominal || nominal <= 0) {
       setError("Masukkan uang awal lebih dari 0")
@@ -178,17 +202,29 @@ export function ShiftKasirPanel({
 
     setSubmitting(true)
     setError(null)
-    const hasil = await bukaShift(nominal, sumberShiftId)
+    const sumber = pakaiSisaSebelumnya ? sumberShiftId : null
+    const hasil = await bukaShift(nominal, sumber, konfirmasiReopen)
     setSubmitting(false)
+
+    if ("perluKonfirmasiReopen" in hasil) {
+      setReopenInfo({ pesan: hasil.pesan, shiftTertutup: hasil.shiftTertutup })
+      setDialogBuka(false)
+      setDialogReopen(true)
+      return
+    }
 
     if ('error' in hasil) {
       setError(hasil.error)
+      setDialogBuka(true)
       return
     }
 
     setDialogBuka(false)
+    setDialogReopen(false)
+    setReopenInfo(null)
     setUangAwal("")
     setSumberShiftId(null)
+    setPakaiSisaSebelumnya(true)
     setRingkasan(null)
     await muatShift()
     onShiftChange?.()
@@ -233,6 +269,32 @@ export function ShiftKasirPanel({
     setKeterangan("")
     setError(null)
     setDialogTutup(true)
+  }
+
+  function bukaDialogBuka(pakaiSaranArg = false) {
+    if (shiftLainAktif) return
+    if (pakaiSaranArg && saran) {
+      setUangAwal(String(saran.nominal))
+      setSumberShiftId(saran.shiftId)
+      setPakaiSisaSebelumnya(true)
+    } else if (saranSendiri) {
+      setUangAwal(String(saranSendiri.nominal))
+      setSumberShiftId(null)
+      setPakaiSisaSebelumnya(false)
+    } else {
+      setUangAwal("")
+      setSumberShiftId(null)
+      setPakaiSisaSebelumnya(true)
+    }
+    setError(null)
+    setDialogBuka(true)
+  }
+
+  function pilihSaran() {
+    if (!saran) return
+    setUangAwal(String(saran.nominal))
+    setSumberShiftId(saran.shiftId)
+    setPakaiSisaSebelumnya(true)
   }
 
   const selisihPreview = Number(uangAkhir.replace(/\D/g, "")) - uangHarapAkhir
@@ -353,41 +415,98 @@ export function ShiftKasirPanel({
             </div>
           </div>
           <Button
-            variant="outline"
-            size="lg"
             onClick={bukaDialogTutup}
             className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800 shrink-0"
+            variant="outline"
           >
             <LogOut className="w-5 h-5 mr-2" />
             Tutup Shift
           </Button>
         </div>
       ) : (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
-              <Banknote className="w-5 h-5" />
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+                <Banknote className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-amber-900">Shift belum dibuka</p>
+                <p className="text-sm text-amber-800 mt-0.5">
+                  Masukkan uang awal yang ada di laci kas sebelum mulai bertransaksi.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-amber-900">Shift belum dibuka</p>
-              <p className="text-sm text-amber-800 mt-0.5">
-                Masukkan uang awal yang ada di laci kas sebelum mulai bertransaksi.
+            <Button
+              size="lg"
+              onClick={() => bukaDialogBuka(false)}
+              className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+              disabled={!!shiftLainAktif}
+            >
+              <Wallet className="w-5 h-5 mr-2" />
+              Buka Shift
+            </Button>
+          </div>
+
+          {shiftLainAktif && (
+            <div className="rounded-lg border-2 border-red-300 bg-red-50 p-3 text-sm text-red-800">
+              <p className="font-semibold text-red-900">Tidak bisa membuka shift</p>
+              <p>
+                Shift <span className="font-semibold">kasir {shiftLainAktif.kasirUsername}</span>
+                {shiftLainAktif.slotNama ? ` di slot ${shiftLainAktif.slotNama}` : ""} masih aktif di hari ini.
+                Shift kasir lain harus ditutup terlebih dahulu sebelum Anda bisa membuka shift baru di slot ini.
               </p>
             </div>
-          </div>
-          <Button
-            size="lg"
-            onClick={() => {
-              setUangAwal("")
-              setSumberShiftId(null)
-              setError(null)
-              setDialogBuka(true)
-            }}
-            className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
-          >
-            <Wallet className="w-5 h-5 mr-2" />
-            Buka Shift
-          </Button>
+          )}
+
+          {saranSendiri && !saran && !shiftLainAktif && (
+            <div className="flex flex-col gap-3 rounded-lg border-2 border-green-400 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5">
+                <HandCoins className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                <div>
+                  <p className="text-sm font-bold text-green-900">Gunakan uang kembalian sendiri</p>
+                  <p className="text-sm text-green-800">
+                    Sisa uang akhir shift terakhir Anda hari ini{" "}
+                    <span className="font-semibold">{rupiah(saranSendiri.nominal)}</span>.
+                    Uang ini akan jadi uang awal shift Anda (uang kembalian/laci sebelumnya).
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => bukaDialogBuka(false)}
+                className="shrink-0 bg-green-700 text-white hover:bg-green-800"
+              >
+                <Banknote className="mr-2 h-4 w-4" />
+                Pakai {rupiah(saranSendiri.nominal)}
+              </Button>
+            </div>
+          )}
+
+          {saran && (
+            <div className="flex flex-col gap-3 rounded-lg border-2 border-amber-400 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5">
+                <HandCoins className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                <div>
+                  <p className="text-sm font-bold text-amber-900">
+                    Ambil uang kas dari kasir sebelumnya
+                  </p>
+                  <p className="text-sm text-amber-800">
+                    Kasir <span className="font-semibold">{saran.dariKasir}</span>{" "}
+                    menutup shift dengan uang akhir{" "}
+                    <span className="font-semibold">{rupiah(saran.nominal)}</span>.
+                    Ambil uang tersebut dari laci sebagai uang awal shift Anda (uang akhir sudah termasuk modal awal kasir sebelumnya).
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => bukaDialogBuka(true)}
+                className="shrink-0 bg-amber-600 text-white hover:bg-amber-700"
+              >
+                <Banknote className="mr-2 h-4 w-4" />
+                Ambil {rupiah(saran.nominal)}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -419,8 +538,20 @@ export function ShiftKasirPanel({
                   type="text"
                   inputMode="numeric"
                   value={uangAwal}
-                  onChange={(e) => setUangAwal(e.target.value.replace(/\D/g, ""))}
-                  placeholder="500000"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "")
+                    setUangAwal(val)
+                  }}
+                  onFocus={(e) => {
+                    e.target.select()
+                  }}
+                  onBlur={(e) => {
+                    const val = e.target.value.replace(/\D/g, "")
+                    if (val && val.length > 0 && val.length < 3) {
+                      setUangAwal(val + "000")
+                    }
+                  }}
+                  placeholder="000"
                   className="pl-9 text-lg font-semibold"
                   autoFocus
                 />
@@ -430,25 +561,110 @@ export function ShiftKasirPanel({
                   {rupiah(Number(uangAwal))}
                 </p>
               )}
+              <p className="text-xs text-gray-500">
+                Boleh isi nominal sendiri bila ada penyesuaian uang kembalian.
+                Uang akhir kasir sebelumnya sudah termasuk modal awalnya — jangan
+                ditambahkan lagi.
+              </p>
             </div>
 
-            {data?.saranUangAwal && (
-              <button
-                type="button"
-                onClick={() => {
-                  setUangAwal(String(data.saranUangAwal!.nominal))
-                  setSumberShiftId(data.saranUangAwal!.shiftId)
-                }}
-                className="w-full text-left text-sm bg-blue-50 border border-blue-200 rounded-lg p-3 hover:bg-blue-100 transition-colors"
+            {saran && (
+              <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start gap-2">
+                    <HandCoins className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="pakai-sisa" className="text-sm font-semibold text-amber-900">
+                        Gunakan sisa shift sebelumnya
+                      </Label>
+                      <p className="text-xs text-amber-800">
+                        Disarankan dari Shift #{saran.shiftId} (Kasir {saran.dariKasir}) •{" "}
+                        {rupiah(saran.nominal)}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="pakai-sisa"
+                    checked={pakaiSisaSebelumnya}
+                    onCheckedChange={(checked) => {
+                      setPakaiSisaSebelumnya(checked)
+                      if (checked) {
+                        setUangAwal(String(saran.nominal))
+                        setSumberShiftId(saran.shiftId)
+                      } else {
+                        setSumberShiftId(null)
+                        setUangAwal("")
+                        setError(null)
+                      }
+                    }}
+                  />
+                </div>
+                {pakaiSisaSebelumnya && (
+                  <p className="text-xs text-amber-800">
+                    Ini sisa laci dari shift sebelumnya (sudah termasuk modal awal). Bukan patokan wajib — Anda tetap bisa mengedit nominal di atas.
+                  </p>
+                )}
+                {!pakaiSisaSebelumnya && (
+                  <p className="text-xs text-gray-600">
+                    Tidak menggunakan sisa shift sebelumnya. Isi uang awal secara manual sesuai uang fisik di laci saat ini.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {saran && (
+              <div
+                className={`space-y-3 rounded-xl border-2 p-3 ${
+                  modalDariSaran
+                    ? "border-green-500 bg-green-50"
+                    : "border-amber-400 bg-amber-50"
+                }`}
               >
-                <span className="text-blue-900 font-medium">
-                  Gunakan uang kas dari shift sebelumnya
-                </span>
-                <span className="block text-blue-700 mt-0.5">
-                  {rupiah(data.saranUangAwal.nominal)} dari{" "}
-                  {data.saranUangAwal.dariKasir}
-                </span>
-              </button>
+                <div className="flex items-start gap-2.5">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${
+                      modalDariSaran ? "bg-green-600" : "bg-amber-500"
+                    }`}
+                  >
+                    <HandCoins className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {modalDariSaran
+                        ? "Uang kas diambil dari shift sebelumnya"
+                        : "Serah terima kas dari kasir sebelumnya"}
+                    </p>
+                    <p className="mt-0.5 text-sm text-gray-700">
+                      Kasir <span className="font-semibold">{saran.dariKasir}</span>{" "}
+                      menutup shift dengan uang akhir{" "}
+                      <span className="font-semibold">{rupiah(saran.nominal)}</span>.
+                      Ambil uang tersebut dari laci, hitung, lalu masukkan sebagai
+                      uang awal.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={pilihSaran}
+                  className={`w-full ${
+                    modalDariSaran
+                      ? "bg-green-700 hover:bg-green-800"
+                      : "bg-amber-600 hover:bg-amber-700"
+                  }`}
+                >
+                  {modalDariSaran ? (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Modal dari {saran.dariKasir} terpasang
+                    </>
+                  ) : (
+                    <>
+                      <Banknote className="mr-2 h-4 w-4" />
+                      Ambil {rupiah(saran.nominal)} dari {saran.dariKasir}
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
 
             {error && (
@@ -467,11 +683,69 @@ export function ShiftKasirPanel({
               Batal
             </Button>
             <Button
-              onClick={submitBuka}
+              onClick={() => submitBuka()}
               disabled={submitting}
               className="flex-1 bg-green-700 hover:bg-green-800"
             >
               {submitting ? "Menyimpan..." : "Buka Shift"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Konfirmasi buka ulang shift di slot yang sudah ditutup hari ini */}
+      <Dialog open={dialogReopen} onOpenChange={setDialogReopen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Buka ulang shift?</DialogTitle>
+            <DialogDescription>
+              Slot jadwal ini sudah kamu tutup hari ini. Membuka lagi akan membuat
+              shift baru dan tercatat di log sebagai buka ulang.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              {reopenInfo?.pesan}
+            </div>
+            <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Uang awal shift baru</span>
+                <span className="font-semibold">{rupiah(Number(uangAwal || 0))}</span>
+              </div>
+              {reopenInfo?.shiftTertutup.uangAkhir != null && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Uang akhir shift sebelumnya</span>
+                  <span className="font-semibold">
+                    {rupiah(reopenInfo.shiftTertutup.uangAkhir)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogReopen(false)
+                setReopenInfo(null)
+                setDialogBuka(true)
+              }}
+              className="flex-1"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                setDialogReopen(false)
+                setReopenInfo(null)
+                submitBuka(true)
+              }}
+              disabled={submitting}
+              className="flex-1 bg-amber-600 hover:bg-amber-700"
+            >
+              {submitting ? "Menyimpan..." : "Ya, buka ulang"}
             </Button>
           </DialogFooter>
         </DialogContent>

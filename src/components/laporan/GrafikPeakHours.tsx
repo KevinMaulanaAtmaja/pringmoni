@@ -5,7 +5,11 @@ import type { GrafikPoint } from "@/types"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, Clock } from "lucide-react"
 
-function CustomTooltip({ active, payload, label }: any) {
+interface TooltipPayload {
+  payload: GrafikPoint
+}
+
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayload[]; label?: string }) {
   if (!active || !payload?.length) return null
   const data = payload[0].payload
   return (

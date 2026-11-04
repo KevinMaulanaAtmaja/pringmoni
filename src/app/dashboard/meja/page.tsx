@@ -48,7 +48,7 @@ const ITEMS_PER_PAGE = 5
 export default function MejaPage() {
   const userRole = useUserRole()
   const isOwner = userRole === 'owner'
-  const canKosongkan = userRole === 'owner' || userRole === 'cashier'
+  const canKosongkan = userRole === 'owner' || userRole === 'cashier' || userRole === 'waiter'
   const showAksi = isOwner || canKosongkan
   const [mejas, setMejas] = useState<Meja[]>([])
   const [isOpen, setIsOpen] = useState(false)

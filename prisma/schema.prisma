@@ -19,9 +19,20 @@ model Users {
   updatedAt        DateTime?     @map("updated_at")
   resetToken       String?       @unique @map("reset_token")
   resetTokenExpiry DateTime?     @map("reset_token_expiry")
+  /// Versi sesi login akun ini. Bertambah setiap kali ada login baru.
+  /// Sesi yang membawa versi lama otomatis tidak berlaku lagi (takeover).
+  sessionVersion  Int           @default(0) @map("session_version")
+  /// Waktu login terakhir pada akun ini.
+  lastLoginAt     DateTime?     @map("last_login_at")
+  /// ID perangkat (cookie) yang melakukan login terakhir.
+  lastLoginDevice String?       @map("last_login_device")
+  /// Waktu terakhir sesi akun ini masih dipakai (request terautentikasi).
+  /// Dipakai untuk mendeteksi sesi lain yang benar-benar masih aktif.
+  lastSeenAt      DateTime?     @map("last_seen_at")
   logs             Logs[]
   kasirPesanan     Pesanan[]     @relation("KasirPesanan")
   waiterPesanan    Pesanan[]     @relation("WaiterPesanan")
+  refundedPesanan  Pesanan[]     @relation("RefundedPesanan")
   riwayatStok      RiwayatStok[]
   shiftKasir       ShiftKasir[]
   kasKeluar        KasKeluar[]
@@ -124,10 +135,14 @@ model Meja {
 }
 
 model KategoriMenu {
-  id           Int       @id @default(autoincrement())
-  namaKategori String    @unique @map("nama_kategori")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  deletedAt    DateTime? @map("deleted_at")
+  id           Int        @id @default(autoincrement())
+  namaKategori String     @unique @map("nama_kategori")
+  lokasi       LokasiMenu @default(resto) @map("lokasi")
+  icon         String?    @map("icon")
+  /// Menu di kategori ini bisa dipesan panas ATAU dingin (opsional)
+  pilihanSuhu  Boolean    @default(false) @map("pilihan_suhu")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  deletedAt    DateTime?  @map("deleted_at")
   menus        Menu[]
 
   @@map("kategori_menu")
@@ -140,6 +155,7 @@ model Menu {
   harga         Decimal         @map("harga") @db.Decimal(10, 2)
   kategoriId    Int             @map("kategori_id")
   statusMenu    StatusMenu      @default(tersedia) @map("status_menu")
+  stokManual    Int             @default(0) @map("stok_manual")
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime?       @map("updated_at")
   deletedAt     DateTime?       @map("deleted_at")
@@ -171,12 +187,17 @@ model Pesanan {
   kasirId               Int?              @map("kasir_id")
   statusPesanan         StatusPesanan     @default(menunggu) @map("status_pesanan")
   catatan               String?           @map("catatan")
+  refundCatatan         String?           @map("refund_catatan")
+  refundedAt            DateTime?         @map("refunded_at")
+  refundedById          Int?              @map("refunded_by_id")
   totalHarga            Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
+  voucherId             Int?              @map("voucher_id")
+  diskonVoucher         Decimal           @default(0) @map("diskon_voucher") @db.Decimal(10, 2)
   metodePembayaran      MetodePembayaran? @map("metode_pembayaran")
   jumlahBayar           Decimal?          @map("jumlah_bayar") @db.Decimal(10, 2)
   kembalian             Decimal           @default(0) @map("kembalian") @db.Decimal(10, 2)
   statusPembayaran      StatusBayar       @default(menunggu) @map("status_pembayaran")
-  stokDeducted          Boolean          @default(false) @map("stok_deducted")
+  stokDeducted          Boolean           @default(false) @map("stok_deducted")
   createdAt             DateTime          @default(now()) @map("created_at")
   updatedAt             DateTime?         @map("updated_at")
   deletedAt             DateTime?         @map("deleted_at")
@@ -190,6 +211,9 @@ model Pesanan {
   kasir                 Users?            @relation("KasirPesanan", fields: [kasirId], references: [id])
   meja                  Meja              @relation(fields: [mejaId], references: [id])
   waiter                Users?            @relation("WaiterPesanan", fields: [waiterId], references: [id])
+  refundedBy            Users?            @relation("RefundedPesanan", fields: [refundedById], references: [id])
+  refundBukti           RefundBukti[]
+  voucher               Voucher?          @relation(fields: [voucherId], references: [id])
   shift                 ShiftKasir?       @relation(fields: [shiftId], references: [id])
 
   @@index([shiftId])
@@ -211,6 +235,33 @@ model DetailPesanan {
   @@map("detail_pesanan")
 }
 
+model RefundBukti {
+  id        Int      @id @default(autoincrement())
+  pesananId Int      @map("pesanan_id")
+  fotoUrl   String   @map("foto_url")
+  fileKey   String?  @map("file_key")
+  createdAt DateTime @default(now()) @map("created_at")
+  pesanan   Pesanan  @relation(fields: [pesananId], references: [id])
+
+  @@map("refund_bukti")
+}
+
+model Voucher {
+  id             Int           @id @default(autoincrement())
+  kode           String        @unique @map("kode")
+  namaVoucher    String        @map("nama_voucher")
+  deskripsi      String?       @map("deskripsi")
+  diskonPersen   Int           @map("diskon_persen")
+  minimalBelanja Decimal       @default(0) @map("minimal_belanja") @db.Decimal(10, 2)
+  statusVoucher  StatusVoucher @default(aktif) @map("status_voucher")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime?     @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+  pesanan        Pesanan[]
+
+  @@map("voucher")
+}
+
 model Logs {
   id         Int          @id @default(autoincrement())
   userId     Int?         @map("user_id")
@@ -224,19 +275,19 @@ model Logs {
 }
 
 model StokBahan {
-  id             Int             @id @default(autoincrement())
-  namaBahan      String          @map("nama_bahan")
-  tipe           LokasiStok      @map("tipe")
-  kategori       KategoriBahan   @map("kategori")
-  stokQty        Decimal         @map("stok_qty") @db.Decimal(10, 2)
-  satuan         SatuanStok      @map("satuan")
-  stokMinimum    Decimal         @map("stok_minimum") @db.Decimal(10, 2)
-  hargaPerSatuan Decimal         @map("harga_per_satuan") @db.Decimal(10, 2)
-  statusStok     StatusStok      @default(tersedia) @map("status_stok")
-  keterangan     String?         @map("keterangan")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime?       @map("updated_at")
-  deletedAt      DateTime?       @map("deleted_at")
+  id             Int           @id @default(autoincrement())
+  namaBahan      String        @map("nama_bahan")
+  tipe           LokasiStok    @map("tipe")
+  kategori       KategoriBahan @map("kategori")
+  stokQty        Decimal       @map("stok_qty") @db.Decimal(10, 2)
+  satuan         SatuanStok    @map("satuan")
+  stokMinimum    Decimal       @map("stok_minimum") @db.Decimal(10, 2)
+  hargaPerSatuan Decimal       @map("harga_per_satuan") @db.Decimal(10, 2)
+  statusStok     StatusStok    @default(tersedia) @map("status_stok")
+  keterangan     String?       @map("keterangan")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime?     @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
   riwayatStok    RiwayatStok[]
   resep          ResepMenu[]
 
@@ -277,6 +328,7 @@ enum RoleUser {
   owner
   cashier
   waiter
+  kitchen
 }
 
 enum StatusMeja {
@@ -290,11 +342,17 @@ enum StatusMenu {
   nonaktif
 }
 
+enum LokasiMenu {
+  resto
+  cafe
+}
+
 enum StatusPesanan {
   menunggu
   selesai
   dibatalkan
   diproses
+  refund
 }
 
 enum MetodePembayaran {
@@ -307,6 +365,7 @@ enum StatusBayar {
   menunggu
   berhasil
   dibatalkan
+  refund
 }
 
 enum StatusAntar {
@@ -325,15 +384,23 @@ enum JenisAksiLog {
   RESET_PASSWORD
   CREATE_ORDER
   UPDATE_ORDER_STATUS
+  PINDAH_MEJA
   CANCEL_ORDER_KASIR
   CANCEL_ORDER_EXPIRED
   CANCEL_ORDER_STALE
   PROCESS_PAYMENT
+  REFUND_ORDER
+  MANAGE_VOUCHER
   EMPTY_TABLE
   OPEN_SHIFT
   CLOSE_SHIFT
   AUTO_CLOSE_SHIFT
   KAS_KELUAR
+}
+
+enum StatusVoucher {
+  aktif
+  nonaktif
 }
 
 enum LokasiStok {
@@ -348,9 +415,15 @@ enum KategoriBahan {
 
 enum SatuanStok {
   kg
+  gram
+  liter
+  ml
   pcs
   pack
   bungkus
+  sachet
+  botol
+  kaleng
 }
 
 enum StatusStok {

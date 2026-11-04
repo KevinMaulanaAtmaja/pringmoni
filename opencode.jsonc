@@ -26,5 +26,12 @@
     "explore": {
       "steps": 10
     }
+  },
+  "mcp": {
+    "agentation": {
+      "type": "local",
+      "command": ["npx", "-y", "agentation-mcp", "server", "--host", "0.0.0.0"],
+      "enabled": true
+    }
   }
 }

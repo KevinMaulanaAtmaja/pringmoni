@@ -60,6 +60,33 @@ src/
 - Generate client after schema changes: `npx prisma generate`
 - Use relations, avoid raw SQL when possible
 
+## Alur Kerja Wajib (Anti-Churn)
+
+### 1. Cek Sebelum Mengubah
+- Sebelum menyentuh fitur, cek status PBI di `.opencode/PRD.md` dan jejak implementasinya (`graphify query` atau `rg`).
+- Jika PBI sudah `Done`, **konfirmasi ke user dulu** sebelum mengubah perilakunya.
+- Jangan mengulang pekerjaan yang sudah ada — baca dulu, baru ubah.
+
+### 2. Spec Sebelum Kode
+- Untuk fitur baru/rework, tulis 3-5 acceptance criteria + matriks role (OWNER/CASHIER/WAITER/KITCHEN) sebelum coding.
+- Keputusan eksternal (payment gateway, dsb) harus dikunci sebelum implementasi.
+
+### 3. Verifikasi Sebelum Commit
+- Wajib: `npm run lint` dan `npm test` (jika menyentuh proxy/action).
+- Jangan merge branch yang meninggalkan error lint.
+- Setelah ubah `prisma/schema.prisma`: `npx prisma validate` + `npx prisma generate` (saat dev server mati).
+
+### 4. Sinkron Dokumen
+- Perubahan schema, role, route, payment, atau perilaku fitur **wajib** memperbarui `.opencode/PRD.md` + `.opencode/ARCHITECTURE.md` di commit yang sama.
+- Jangan biarkan dokumen menyebut fitur/library yang sudah tidak aktif (mis. Midtrans).
+
+### 5. Larangan File Sementara
+- Jangan menyimpan file demo/temp (`*-contoh.ts`, mock) di `src/`.
+- Jika perlu verifikasi visual, hapus sebelum commit dan jangan wire ke komponen produksi.
+
+### 6. Handoff Sesi
+- Update `.opencode/PROGRESS.md` di akhir sesi: apa yang selesai, apa yang belum, file yang diubah.
+
 ## Commit Convention
 
 Format: `type(scope): description`
@@ -77,3 +104,8 @@ Branch convention:
 - `feature/fe-{nama}` - Frontend
 - `feature/be-{nama}` - Backend
 - `test/{type}-{nama}` - Testing
+
+Branch terlindungi (JANGAN dihapus tanpa perintah eksplisit user):
+- `main` - Produksi
+- `develop` - Integrasi/staging
+- `feature/be-midtrans-qris-dinamis` - Arsip kode Midtrans/QRIS dinamis (commit `df12fb2`), bukan fitur aktif

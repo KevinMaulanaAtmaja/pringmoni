@@ -96,9 +96,15 @@ const tipeLabels: Record<LokasiStok, string> = {
 
 const satuanLabels: Record<SatuanStok, string> = {
   kg: 'kg',
+  gram: 'gram',
+  liter: 'liter',
+  ml: 'ml',
   pcs: 'pcs',
   pack: 'pack',
   bungkus: 'bungkus',
+  sachet: 'sachet',
+  botol: 'botol',
+  kaleng: 'kaleng',
 }
 
 const statusColors: Record<StatusStok, string> = {
@@ -632,6 +638,7 @@ const emptyForm = {
 
 export default function StokBahanPage() {
   const [activeTipe, setActiveTipe] = useState<LokasiStok>('gudang')
+  const [activeKategori, setActiveKategori] = useState<'bahan_utama' | 'bumbu'>('bahan_utama')
   const [items, setItems] = useState<StokBahanWithType[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -674,7 +681,7 @@ export default function StokBahanPage() {
 
   useEffect(() => {
     loadData()
-  }, [activeTipe])
+  }, [activeTipe, activeKategori])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -684,7 +691,7 @@ export default function StokBahanPage() {
     setLoading(true)
     try {
       const data = await getStokBahanList(activeTipe)
-      setItems(data)
+      setItems(data.filter((s: StokBahanWithType) => s.kategori === activeKategori && s.tipe === activeTipe))
     } catch {
       setItems([])
     } finally {
@@ -810,7 +817,7 @@ export default function StokBahanPage() {
   async function handleResetConfirm() {
     setResetting(true)
     try {
-      const result = await resetAllStokBahan(activeTipe)
+      const result = await resetAllStokBahan()
       if (result?.error) {
         alert(result.error)
         return
@@ -879,7 +886,7 @@ export default function StokBahanPage() {
               title="Reset seluruh data bahan ke 0"
             >
               <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-              Reset ke 0
+              Hapus Semua Stok Bahan
             </Button>
           )}
           <Button onClick={() => openDialog()} size="sm" className="h-8 text-xs">
@@ -937,22 +944,15 @@ export default function StokBahanPage() {
         </Card>
       </div>
 
-      {/* Filters Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-        <div className="flex items-center gap-1 rounded-lg border p-0.5 w-full sm:w-auto">
-          {(Object.keys(tipeLabels) as LokasiStok[]).map((value) => (
-            <Button
-              key={value}
-              type="button"
-              size="sm"
-              variant={activeTipe === value ? 'default' : 'ghost'}
-              onClick={() => setActiveTipe(value)}
-              className="h-7 flex-1 sm:flex-none text-xs"
-            >
-              {tipeLabels[value]}
-            </Button>
-          ))}
-        </div>
+      <div className="flex items-center gap-2">
+        <Button variant={activeKategori === 'bahan_utama' ? 'default' : 'outline'} size="sm" onClick={() => setActiveKategori('bahan_utama')}>Bahan Utama</Button>
+        <Button variant={activeKategori === 'bumbu' ? 'default' : 'outline'} size="sm" onClick={() => setActiveKategori('bumbu')}>Bumbu</Button>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        <Button variant={activeTipe === 'gudang' ? 'default' : 'outline'} size="sm" onClick={() => setActiveTipe('gudang')}>Gudang</Button>
+        <Button variant={activeTipe === 'dapur' ? 'default' : 'outline'} size="sm" onClick={() => setActiveTipe('dapur')}>Dapur</Button>
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2">
         <Input
           placeholder="Cari bahan..."
           value={search}
@@ -1581,7 +1581,7 @@ export default function StokBahanPage() {
               Batal
             </Button>
             <Button variant="destructive" onClick={handleResetConfirm} disabled={resetting}>
-              {resetting ? 'Mereset...' : 'Ya, Reset ke 0'}
+              {resetting ? 'Menghapus...' : 'Ya, Hapus Semua'}
             </Button>
           </DialogFooter>
         </DialogContent>
