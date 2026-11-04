@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
 import { PindahMejaSheet } from "@/components/customer/pindah-meja-sheet";
-import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, UtensilsCrossed, GlassWater, Cookie, Package, ChevronDown, ArrowLeft, ArrowRightLeft, Ticket, Tag, Pizza, Hamburger, Sandwich, Carrot, Drumstick, Fish, Shrimp, Soup, Wheat, Salad, IceCream, CakeSlice, Popcorn, CupSoda, Boxes, ChefHat } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, ChevronDown, ArrowLeft, ArrowRightLeft, Ticket, Tag } from "lucide-react";
+import { getKategoriIcon } from "@/lib/kategori-icon";
 import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
 import { getVoucherAktif } from "@/app/actions/voucher";
 import { simpanKeranjangCheckout, simpanKodeVoucher, ambilKeranjangCheckout } from "@/lib/checkout-storage";
@@ -40,41 +40,6 @@ export default function CustomerMenuPage() {
     const [voucher, setVoucher] = useState<VoucherTerpakai | null>(null);
     const [vouchers, setVouchers] = useState<VoucherOpsi[]>([]);
     const [voucherNotice, setVoucherNotice] = useState<string | null>(null);
-
-    const CATEGORY_ICON_MAP_CUSTOMER: Record<string, LucideIcon> = {
-        Utensils,
-        GlassWater,
-        Coffee,
-        Cookie,
-        Pizza,
-        Hamburger,
-        Sandwich,
-        Carrot,
-        Drumstick,
-        Fish,
-        Shrimp,
-        Soup,
-        Wheat,
-        Salad,
-        IceCream,
-        CakeSlice,
-        Popcorn,
-        CupSoda,
-        Package,
-        Boxes,
-        ChefHat,
-    };
-
-    const getKategoriIcon = (nama: string, iconKey?: string | null) => {
-        if (iconKey && CATEGORY_ICON_MAP_CUSTOMER[iconKey]) return CATEGORY_ICON_MAP_CUSTOMER[iconKey];
-        const n = nama.toLowerCase();
-        if (n.includes("minum") || n.includes("drink") || n.includes("jus") || n.includes("teh") || n.includes("soda")) return GlassWater;
-        if (n.includes("kopi") || n.includes("coffee")) return Coffee;
-        if (n.includes("camilan") || n.includes("snack") || n.includes("goreng") || n.includes("kentang") || n.includes("kue") || n.includes("dessert") || n.includes("es krim")) return Cookie;
-        if (n.includes("paket") || n.includes("set") || n.includes("bundle")) return Package;
-        if (n.includes("makan")) return Utensils;
-        return Utensils;
-    };
 
     const [itemsToShow, setItemsToShow] = useState(12);
     const [showScanner, setShowScanner] = useState(false);

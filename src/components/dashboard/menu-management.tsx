@@ -41,28 +41,12 @@ import {
     Upload,
     CookingPot,
     Utensils,
-    GlassWater,
-    Coffee,
-    Cookie,
-    Pizza,
-    Sandwich,
-    Soup,
-    Drumstick,
-    Fish,
-    Shrimp,
-    IceCream,
-    CakeSlice,
-    Popcorn,
-    Hamburger,
-    Carrot,
-    Wheat,
-    ChefHat,
-    Package,
-    Boxes,
-    CupSoda,
-    Salad,
   } from 'lucide-react';
-  import type { LucideIcon } from 'lucide-react';
+  import {
+    CATEGORY_ICON_MAP,
+    CATEGORY_ICON_OPTIONS,
+    suggestKategoriIcon,
+  } from '@/lib/kategori-icon';
 
 import {
   getMenus,
@@ -117,54 +101,6 @@ const statusLabels: Record<StatusMenu, string> = {
 };
 
 const ITEMS_PER_PAGE = 5;
-
-const CATEGORY_ICON_OPTIONS = [
-  { key: 'Utensils', label: 'Umum', Icon: Utensils },
-  { key: 'GlassWater', label: 'Minuman', Icon: GlassWater },
-  { key: 'Coffee', label: 'Kopi/Teh', Icon: Coffee },
-  { key: 'Cookie', label: 'Camilan', Icon: Cookie },
-  { key: 'Pizza', label: 'Pizza', Icon: Pizza },
-  { key: 'Hamburger', label: 'Burger', Icon: Hamburger },
-  { key: 'Sandwich', label: 'Sandwich', Icon: Sandwich },
-  { key: 'Carrot', label: 'Sayuran/Gorengan', Icon: Carrot },
-  { key: 'Drumstick', label: 'Ayam', Icon: Drumstick },
-  { key: 'Fish', label: 'Ikan/Seafood', Icon: Fish },
-  { key: 'Shrimp', label: 'Udang', Icon: Shrimp },
-  { key: 'Soup', label: 'Sup', Icon: Soup },
-  { key: 'Wheat', label: 'Mie/Roti', Icon: Wheat },
-  { key: 'Salad', label: 'Salad', Icon: Salad },
-  { key: 'IceCream', label: 'Es Krim', Icon: IceCream },
-  { key: 'CakeSlice', label: 'Kue/Dessert', Icon: CakeSlice },
-  { key: 'Popcorn', label: 'Popcorn', Icon: Popcorn },
-  { key: 'CupSoda', label: 'Soda/Jus', Icon: CupSoda },
-  { key: 'Package', label: 'Paket', Icon: Package },
-  { key: 'Boxes', label: 'Paket Hemat', Icon: Boxes },
-  { key: 'ChefHat', label: 'Spesial', Icon: ChefHat },
-] as const;
-
-const CATEGORY_ICON_MAP: Record<string, LucideIcon> = Object.fromEntries(
-  CATEGORY_ICON_OPTIONS.map((o) => [o.key, o.Icon])
-);
-
-function suggestKategoriIcon(nama: string): string {
-  const n = nama.toLowerCase();
-  if (n.includes('paket') || n.includes('set') || n.includes('bundle')) return 'Package';
-  if (n.includes('minum') || n.includes('drink') || n.includes('jus') || n.includes('teh') || n.includes('soda')) return 'GlassWater';
-  if (n.includes('kopi') || n.includes('coffee')) return 'Coffee';
-  if (n.includes('camil') || n.includes('snack') || n.includes('goreng') || n.includes('kentang')) return 'FrenchFries';
-  if (n.includes('kue') || n.includes('cake') || n.includes('dessert') || n.includes('es krim') || n.includes('ice cream')) return 'CakeSlice';
-  if (n.includes('pizza')) return 'Pizza';
-  if (n.includes('burger')) return 'Burger';
-  if (n.includes('roti') || n.includes('sandwich')) return 'Sandwich';
-  if (n.includes('ayam') || n.includes('chicken')) return 'Drumstick';
-  if (n.includes('ikan') || n.includes('seafood')) return 'Fish';
-  if (n.includes('udang') || n.includes('shrimp')) return 'Shrimp';
-  if (n.includes('mie') || n.includes('noodle')) return 'Noodles';
-  if (n.includes('sup') || n.includes('soup') || n.includes('kuah')) return 'Soup';
-  if (n.includes('salad')) return 'Salad';
-  if (n.includes('makan')) return 'Utensils';
-  return 'Utensils';
-}
 
 export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
   const [menus, setMenus] = useState<MenuWithKategori[]>([]);
