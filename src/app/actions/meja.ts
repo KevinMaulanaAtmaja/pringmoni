@@ -50,11 +50,10 @@ async function generateNomorMeja(tipe: TipeMeja): Promise<string> {
   // Determine prefix based on tipe
   const prefix = tipe === 'lesehan' ? 'L' : 'K'
 
-  // Get meja with the same prefix, extract numbers, find max
+  // Include soft-deleted rows because nomor_meja is unique in the database
   const allMeja = await prisma.$queryRaw<Array<{ nomor_meja: string }>>`
     SELECT nomor_meja FROM meja 
-    WHERE deleted_at IS NULL
-    AND nomor_meja LIKE ${prefix + '%'}
+    WHERE nomor_meja LIKE ${prefix + '%'}
     ORDER BY nomor_meja ASC
   `
 

@@ -5,8 +5,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{js,ts,tsx}'],
+    include: ['tests/unit/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+    },
   },
   resolve: {
     alias: {
