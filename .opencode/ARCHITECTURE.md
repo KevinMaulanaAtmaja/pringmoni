@@ -16,17 +16,20 @@ Dokumen ini menjelaskan **arsitektur teknis** dari **Pringmoni Resto POS & Monit
 ├─────────────────────────────────────────────────────────┤
 │              Prisma ORM + PostgreSQL                     │
 ├─────────────────────────────────────────────────────────┤
-│    NextAuth v5    │    Pusher (Realtime)    │ Midtrans   │
-│    (Auth)         │    (Notifications)      │ (Payment)  │
+│    NextAuth v5    │    Pusher (Realtime)    │ QRIS       │
+│    (Auth)         │    (Notifications)      │ (statis)   │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ## 2. Database Schema
 
-### Models
+### Models (16)
 | Model | Deskripsi | Relasi |
 |-------|-----------|--------|
-| Users | Akun (owner, cashier, waiter) | - |
+| Users | Akun (owner, cashier, waiter, kitchen) | - |
+| JadwalShift | Slot jadwal shift yang diatur owner | -> Users |
+| ShiftKasir | Sesi buka/tutup shift kasir + kas awal/akhir | -> Users, JadwalShift |
+| KasKeluar | Pengeluaran kas selama shift | -> ShiftKasir, Users |
 | Meja | Meja restoran + token QR | - |
 | Menu | Menu makanan/minuman | -> KategoriMenu |
 | MenuFoto | Foto menu (multi-gambar) | -> Menu |
@@ -62,31 +65,44 @@ src/app/
 ├── (auth)/login/page.tsx             # Login
 ├── (customer)/[tokenMeja]/           # Customer kiosk
 │   ├── page.tsx                      # Menu & order
-│   └── pesanan/page.tsx             # Lihat pesanan
+│   ├── checkout/page.tsx             # Konfirmasi pesanan
+│   ├── pembayaran/...                # Pembayaran QRIS/tunai
+│   └── pesanan/page.tsx              # Lihat pesanan
 ├── dashboard/                        # Admin dashboard
 │   ├── page.tsx                      # Statistik
-│   ├── pesanan/page.tsx             # Kelola pesanan
-│   ├── kasir/page.tsx               # Kasir
-│   ├── menu/page.tsx                # Kelola menu
-│   ├── resep/page.tsx               # Resep menu (BOM)
-│   ├── stok-bahan/page.tsx          # Kelola stok bahan (gudang/dapur)
-│   ├── meja/page.tsx                # Kelola meja
-│   ├── user/page.tsx                # Kelola user
-│   ├── shift/page.tsx               # Shift (tab jadwal [owner] + riwayat shift)
-│   └── laporan/page.tsx             # Laporan
-└── api/auth/[...nextauth]/route.ts   # Auth API
+│   ├── pesanan/page.tsx              # Kelola pesanan
+│   ├── kasir/page.tsx                # Kasir
+│   ├── menu/page.tsx                 # Kelola menu + stok harian
+│   ├── stok-bahan/page.tsx           # Stok bahan internal (gudang/dapur)
+│   ├── meja/page.tsx                 # Kelola meja
+│   ├── users/page.tsx                # Kelola user
+│   ├── shift/page.tsx                # Shift (tab jadwal [owner] + riwayat shift)
+│   ├── logging/page.tsx              # Log aktivitas
+│   └── laporan/page.tsx              # Laporan
+├── api/auth/[...nextauth]/route.ts   # Auth API
+└── api/uploadthing/                  # Upload gambar
 ```
 
 ## 4. Server Actions
 
 | File | Fungsi |
 |------|--------|
-| `src/app/actions/meja.ts` | getMejas, createMeja, updateMeja, getMejaByToken, kosongkanMeja |
-| `src/app/actions/menu.ts` | getMenus, createMenu, updateMenu, deleteMenu |
-| `src/app/actions/stok-bahan.ts` | getStokBahanList, createStokBahan, updateStokBahan, deleteStokBahan, restockBahan, transferStokBahan, getRiwayatStok, getDaftarMenuResep, getResepMenu, saveResepMenu |
-| `src/app/actions/pesanan.ts` | getPesanan, createPesanan, updateStatusPesanan, prosesPembayaran |
-| `src/app/actions/notifikasi.ts` | getNotifikasiTerlambat (daftar pesanan >30 menit belum ditangani + sweep tengah malam) |
-| `src/app/actions/shift.ts` | getJadwalShift/simpan/update/hapus (owner), bukaShift/tutupShift/tambahKasKeluar (kasir), getRiwayatShift (owner semua / kasir miliknya), getShiftAktif (termasuk saran uang awal dari shift kasir lain) |
+| `meja.ts` | getMejas, createMeja, updateMeja, getMejaByToken, kosongkanMeja |
+| `menu.ts` | getMenus, createMenu, updateMenu, deleteMenu, aturStokHarian (+ per kategori) |
+| `menu-foto.ts` | kelola foto menu (tambah/hapus/urutan) |
+| `stok-bahan.ts` | getStokBahanList, getBahanDapurList, CRUD bahan, restockBahan, transferStokBahan, getRiwayatStok |
+| `pesanan.ts` | getPesanan, createPesanan, updateStatusPesanan, prosesPembayaran, pindahMeja |
+| `kasir.ts` | pesanan belum bayar, konfirmasi pembayaran QRIS/tunai |
+| `shift.ts` | getJadwalShift/simpan/update/hapus (owner), bukaShift/tutupShift/tambahKasKeluar (kasir), getRiwayatShift (owner semua / kasir miliknya), getShiftAktif (termasuk saran uang awal dari shift kasir lain) |
+| `voucher.ts` | CRUD voucher + validasi diskon/minimal belanja |
+| `refund.ts` | refund pesanan + bukti foto |
+| `notifikasi.ts` | getNotifikasiTerlambat (pesanan >30 menit belum ditangani + sweep tengah malam) |
+| `dashboard.ts` | statistik dashboard |
+| `laporan.ts` | laporan harian/bulanan + analitik menu terlaris |
+| `logs.ts` | getLogs, clearLogs |
+| `login.ts` / `logout.ts` | loginAction (validasi kredensial + deteksi sesi perangkat lain), logout |
+| `forgot-password.ts` / `reset-password*.ts` | alur reset password |
+| `upload.ts` | helper UploadThing |
 
 ### 4.1 Shift Kasir & Serah Terima Kas
 
@@ -94,7 +110,6 @@ src/app/
 - `getShiftAktif` menawarkan `saranUangAwal` = uang akhir shift `CLOSED` terakhir **milik kasir lain**, sebagai dasar serah terima kas antar shift.
 - Saat `bukaShift` memakai saran itu, `sumberShiftId` disimpan sehingga riwayat menampilkan "Modal dari {kasir}".
 - `uangHarapAkhir = uangAwal + totalTunai - totalKasKeluar`; `selisihKas = uangAkhir(fisik) - uangHarapAkhir`.
-| `src/app/actions/login.ts` | loginAction (validasi kredensial + deteksi sesi di perangkat lain sebelum membuat sesi) |
 
 ## 5. Auth Flow
 
@@ -104,9 +119,10 @@ Staff -> Login (NextAuth v5) -> Role-based redirect -> Dashboard
 ```
 
 Roles:
-- `OWNER` - Full access
-- `CASHIER` - Kasir + Pesanan
-- `WAITER` - Pesanan only
+- `OWNER` - Full access (kecuali mengubah status pesanan)
+- `CASHIER` - Kasir + Pesanan + shift miliknya
+- `WAITER` - Pesanan + Meja
+- `KITCHEN` - Pesanan + Menu (stok harian)
 
 ### 5.1 Ambil alih sesi (takeover antar perangkat)
 
@@ -151,15 +167,21 @@ Customer Order -> Server Action -> Pusher Event -> Dashboard Update
 ## 7. Payment Flow
 
 ```
-Checkout -> Midtrans (QRIS/Transfer/VA) -> Callback -> Update Status -> Struk PDF
+Checkout -> QRIS statis / tunai -> Verifikasi manual kasir -> Update Status -> Struk PDF
 ```
+
+- QRIS **statis** (satu gambar QR milik resto); customer klaim "Saya Sudah Bayar", kasir verifikasi manual.
+- Tunai diverifikasi kasir saat pembayaran. Tidak ada callback payment gateway.
+- Midtrans dinonaktifkan; kode lama diarsipkan di branch `feature/be-midtrans-qris-dinamis`.
 
 ## 8. Stock & Availability Flow
 
 ```
-Gudang --transfer--> Dapur --resep--> porsiTersedia --pesanan--> potong stok dapur (RiwayatStok)
+Menu Management --stok harian (stokManual)--> ketersediaan customer --pesanan--> stok harian berkurang
+Gudang --transfer--> Dapur --pemakaian--> RiwayatStok (monitoring internal)
 ```
 
-- Ketersediaan menu mengacu pada **resep** (bahan dapur), bukan `statusMenu` manual.
-- `porsiTersedia = floor(min(stok dapur / jumlah per porsi))`; menu wajib punya **bahan utama + bumbu** (resep lengkap).
-- Resep tak lengkap / `porsiTersedia <= 0` -> menu tampil di kiosk customer tetapi **tidak bisa dipesan** (gate di `createPesanan`).
+- **Ketersediaan menu untuk customer** mengacu pada `menu.stokManual` (stok harian) yang diatur dari **Menu Management**, bukan resep.
+- Gate di `createPesanan`: menu harus `statusMenu = tersedia` dan `stokManual >= jumlah`; stok harian otomatis berkurang saat pesanan dibuat.
+- **Stok bahan** (`StokBahan` + `RiwayatStok`) adalah monitoring internal aliran gudang -> dapur (restock, koreksi/limbah, transfer, pemakaian). Tidak menentukan tampilan customer.
+- `ResepMenu` masih ada di schema dan dipakai `potongStokDapur` (pemotongan stok dapur internal saat pesanan selesai) **bila data resep tersedia**; tidak ada lagi UI rakit resep.

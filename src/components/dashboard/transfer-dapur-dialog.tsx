@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { ArrowRight, Warehouse, CookingPot, ChefHat } from 'lucide-react'
+import { ArrowRight, Warehouse, CookingPot } from 'lucide-react'
 
 import {
   Dialog,
@@ -41,7 +40,6 @@ export function TransferDapurDialog({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const router = useRouter()
 
   useEffect(() => {
     if (!open) return
@@ -176,20 +174,6 @@ export function TransferDapurDialog({
         </div>
 
         <DialogFooter>
-          {success && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs mr-auto"
-              onClick={() => {
-                onOpenChange(false)
-                router.push('/dashboard/resep')
-              }}
-            >
-              <ChefHat className="w-3.5 h-3.5 mr-1.5" />
-              Lanjut Rakit Resep
-            </Button>
-          )}
           <Button
             variant="outline"
             size="sm"

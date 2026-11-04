@@ -49,3 +49,5 @@ next-env.d.ts
 graphify-out/cost.json
 graphify-out/cache/
 graphify-out/*.pending.json
+# snapshot harian graphify (backup otomatis) - tidak perlu di-commit
+graphify-out/20*/

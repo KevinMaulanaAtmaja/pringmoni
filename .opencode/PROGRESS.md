@@ -1,3 +1,36 @@
+# PROGRESS - Sesi 2026-11-04
+
+> Lanjutan penyelesaian checklist sesi sebelumnya. Commit belum dibuat (menunggu instruksi user).
+
+## ✅ SELESAI (verifikasi & pembersihan)
+
+- `npx vitest run src/proxy.test.ts` → 8/8 passed.
+- `npx tsc --noEmit` → bersih (0 error).
+- `npm run lint` → 0 error, 40 warning; semua warning pre-existing (bukan dari perubahan sesi ini).
+- Warning `stok-bahan.ts` `'tipe' is defined but never used` **pre-existing** (commit `ec915acd`, 2026-10-28). Diperbaiki: parameter `tipe` dihapus dari `resetAllStokBahan()` (dialog memang "Hapus Semua") + caller `page.tsx`.
+- File demo `src/components/layout/notifikasi-contoh.ts` **dihapus** dan wiring `CONTOH_NOTIFIKASI` dilepas dari `StaleNotificationBell.tsx` (sesuai CONVENTIONS §5: dilarang file `*-contoh.ts` di `src/`).
+- `LogoutButton.tsx` dipertahankan (komponen nyata: dialog konfirmasi logout).
+- BOM + missing newline pada `src/app/actions/notifikasi.ts` diperbaiki.
+- `npm run graph:update` dijalankan (tanpa snapshot harian). Statistik terakhir: **2644 nodes, 4032 edges, 164 communities**.
+
+## 🧹 Rampingkan graphify (2026-11-04)
+
+- Hapus **20 folder snapshot harian** `graphify-out/20YYYY-MM-DD/` (~32,1 MB) — informasi tetap ada di `graphify-out/` umum + riwayat git.
+- Tambah `graphify-out/20*/` ke `.gitignore` agar snapshot harian tidak ikut ter-commit lagi.
+- Tambah script `npm run graph:update` di `package.json` yang menjalankan `graphify update .` dengan `GRAPHIFY_NO_BACKUP=1` (cross-shell PowerShell/Git Bash) sehingga tidak membuat folder tanggal baru.
+- `AGENTS.md` diperbarui: gunakan `npm run graph:update`, bukan `graphify update .` polos.
+- `AGENTS.md` SESSION STARTUP ditambah langkah **6**: jalankan `npm run graph:update` lalu cari kode lewat `graphify query/path/explain` (bukan `rg`/`grep` untuk eksplorasi umum).
+- Tambah bagian **"Aturan Hemat Token (WAJIB)"** di `AGENTS.md`: larangan baca `graph.json`/`graph.html`/`manifest.json`, `git diff --stat` dulu, query `--budget 400` + `context_filter=['call']`, `rg -n ... -m 5` lalu baca ±15 baris, `read` pakai `offset`/`limit`, `npm run lint -- --quiet`, dokumen startup dibaca sekali per sesi.
+- Hasil update terakhir: 2644 nodes, 4032 edges, 164 communities; hanya `graphify-out/` umum yang berubah.
+
+## ⏳ BELUM / MENUNGGU KEPUTUSAN
+
+- **WIP fitur notifikasi dashboard** — `src/app/actions/notifikasi.ts`, `src/components/layout/StaleNotificationBell.tsx`, `src/components/layout/Header.tsx`, `src/components/layout/LogoutButton.tsx` masih uncommitted; perlu keputusan user apakah masuk commit atau ditunda.
+- **Perubahan siap commit (ramping graphify + cleanup)** — `.gitignore`, `package.json`, `AGENTS.md`, `graphify-out/` umum, `PROGRESS.md`, hapus 20 folder snapshot + `src/lib/resep.ts`, `src/proxy.ts`/`src/proxy.test.ts`, `src/app/actions/stok-bahan.ts`, `src/app/dashboard/stok-bahan/page.tsx`.
+- **Commit belum dibuat** (menunggu instruksi eksplisit user). Usulan pesan: `chore(graphify): rampingkan snapshot harian + aturan hemat token`.
+
+---
+
 # PROGRESS - Sesi 2026-09-02
 
 > Catatan progres pekerjaan. Lanjutkan dari bagian "BELUM SELESAI" di bawah.

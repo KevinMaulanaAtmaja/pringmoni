@@ -1436,7 +1436,7 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-1">
+                <div className="grid grid-cols-3 gap-1">
                   {/* Kategori */}
                   <div className="grid gap-1">
                     <Label
@@ -1537,29 +1537,34 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                {/* Stok Siap Jual Hari Ini */}
-                <div className="grid gap-1">
-                  <Label htmlFor="stokManual" className="text-xs">
-                    Stok Siap Jual Hari Ini
-                  </Label>
-                  <Input
-                    id="stokManual"
-                    type="number"
-                    min="0"
-                    value={form.stokManual}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        stokManual: e.target.value,
-                      })
-                    }
-                    className="h-6 text-xs"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Jika diisi 0, menu akan otomatis menjadi Habis saat disimpan.
-                  </p>
+                  {/* Stok Harian */}
+                  <div className="grid gap-1">
+                    <Label htmlFor="stokManual" className="text-xs">
+                      Stok Harian
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="stokManual"
+                        type="number"
+                        min="0"
+                        value={form.stokManual}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            stokManual: e.target.value,
+                          })
+                        }
+                        className="h-6 pr-10 text-center text-xs font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                        porsi
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      0 = otomatis Habis
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -1812,8 +1817,6 @@ export function MenuManagement({ tabs }: { tabs?: ReactNode } = {}) {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Resep Menu Dialog removed */}
 
       {/* Category Dialog */}
       <Dialog

@@ -16,7 +16,7 @@
 | PDF | jsPDF | v4.2.1 |
 | Realtime | Pusher | v5.3.3 |
 | Upload | UploadThing | v7.7.4 |
-| Payment | Midtrans | - |
+| Payment | QRIS statis + tunai (verifikasi manual) | - |
 
 ## 2. Core Features
 
@@ -37,19 +37,18 @@
 
 ### Kasir System
 - Pesanan baru (input manual)
-- Proses pembayaran (tunai, QRIS, transfer via Midtrans)
+- Proses pembayaran (tunai, QRIS statis) + verifikasi manual kasir
 - Hitung kembalian otomatis
 - Cetak struk PDF
 - Riwayat transaksi
 
-### Manajemen Stok & Resep
-- Master bahan dengan dua lokasi: **Gudang** & **Dapur**
+### Manajemen Stok
+- **Stok harian per menu** diatur dari **Menu Management** (`menu.stokManual`) dan menjadi sumber ketersediaan di customer
+- Master bahan dengan dua lokasi: **Gudang** & **Dapur** (monitoring internal)
 - Restock, koreksi/limbah, dan **transfer Gudang -> Dapur**
 - Riwayat pergerakan stok per bahan
-- **Resep menu** (komposisi bahan dapur + jumlah per porsi)
-- Ketersediaan menu **otomatis dari stok dapur** (porsi tersedia)
-- Pengurangan stok dapur otomatis saat pesanan dibuat
-- Menu tanpa resep lengkap / porsi habis otomatis tidak dapat dipesan
+- Stok bahan **tidak** menentukan tampilan customer — hanya untuk pemantauan aliran bahan internal
+- Pemotongan stok dapur otomatis saat pesanan selesai berjalan bila data resep tersedia (tanpa UI rakit resep)
 
 ## 3. Product Backlog (PBI)
 
@@ -62,7 +61,7 @@
 | PBI-1.4 | CRUD Menu (kategori, foto) | Done |
 | PBI-1.5 | Ambil alih sesi login antar perangkat (satu konfirmasi saat login) | Done |
 
-> Catatan PBI-1.4: Menu tidak lagi punya "mode manual" — ketersediaan mengacu pada resep (lihat Modul 6).
+> Catatan PBI-1.4: Ketersediaan menu diatur lewat **stok harian** (`menu.stokManual`) di Menu Management (lihat Modul 6).
 >
 > Catatan PBI-1.5: Saat menekan Masuk, bila sesi akun masih aktif di perangkat
 > lain (`users.last_seen_at` < 15 menit & `cookie pm_device` berbeda), tampil
@@ -83,7 +82,7 @@
 | PBI-2.2 | Kelola Item Pesanan | Done |
 | PBI-2.3 | Status & Pembatalan | Done |
 
-> Catatan PBI-2.1: Pemesanan kini tunduk pada validasi resep & stok dapur — menu wajib punya resep lengkap dan porsi tersedia, jika tidak maka ditolak server (lihat Modul 6).
+> Catatan PBI-2.1: Pemesanan tunduk pada validasi stok harian — menu harus `tersedia` dan `stokManual` mencukupi; jika tidak, ditolak server (lihat Modul 6).
 
 ### Modul 3: Pembayaran
 | PBI | Deskripsi | Status |
@@ -103,7 +102,7 @@
 | PBI-5.1 | Laporan (harian/bulanan) | Done |
 | PBI-5.2 | Analitik (menu terlaris) | Done |
 
-### Modul 6: Stok, Resep & Ketersediaan Otomatis
+### Modul 6: Stok Bahan & Stok Harian
 *Gabungan eks Modul 6–8. Detail user story & spesifikasi teknis menyusul.*
 
 | PBI | Deskripsi | Status |
@@ -111,10 +110,12 @@
 | PBI-6.1 | CRUD Bahan + klasifikasi lokasi (Gudang/Dapur) | Done |
 | PBI-6.2 | Restock, koreksi/limbah, transfer Gudang → Dapur | Done |
 | PBI-6.3 | Riwayat pergerakan stok per bahan | Done |
-| PBI-6.4 | Rakit resep menu (BOM) + validasi kelengkapan | Done |
-| PBI-6.5 | Hitung porsi tersedia dari stok dapur | Done |
-| PBI-6.6 | Pengurangan stok dapur otomatis + gate pemesanan | Done |
-| PBI-6.7 | Tampilkan sisa porsi / "Stok Habis" di menu customer | Done |
+| PBI-6.4 | ~~Rakit resep menu (BOM)~~ — dihapus dari UI; data resep lama tetap dipakai untuk pemotongan stok internal bila ada | Dihapus |
+| PBI-6.5 | Stok harian per menu diatur dari Menu Management | Done |
+| PBI-6.6 | Gate pemesanan berdasarkan stok harian + pemotongan stok harian otomatis | Done |
+| PBI-6.7 | Tampilkan sisa stok harian / "Stok Habis" di menu customer | Done |
+
+> Catatan Modul 6: ketersediaan menu untuk customer sepenuhnya mengacu pada **stok harian (`menu.stokManual`)** di Menu Management. Stok bahan (Gudang/Dapur) adalah monitoring internal dan tidak memengaruhi tampilan customer. UI "Rakit Resep" dihapus bersama route `/dashboard/resep`.
 
 ### Modul 7: Reservasi & Operasional Meja
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*
@@ -183,15 +184,15 @@
 ## 4. Definition of Done
 
 - [ ] Semua PBI Modul 1-10 selesai
-- [ ] Database schema dengan 11 model + relasi
-- [ ] Auth system dengan NextAuth v5
-- [ ] Server Actions untuk semua operasi CRUD
-- [ ] Customer self-order flow end-to-end
-- [ ] Export PDF (jsPDF) dan Excel
+- [x] Database schema dengan 16 model + relasi
+- [x] Auth system dengan NextAuth v5
+- [x] Server Actions untuk semua operasi CRUD
+- [x] Customer self-order flow end-to-end
+- [x] Export PDF (jsPDF) dan Excel
 - [ ] Real-time update dengan Pusher
-- [ ] Image upload dengan UploadThing
-- [ ] Payment gateway Midtrans
-- [ ] Logging untuk semua aksi penting
+- [x] Image upload dengan UploadThing
+- [x] Pembayaran QRIS statis + verifikasi manual kasir
+- [x] Logging untuk semua aksi penting
 
 ## 5. Future Plans
 

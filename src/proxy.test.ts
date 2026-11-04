@@ -72,7 +72,6 @@ describe('proxy route protection', () => {
       '/dashboard/pesanan',
       '/dashboard/kasir',
       '/dashboard/stok-bahan',
-      '/dashboard/resep',
       '/dashboard/users',
       '/dashboard/laporan',
       '/dashboard/logging',
@@ -95,7 +94,6 @@ describe('proxy route protection', () => {
       '/dashboard/users',
       '/dashboard/laporan',
       '/dashboard/stok-bahan',
-      '/dashboard/resep',
       '/dashboard/logging',
     ]) {
       const res = await run(path, 'waiter')
@@ -114,7 +112,6 @@ describe('proxy route protection', () => {
       '/dashboard/users',
       '/dashboard/laporan',
       '/dashboard/stok-bahan',
-      '/dashboard/resep',
       '/dashboard/logging',
     ]) {
       const res = await run(path, 'cashier')

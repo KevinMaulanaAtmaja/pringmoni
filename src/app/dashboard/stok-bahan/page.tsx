@@ -817,7 +817,7 @@ export default function StokBahanPage() {
   async function handleResetConfirm() {
     setResetting(true)
     try {
-      const result = await resetAllStokBahan(activeTipe)
+      const result = await resetAllStokBahan()
       if (result?.error) {
         alert(result.error)
         return

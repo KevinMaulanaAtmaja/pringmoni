@@ -8,6 +8,7 @@
         "start": "next start",
         "lint": "eslint",
         "test": "vitest run",
+        "graph:update": "node -e \"process.env.GRAPHIFY_NO_BACKUP='1';require('child_process').execFileSync('graphify',['update','.'],{stdio:'inherit'})\"",
         "seed-2025": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed-2025.ts",
         "seed-resep": "tsx prisma/seed-resep.ts",
         "seed-resep:dry": "tsx prisma/seed-resep.ts --dry-run",
