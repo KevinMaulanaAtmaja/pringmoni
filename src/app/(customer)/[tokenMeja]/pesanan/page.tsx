@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { CheckCircle, Clock, ChefHat, PackageCheck, Banknote, CreditCard, Loader2, AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { CheckCircle, Clock, ChefHat, PackageCheck, Banknote, CreditCard, Loader2, AlertCircle, AlertTriangle, CheckCircle2, ArrowRightLeft } from "lucide-react";
+import { PindahMejaSheet } from "@/components/customer/pindah-meja-sheet";
 import { getPesananByTokenAndId } from "@/app/actions/pesanan";
 import { cekAutoCancelOtomatis } from "@/app/actions/dashboard";
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime";
@@ -230,9 +231,25 @@ export default function DetailPesananPage() {
 
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="mb-4">
-              <p className="text-sm text-muted-foreground">No. Pesanan</p>
-              <p className="font-mono font-bold text-xl">#{orderIdParam.slice(0, 8).toUpperCase()}</p>
+            <div className="mb-4 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm text-muted-foreground">No. Pesanan</p>
+                <p className="font-mono font-bold text-xl">#{orderIdParam.slice(0, 8).toUpperCase()}</p>
+              </div>
+              {status !== "dibatalkan" && pesanan.statusPembayaran === "menunggu" && (
+                <PindahMejaSheet
+                  tokenMejaSaatIni={tokenMeja}
+                  nomorMejaSaatIni={pesanan.nomorMeja}
+                  onPindah={(tokenBaru) => {
+                    window.location.href = `/${tokenBaru}/pesanan?orderId=${orderIdParam}`;
+                  }}
+                >
+                  <Button variant="outline" size="sm" className="rounded-full shrink-0">
+                    <ArrowRightLeft className="size-3.5 mr-1.5" />
+                    Pindah Meja
+                  </Button>
+                </PindahMejaSheet>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2 mb-4">
