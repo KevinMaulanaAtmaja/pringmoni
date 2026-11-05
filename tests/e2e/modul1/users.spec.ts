@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../fixtures'
 
 const SEARCH = 'Cari...'
 
@@ -32,8 +32,9 @@ test.describe('Modul 1 - Manajemen User', () => {
     await page.screenshot({ path: 'test-results/screenshots/add-user-form.png', fullPage: true })
   })
 
-  test('should create, find, and delete a user', async ({ page }) => {
-    const username = `testuser${Date.now()}`
+  test('should create, find, and delete a user', async ({ page, cleanup }) => {
+    const username = `E2E_user_${Date.now()}`
+    cleanup.trackUser(username)
     const dialog = await openAddDialog(page)
 
     await dialog.locator('#username').fill(username)
@@ -41,15 +42,16 @@ test.describe('Modul 1 - Manajemen User', () => {
     await dialog.locator('#password').fill('TestPass123!')
 
     await dialog.getByRole('combobox').click()
-    await page.getByRole('option', { name: 'Waiter' }).click()
+    await page.getByRole('option', { name: 'Pelayan' }).click()
 
     await dialog.getByRole('button', { name: 'Simpan' }).click()
-    await expect(dialog).toBeHidden({ timeout: 15000 })
+    await expect(dialog).toBeHidden({ timeout: 30_000 })
 
     await page.getByPlaceholder(SEARCH).fill(username)
     const row = page.getByRole('row').filter({ hasText: username })
-    await expect(row).toBeVisible({ timeout: 15000 })
+    await expect(row).toBeVisible({ timeout: 30_000 })
     await expect(row).toContainText(`${username}@test.com`)
+    await expect(row).toContainText('Pelayan')
     await page.screenshot({ path: 'test-results/screenshots/create-user-result.png', fullPage: true })
 
     await row.getByRole('button').last().click()

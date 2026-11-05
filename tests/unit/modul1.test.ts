@@ -7,8 +7,19 @@ import { auth } from '../../src/lib/auth'
 vi.mock('../../src/lib/prisma')
 vi.mock('../../src/lib/auth')
 
-const mockPrisma = prisma as any
-const mockAuth = auth as any
+type MockFn = ReturnType<typeof vi.fn>
+
+const mockPrisma = prisma as unknown as {
+  $executeRaw: MockFn
+  $queryRaw: MockFn
+  users: {
+    findMany: MockFn
+    create: MockFn
+    update: MockFn
+    delete: MockFn
+  }
+}
+const mockAuth = auth as unknown as MockFn
 
 describe('User Management (Modul 1) - Whitebox', () => {
   beforeEach(() => {

@@ -36,11 +36,21 @@ export function catatVersiSesi(userId: number, versi: number): void {
  * Ambil versi sesi aktif dari database.
  * Mengembalikan null bila user tidak ada atau database tidak bisa dibaca
  * (fail-open: sesi tidak di-invalidate karena masalah koneksi).
+ *
+ * `fresh` melewati cache. Cache bersifat per-proses; server action dan
+ * middleware bisa memakai instance modul berbeda sehingga cache di satu
+ * instance belum tentu terbarui setelah login. Saat versi token berbeda,
+ * pemanggil harus memakai `fresh` untuk memastikan sebelum mengeluarkan sesi.
  */
-export async function ambilVersiSesi(userId: number): Promise<number | null> {
+export async function ambilVersiSesi(
+  userId: number,
+  { fresh = false }: { fresh?: boolean } = {}
+): Promise<number | null> {
   const key = String(userId)
   const cached = cacheVersi.get(key)
-  if (cached && Date.now() - cached.pada < TTL_CACHE_MS) return cached.versi
+  if (!fresh && cached && Date.now() - cached.pada < TTL_CACHE_MS) {
+    return cached.versi
+  }
 
   try {
     const row = await prisma.users.findUnique({

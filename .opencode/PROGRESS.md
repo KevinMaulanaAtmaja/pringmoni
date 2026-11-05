@@ -1,3 +1,51 @@
+# PROGRESS - Sesi 2026-11-05 (Verifikasi Blackbox Modul 1.4 & 1.5)
+
+## ✅ SELESAI
+
+- **Modul 1.4 Menu** (`tests/e2e/modul1/menu.spec.ts`): 3/3 test lulus (headed Playwright).
+- **Modul 1.5 Takeover** (`tests/e2e/modul1/takeover.spec.ts`): 3/3 test lulus (headed Playwright).
+- **Seluruh Modul 1**: 15/15 test lulus (`npx playwright test tests/e2e/modul1 --headed`).
+- Status di `.opencode/BLACKBOX_TEST.md` diperbarui: PBI 1.4 & 1.5 dari Draft -> Done.
+- **Fix data legacy**: `meja` K003 (id 5) dan K001 (id 1) punya `status_meja = 'dipesan'`, nilai enum yang hanya ada di PostgreSQL dan tidak ada di `prisma/schema.prisma`. Ini membuat `pesanan.findMany()` gagal (`Value 'dipesan' not found in enum 'StatusMeja'`) dan halaman `/dashboard/pesanan` error. Semua baris invalid dinormalisasi menjadi `kosong` (verifikasi ulang: 0 baris invalid).
+- **Fix race cache sesi**: `ambilVersiSesi()` di `src/lib/sesi.ts` kini mendukung opsi `{ fresh: true }` untuk melewati cache. `src/lib/auth.ts` membaca ulang versi dari DB saat versi token berbeda, sehingga sesi yang baru login tidak salah dianggap sudah diambil alih ketika cache per-proses masih basi.
+- Akun test `e2e_owner` di-seed ulang untuk sesi verifikasi ini (password tidak dicatat di repo).
+
+## ⏳ BELUM / CATATAN
+
+- Modul 2 dst. belum dikerjakan.
+- Belum ada migrasi SQL untuk menormalkan sisa nilai enum legacy `dipesan` di environment lain (data di DB saat ini sudah bersih).
+
+---
+
+# PROGRESS - Sesi 2026-11-04 (Blackbox E2E)
+
+> Fondasi blackbox test + dokumen tracking. Belum commit.
+
+## ✅ SELESAI
+
+- Dokumen tracking baru: `.opencode/BLACKBOX_TEST.md` (strategi DB data sementara, aturan, peta modul/PBI, rencana bertahap, cleanup).
+- `tests/e2e/fixtures.ts`: prefix `E2E_`, kredensial env, login helper + handle dialog takeover, `CleanupRegistry` per-ID/nama.
+- `tests/e2e/seed-e2e-owner.ts` + script `npm run test:e2e:seed` (upsert `e2e_owner`, password dari env).
+- `tests/e2e/auth.setup.ts`: login akun test (bukan akun asli) + handle dialog takeover.
+- `playwright.config.ts`: SLOWMO default 200, timeout, action/navigation timeout, dotenv.
+- Spec baru: `modul1/menu.spec.ts` (PBI-1.4) dan `modul1/takeover.spec.ts` (PBI-1.5).
+- Spec lama (`login`, `users`, `meja`) memakai fixtures + cleanup; username test diberi prefix `E2E_`.
+- `tests/e2e/README.md` diperbarui (setup akun test, env, aturan cleanup).
+- Lint bersih (`npm run lint -- --quiet`).
+- `npx playwright test --list` menemukan 15 test di 6 file.
+
+## ⏳ BELUM / CATATAN
+
+- Spec Modul 1.4/1.5 masih **Draft**: belum dijalankan karena dev server merespons 500.
+- `npx tsc --noEmit` masih gagal karena Prisma client basi + `.next` basi (pre-existing); perlu `npx prisma generate` saat dev server mati.
+- `npm run test:unit` gagal pre-existing: `next-auth` mengimpor `next/server` yang tidak resolve di Vitest.
+- `npm run graph:update` gagal: `graphify.exe` diblokir Application Control policy. `graphify-out/` belum diperbarui.
+- `package-lock.json` masih dirty (1 deletion) + `graphify-out/` dirty; commit menunggu keputusan.
+- `stash@{0}` (graphify lama) belum di-drop; `stash@{1}` berisi perubahan kode lama (blokir order/token meja).
+- Modul berikutnya (2 dst.) belum dikerjakan; menunggu instruksi user.
+
+---
+
 # PROGRESS - Sesi 2026-11-04
 
 > Lanjutan penyelesaian checklist sesi sebelumnya. Commit belum dibuat (menunggu instruksi user).

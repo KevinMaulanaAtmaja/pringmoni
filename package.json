@@ -15,6 +15,7 @@
         "seed-menu": "tsx prisma/seed-menu.ts",
         "test:unit": "vitest run tests/unit",
         "test:unit:watch": "vitest",
+        "test:e2e:seed": "tsx tests/e2e/seed-e2e-owner.ts",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "test:e2e:headed": "playwright test --headed",

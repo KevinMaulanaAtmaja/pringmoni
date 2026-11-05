@@ -118,7 +118,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!Number.isNaN(userId)) {
         const versiDb = await ambilVersiSesi(userId)
         if (versiDb !== null && versiDb !== versiToken) {
-          token.takenOver = true
+          // Cache versi sesi bersifat per-proses dan bisa basi tepat setelah
+          // login (server action vs middleware). Baca ulang tanpa cache agar
+          // sesi yang baru login tidak salah dianggap sudah diambil alih.
+          const versiDbTerbaru = await ambilVersiSesi(userId, { fresh: true })
+          if (versiDbTerbaru !== null && versiDbTerbaru !== versiToken) {
+            token.takenOver = true
+          } else {
+            await catatAktivitasSesi(userId)
+          }
         } else {
           // Sesi ini masih sah -> tandai masih aktif (throttled) supaya login
           // dari perangkat lain tahu ada sesi yang benar-benar sedang dipakai.

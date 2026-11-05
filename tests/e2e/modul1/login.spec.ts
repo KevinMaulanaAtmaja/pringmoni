@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../fixtures'
 
 test.describe('Modul 1 - Login', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
