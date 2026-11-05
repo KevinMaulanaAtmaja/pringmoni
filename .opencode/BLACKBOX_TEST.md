@@ -88,9 +88,9 @@ belum diverifikasi; `Todo` = belum ada spec; `N/A` = fitur belum ada (Todo di PR
 | 1 | 1.3 | CRUD Meja | `modul1/meja.spec.ts` | Done |
 | 1 | 1.4 | CRUD Menu (kategori, foto, stok harian) | `modul1/menu.spec.ts` | Done |
 | 1 | 1.5 | Ambil alih sesi (takeover) | `modul1/takeover.spec.ts` | Done |
-| 2 | 2.1 | Buat pesanan (QR/manual) | `modul2/pesanan.spec.ts` | Todo |
-| 2 | 2.2 | Kelola item pesanan | `modul2/pesanan.spec.ts` | Todo |
-| 2 | 2.3 | Status & pembatalan | `modul2/pesanan.spec.ts` | Todo |
+| 2 | 2.1 | Buat pesanan (QR/manual) | `modul2/pesanan.spec.ts` | Done |
+| 2 | 2.2 | Kelola item pesanan | `modul2/pesanan.spec.ts` | Done |
+| 2 | 2.3 | Status & pembatalan | `modul2/pesanan.spec.ts` | Done |
 | 3 | 3.1 | Hitung total (subtotal, pajak) | `modul3/pembayaran.spec.ts` | Todo |
 | 3 | 3.2 | Pembayaran tunai/QRIS | `modul3/pembayaran.spec.ts` | Todo |
 | 3 | 3.3 | Struk & riwayat | `modul3/pembayaran.spec.ts` | Todo |
@@ -137,8 +137,37 @@ Setiap tahap: tulis spec -> jalankan -> perbaiki -> cleanup -> update status tab
      `/login?takenOver=1` + dialog "Sesi diambil alih".
    - Skenario Batal: sesi lama tetap hidup.
    - Cleanup: hapus user sementara + log terkait.
-4. **Modul 2 Pesanan** (berikutnya, serial)
-   - Butuh fixture meja + menu E2E, order via customer QR, status, batal.
+4. **Modul 2 Pesanan** (Done, serial)
+   - Spec: `tests/e2e/modul2/pesanan.spec.ts`, `test.describe.configure({ mode: 'serial' })`.
+   - Fixture tambahan: `createTestUser(role)` (waiter/cashier), `createTestMeja`,
+     `createTestKategori`, `createTestMenu`; semua memakai `E2E_` + cleanup per-ID.
+   - Context customer tanpa `storageState`; context staff login per role agar
+     `kasirId`/`waiterId` tidak tercampur.
+   - **2.1 Buat pesanan**
+     - QR: buka `/<token>` sebagai guest, tambah menu E2E, checkout, isi nama,
+       pilih Tunai, konfirmasi -> redirect pembayaran; assert pesanan `menunggu`,
+       stok harian berkurang, meja `terpakai`, kartu muncul di dashboard.
+     - Manual: login staff, `/dashboard/kasir/pesanan-baru`, pilih meja E2E,
+       tambah menu, isi nama + metode, submit -> redirect detail pesanan.
+     - Guard: checkout tanpa nama/metode -> tombol konfirmasi disabled/validasi;
+       checkout keranjang kosong -> state "Keranjang Kosong".
+   - **2.2 Kelola item**
+     - Precondition: set `statusPembayaran='berhasil'` lewat DB fixture.
+     - Login waiter -> kartu "Meja ..." -> "Tandai Item" -> centang semua item
+       -> "Selesai (n/n)"; assert status `selesai`, `waiterId` terisi, meja
+       `kosong`, semua `statusAntar='diantar'`.
+     - Guard: centang sebagian -> alert "Tandai semua item sudah diterima
+       terlebih dahulu!", status pesanan tidak berubah.
+   - **2.3 Status & pembatalan**
+     - Login staff non-owner -> `/dashboard/pesanan/<id>` -> "Batalkan" ->
+       konfirmasi; assert `dibatalkan`, `statusPembayaran='dibatalkan'`,
+       `deletedAt` terisi, meja `kosong`.
+     - Login owner -> halaman detail pesanan yang sama; assert tombol
+       "Selesai"/"Batalkan" tidak tampil (owner read-only).
+     - Tampilan/filter: set status `diproses` lewat DB, assert kartu + filter
+       "Diproses", pencarian `#id`/meja, dan dialog detail menampilkan item/total.
+   - Cleanup urutan: user -> kategori -> menu -> meja -> pesanan didaftarkan
+     sedemikian rupa sehingga saat dibalik pesanan terhapus lebih dulu.
 5. **Modul 3 Pembayaran** (serial)
    - Tunai/QRIS, kembalian, struk, riwayat.
 6. **Modul 4 Logging**, **Modul 5 Laporan** (read-only, hati-hati data test).
@@ -154,7 +183,7 @@ Setiap tahap: tulis spec -> jalankan -> perbaiki -> cleanup -> update status tab
 | User | `E2E_<label>_<stamp>` | hapus log berisi username, lalu user by username |
 | Kategori | `E2E_<label>_<stamp>` | hapus kategori hanya jika tidak punya menu |
 | Menu | `E2E_<label>_<stamp>` | hapus MenuFoto/ResepMenu/DetailPesanan lalu menu by nama |
-| Meja | nomor otomatis `K###`/`L###` | hapus detail+pesanan lalu meja by nomor |
+| Meja | `E2E_K_<stamp>` / `E2E_L_<stamp>` (token `E2E` + hex) | hapus detail+pesanan lalu meja by nomor |
 | Voucher | `E2E<STAMP>` | hapus voucher by kode (setelah pesanan terkait) |
 | Pesanan | nama pelanggan `E2E_...` | hapus detail, bukti refund, pesanan |
 
@@ -164,10 +193,9 @@ lalu menu) agar penghapusan terbalik aman.
 
 ## 8. Catatan Operasional
 
-- `graphify-out/` tidak bisa diperbarui saat ini: `graphify.exe` diblokir
-  Application Control policy di mesin ini. Jangan commit graph lama sebagai
-  "hasil update". Selesaikan policy / jalankan `npm run graph:update` di mesin
-  yang mengizinkan, baru commit.
+- `graphify-out/` sudah dapat diperbarui di mesin ini: `npm run graph:update`
+  berhasil (2751 nodes, 5121 edges, 123 communities per sesi Modul 2). Tetap
+  jalankan setelah perubahan kode dan jangan commit artefak graph yang basi.
 - Dev server yang merespons 500 harus diperbaiki user (kemungkinan `.next` basi).
   Agent tidak menjalankan/mematikan `npm run dev`.
 - Stash `stash@{0}` berisi graphify lama (bukan kode fitur). Belum di-drop;
