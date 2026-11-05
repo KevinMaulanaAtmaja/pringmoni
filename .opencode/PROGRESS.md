@@ -1,3 +1,71 @@
+# PROGRESS - Sesi 2026-11-05 (Whitebox Testing S2)
+
+> Eksekusi S2 (Pesanan & Stok Gate) dari `.opencode/WHITEBOX_TESTING_PLAN.md`. Commit belum dibuat.
+
+## Selesai
+- Test baru: `src/app/actions/pesanan.test.ts` (44 test), `menu.test.ts` (16 test).
+- Cakupan pesanan: token meja invalid, menunggu pembayaran, item kosong, menu tidak ada/nonaktif, stok kurang, agregasi item, voucher tidak ada/nonaktif/minimal/valid, sukses + potong stok + status habis, rollback `newStok < 0`, menu hilang di transaksi, customer tanpa session, update status, cancel, mark selesai + potong stok dapur, toggle item diantar, daftar meja pindah, semua cabang `pindahMeja`.
+- Cakupan menu: stok harian negatif/non-integer/0/positif, menu tidak ada/nonaktif, set semua menu, set per kategori, kategori tidak ada.
+- `npm test` -> **8 file, 123 test passed**.
+- `npx tsc --noEmit` bersih; eslint terarah pada 2 file test bersih.
+- Coverage terarah `pesanan.ts` + `menu.ts`: statement 50,12%, branch 42,37%, function 33,33%, line 50,38% (fungsi lain di kedua file belum menjadi target S2; threshold global tetap sengaja merah).
+
+## Catatan
+- File yang ditambah: `src/app/actions/{pesanan,menu}.test.ts`.
+- Perubahan WIP lain di working tree **tidak disentuh**.
+
+## Berikutnya
+- S3: Pembayaran, Kasir, Shift (`kasir.test.ts`, `shift.test.ts`, `lib/{shift,jadwal,fee,print-struk}.test.ts`).
+
+---
+
+# PROGRESS - Sesi 2026-11-05 (Whitebox Testing S1)
+
+> Eksekusi S1 (Auth & Sesi) dari `.opencode/WHITEBOX_TESTING_PLAN.md`. Commit belum dibuat.
+
+## Selesai
+- Test baru: `src/app/actions/login.test.ts` (16 test), `logout.test.ts` (3), `reset-password.test.ts` (12).
+- Cakupan: rate limit dulu, kredensial kosong, user tidak ada/nonaktif, bcrypt gagal, DB `P1001`/error umum, sukses + log + reset limit, sesi lain aktif -> `perluKonfirmasi`, `takeover=1`, device sama, URL error `signIn`, `DATABASE_ERROR` (message & cause), logout, forgot/reset password, token invalid/kedaluwarsa, hash password.
+- `npm test` -> **6 file, 63 test passed**.
+- Coverage terarah: `login.ts` statement/line/function **100%**, branch **92,15%** (target >=85%); `logout.ts`, `forgot-password.ts`, `reset-password.ts`, `reset-password-confirm.ts` **100%** semua metrik.
+- `npx tsc --noEmit` bersih; eslint terarah pada 3 file test bersih.
+
+## Catatan
+- File yang ditambah: `src/app/actions/{login,logout,reset-password}.test.ts`.
+- Perubahan WIP lain di working tree **tidak disentuh**.
+- Threshold coverage global masih sengaja merah sampai S2-S5 menambah test.
+
+## Berikutnya
+- S2: Pesanan & Stok Gate (`pesanan.test.ts`, `menu.test.ts`).
+
+---
+
+# PROGRESS - Sesi 2026-11-05 (Whitebox Testing S0)
+
+> Eksekusi S0 dari `.opencode/WHITEBOX_TESTING_PLAN.md`. Commit belum dibuat.
+
+## Selesai
+- Coverage V8 aktif: pasang `@vitest/coverage-v8@4.1.1` (devDependency) + blok `coverage` dan threshold di `vitest.config.ts`.
+- Script baru `npm run test:coverage`.
+- Helper test: `src/test/helpers/prisma-mock.ts`, `auth-mock.ts`, `fixtures.ts`.
+- Enhance test existing:
+  - `src/proxy.test.ts`: role `kitchen`, route `/dashboard/shift`, sesi `takenOver` (hapus cookie + redirect), 12 test.
+  - `src/lib/rate-limiter.test.ts`: boundary blokir 5 menit, reset jendela 15 menit, record saat diblokir.
+  - `src/lib/sesi.test.ts`: cache versi sesi (TTL 3 detik), throttle aktivitas 2 menit, fail-open saat DB error.
+- `npm test` -> **3 file, 32 test passed**.
+- `npm run test:coverage` -> laporan terbentuk; baseline statement **5,05%**, branch **5,10%**, function **3,64%**, line **4,89%**. Threshold 70/60 sengaja belum terpenuhi sampai S1-S5.
+- `npx eslint` pada file yang diubah -> bersih (0 error).
+
+## Catatan
+- `npm run lint` penuh melewati timeout 5 menit di environment ini; verifikasi dilakukan dengan eslint terarah pada file yang berubah.
+- File yang diubah/ditambah: `vitest.config.ts`, `package.json`, `package-lock.json`, `src/proxy.test.ts`, `src/lib/rate-limiter.test.ts`, `src/lib/sesi.test.ts`, `src/test/helpers/*`.
+- Perubahan WIP lain di working tree (shift, dashboard, dll.) **tidak disentuh**.
+
+## Berikutnya
+- S1: Auth & Sesi (`login.test.ts`, `logout.test.ts`, `reset-password.test.ts`).
+
+---
+
 # PROGRESS - Sesi 2026-11-04
 
 > Lanjutan penyelesaian checklist sesi sebelumnya. Commit belum dibuat (menunggu instruksi user).
