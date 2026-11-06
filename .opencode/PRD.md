@@ -122,12 +122,14 @@
 
 | PBI | Deskripsi | Status |
 |-----|----------|--------|
-| PBI-7.1 | Reservasi pesanan (offline) | Todo |
+| PBI-7.1 | Reservasi pesanan (offline) | Done |
 | PBI-7.2 | Ganti meja (pindah pesanan antar meja) | Todo |
 | PBI-7.3 | Pergantian shift kasir | Done |
 | PBI-7.4 | Auto-kosongkan meja + pesanan (pesanan selesai / pesanan lama dibayar) | Done |
 | PBI-7.5 | Refund + bukti foto | Done |
 
+> Catatan PBI-7.1: Reservasi offline dikelola dari `/dashboard/reservasi` oleh OWNER/CASHIER/WAITER. Meja di-hold dengan status `dipesan` tanpa memotong stok. Konfirmasi kedatangan membuat pesanan dan memotong `menu.stokManual` dalam satu transaksi. Reservasi yang melewati `batasKonfirmasi` otomatis menjadi `expired` dan meja dikembalikan ke `kosong`. Detail teknis: `.opencode/RESERVASI_PLAN.md` dan `.opencode/RESERVASI_IMPLEMENTATION.md`.
+>
 > Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan). Ditambah lagi, saat lewat tengah malam (00:00) sisa pesanan aktif yang belum dibayar ikut dibatalkan otomatis oleh `getNotifikasiTerlambat()` — lihat PBI-8.4.
 >
 > Catatan PBI-7.3 (pembagian hak akses shift):

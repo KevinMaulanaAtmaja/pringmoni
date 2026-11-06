@@ -36,6 +36,8 @@ model Users {
   riwayatStok      RiwayatStok[]
   shiftKasir       ShiftKasir[]
   kasKeluar        KasKeluar[]
+  reservasiDibuat  Reservasi[]   @relation("ReservasiCreatedBy")
+  reservasiDikonfirmasi Reservasi[] @relation("ReservasiConfirmedBy")
 
   @@map("users")
 }
@@ -130,6 +132,7 @@ model Meja {
   updatedAt  DateTime?  @map("updated_at")
   deletedAt  DateTime?  @map("deleted_at")
   pesanan    Pesanan[]
+  reservasi  Reservasi[]
 
   @@map("meja")
 }
@@ -163,6 +166,7 @@ model Menu {
   kategori      KategoriMenu    @relation(fields: [kategoriId], references: [id])
   menuFoto      MenuFoto[]
   resep         ResepMenu[]
+  detailReservasi DetailReservasi[]
 
   @@map("menu")
 }
@@ -215,6 +219,7 @@ model Pesanan {
   refundBukti           RefundBukti[]
   voucher               Voucher?          @relation(fields: [voucherId], references: [id])
   shift                 ShiftKasir?       @relation(fields: [shiftId], references: [id])
+  reservasi             Reservasi[]
 
   @@index([shiftId])
   @@map("pesanan")
@@ -334,6 +339,7 @@ enum RoleUser {
 enum StatusMeja {
   kosong
   terpakai
+  dipesan
 }
 
 enum StatusMenu {
@@ -396,6 +402,10 @@ enum JenisAksiLog {
   CLOSE_SHIFT
   AUTO_CLOSE_SHIFT
   KAS_KELUAR
+  CREATE_RESERVASI
+  CONFIRM_RESERVASI
+  CANCEL_RESERVASI
+  EXPIRE_RESERVASI
 }
 
 enum StatusVoucher {
@@ -439,4 +449,58 @@ enum JenisPerubahanStok {
   limbah
   otomatis
   transfer
+}
+
+enum StatusReservasi {
+  menunggu_kedatangan
+  dikonfirmasi
+  batal
+  expired
+}
+
+model Reservasi {
+  id              Int             @id @default(autoincrement())
+  mejaId          Int             @map("meja_id")
+  namaPelanggan   String          @map("nama_pelanggan")
+  noHp            String?         @map("no_hp")
+  jumlahOrang     Int             @map("jumlah_orang")
+  waktuKedatangan DateTime        @map("waktu_kedatangan")
+  batasKonfirmasi DateTime        @map("batas_konfirmasi")
+  catatan         String?         @map("catatan")
+  statusReservasi StatusReservasi @default(menunggu_kedatangan) @map("status_reservasi")
+  createdById     Int             @map("created_by_id")
+  pesananId       Int?            @map("pesanan_id")
+  confirmedById   Int?            @map("confirmed_by_id")
+  confirmedAt     DateTime?       @map("confirmed_at")
+  cancelledAt     DateTime?       @map("cancelled_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime?       @map("updated_at")
+
+  meja            Meja            @relation(fields: [mejaId], references: [id])
+  createdBy       Users           @relation("ReservasiCreatedBy", fields: [createdById], references: [id])
+  confirmedBy     Users?          @relation("ReservasiConfirmedBy", fields: [confirmedById], references: [id])
+  pesanan         Pesanan?        @relation(fields: [pesananId], references: [id])
+  detailReservasi DetailReservasi[]
+
+  @@index([mejaId])
+  @@index([statusReservasi])
+  @@index([createdById])
+  @@map("reservasi")
+}
+
+model DetailReservasi {
+  id             Int      @id @default(autoincrement())
+  reservasiId    Int      @map("reservasi_id")
+  menuId         Int      @map("menu_id")
+  jumlah         Int      @map("jumlah")
+  hargaSaatPesan Decimal  @map("harga_saat_pesan") @db.Decimal(10, 2)
+  catatanItem    String?  @map("catatan_item")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  reservasi Reservasi @relation(fields: [reservasiId], references: [id], onDelete: Cascade)
+  menu      Menu      @relation(fields: [menuId], references: [id])
+
+  @@index([reservasiId])
+  @@index([menuId])
+  @@map("detail_reservasi")
 }

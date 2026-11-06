@@ -41,7 +41,7 @@ export interface UserResponse {
   data?: UserWithRole
 }
 
-export type StatusMeja = 'kosong' | 'terpakai'
+export type StatusMeja = 'kosong' | 'terpakai' | 'dipesan'
 
 export interface Meja {
   id: number

@@ -163,6 +163,10 @@ export async function deleteMeja(id: number) {
     return { error: "Meja sedang digunakan, tidak dapat dihapus" }
   }
 
+  if (meja[0]?.status_meja === 'dipesan') {
+    return { error: "Meja sedang direservasi, tidak dapat dihapus" }
+  }
+
   await prisma.$executeRaw`
     UPDATE meja SET deleted_at = NOW() WHERE id = ${id}
   `
@@ -208,6 +212,19 @@ export async function kosongkanMeja(id: number) {
     })
   }
 
+  const reservasiDibatalkan = await prisma.reservasi.updateMany({
+    where: {
+      mejaId: id,
+      statusReservasi: { in: ['menunggu_kedatangan', 'dikonfirmasi'] },
+      pesananId: null,
+    },
+    data: {
+      statusReservasi: 'batal',
+      cancelledAt: new Date(),
+      updatedAt: new Date(),
+    },
+  })
+
   await prisma.$executeRaw`
     UPDATE meja SET status_meja = 'kosong', updated_at = NOW() WHERE id = ${id}
   `
@@ -224,6 +241,10 @@ export async function kosongkanMeja(id: number) {
     logMsg += ` — ${belumBayar.length} pesanan dibatalkan (total: ${ringkasan}), nominal Rp${total.toLocaleString('id-ID')}`
   } else {
     logMsg += ' — tidak ada pesanan aktif'
+  }
+
+  if (reservasiDibatalkan.count > 0) {
+    logMsg += ` — ${reservasiDibatalkan.count} reservasi dibatalkan`
   }
 
   await createLog('UPDATE_ORDER_STATUS', logMsg)

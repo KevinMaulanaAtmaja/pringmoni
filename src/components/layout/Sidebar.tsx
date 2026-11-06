@@ -16,6 +16,7 @@ import {
   PanelLeftOpen,
   Boxes,
   History,
+  CalendarCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
@@ -34,6 +35,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
+        { name: "Reservasi", icon: CalendarCheck, href: "/dashboard/reservasi" },
       ]
     : (role === 'cashier')
     ? [
@@ -42,6 +44,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Buat Pesanan", icon: ShoppingCart, href: "/dashboard/kasir/pesanan-baru" },
         { name: "Kasir", icon: Receipt, href: "/dashboard/kasir" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
+        { name: "Reservasi", icon: CalendarCheck, href: "/dashboard/reservasi" },
         { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
     : (role === 'kitchen')
@@ -56,6 +59,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
         { name: "Stok Bahan", icon: Boxes, href: "/dashboard/stok-bahan" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
+        { name: "Reservasi", icon: CalendarCheck, href: "/dashboard/reservasi" },
         { name: "Akun", icon: User, href: "/dashboard/users" },
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },
         { name: "Laporan", icon: BarChart3, href: "/dashboard/laporan" },

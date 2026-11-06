@@ -1,3 +1,29 @@
+# PROGRESS - Sesi 2026-11-04 (Reservasi PBI-7.1)
+
+> Branch `feat/reservasi`, di atas `origin/develop` `08fb1be`. Commit belum dibuat (menunggu instruksi user).
+
+## ✅ SELESAI
+
+- Fast-forward merge `origin/develop` (`2e0226f..08fb1be`); WIP reservasi lama di stash/backup diterapkan ulang.
+- Schema: `StatusReservasi`, model `Reservasi` + `DetailReservasi`, `StatusMeja.dipesan`, 4 aksi log reservasi, relasi lawan di `Users`/`Meja`/`Menu`/`Pesanan`.
+- Migrasi: `npx prisma validate` valid, `npx prisma generate` sukses, `npx prisma db push` sinkron.
+- `src/app/actions/reservasi.ts`: create/get/confirm/cancel/expire/getMeja, type-safe, validasi `stokManual`, transaksi, log, Pusher.
+- `src/app/dashboard/reservasi/page.tsx`: daftar/filter/cari, form reservasi + pre-order, konfirmasi/batal, auto-expire saat load.
+- Integrasi: sidebar (owner/cashier/waiter), proxy guard, tipe `StatusMeja`, log, halaman meja (label/filter/aksi), `deleteMeja` + `kosongkanMeja`.
+- Fix bug pre-existing `src/components/ui/switch.tsx`: `cn` import `"cn"` → `"@/lib/utils"`.
+- Verifikasi: `npx tsc --noEmit` 0 error; `npm run lint -- --quiet` 0 error; `npm run build` sukses (route `/dashboard/reservasi` terbentuk).
+- Dokumentasi: `.opencode/RESERVASI_PLAN.md`, `.opencode/RESERVASI_IMPLEMENTATION.md`; PRD PBI-7.1 → Done.
+- Fix error `npm run graph:update`: install CLI `graphifyy` 0.9.102 via pip (+ `graphifyy[sql]`), lalu update graph berhasil — **2712 nodes, 4326 edges, 189 communities**. Graphify juga me-refresh `.opencode/plugins/graphify.js` + `.opencode/opencode.json` untuk kompatibilitas OpenCode 2.
+- `.next` dibersihkan setelah build; dev server dihentikan sementara dan perlu dijalankan ulang user.
+
+## ⏳ BELUM
+
+- Uji manual end-to-end (lihat checklist di `RESERVASI_IMPLEMENTATION.md`).
+- Commit/PR (belum diminta user).
+- Opsional: partial unique index 1 reservasi aktif per meja; edit/reschedule; reservasi online; DP.
+
+---
+
 # PROGRESS - Sesi 2026-11-04
 
 > Lanjutan penyelesaian checklist sesi sebelumnya. Commit belum dibuat (menunggu instruksi user).

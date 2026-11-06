@@ -31,11 +31,13 @@ import { TipeMeja } from "@/types"
 const statusColors: Record<string, string> = {
   kosong: "bg-green-100 text-green-800",
   terpakai: "bg-red-100 text-red-800",
+  dipesan: "bg-amber-100 text-amber-800",
 }
 
 const statusLabels: Record<string, string> = {
   kosong: "Kosong",
   terpakai: "Terpakai",
+  dipesan: "Dipesan",
 }
 
 const tipeMejaLabels: Record<string, string> = {
@@ -314,6 +316,7 @@ export default function MejaPage() {
             <SelectItem value="all">Semua</SelectItem>
             <SelectItem value="kosong">Kosong</SelectItem>
             <SelectItem value="terpakai">Terpakai</SelectItem>
+            <SelectItem value="dipesan">Dipesan</SelectItem>
           </SelectContent>
         </Select>
         {isOwner && (
@@ -387,7 +390,7 @@ export default function MejaPage() {
 {showAksi && (
                     <TableCell className="py-2 text-right">
                       <div className="flex justify-end gap-1">
-                        {canKosongkan && meja.statusMeja === 'terpakai' && (
+                        {canKosongkan && (meja.statusMeja === 'terpakai' || meja.statusMeja === 'dipesan') && (
                           <Button
                             variant="outline"
                             size="icon"
