@@ -138,11 +138,11 @@ export function suggestKategoriIcon(nama: string): string {
   if (n.includes('teh') || n.includes('tea') || n.includes('minum') || n.includes('drink') || n.includes('air')) return 'GlassWater';
   if (n.includes('nasi') || n.includes('nasgor') || n.includes('rice')) return 'CookingPot';
   if (n.includes('mie') || n.includes('noodle')) return 'Wheat';
+  if (n.includes('sup') || n.includes('soup') || n.includes('kuah') || n.includes('soto') || n.includes('bakso')) return 'Soup';
   if (n.includes('ayam') || n.includes('chicken')) return 'Drumstick';
-  if (n.includes('sapi') || n.includes('beef') || n.includes('steak') || n.includes('daging') || n.includes('bakar') || n.includes('grill') || n.includes('bbq')) return 'Beef';
+  if (n.includes('sapi') || n.includes('beef') || n.includes('steak') || n.includes('daging') || n.includes('grill') || n.includes('bbq')) return 'Beef';
   if (n.includes('udang') || n.includes('shrimp') || n.includes('prawn') || n.includes('cumi')) return 'Shrimp';
   if (n.includes('ikan') || n.includes('fish') || n.includes('seafood') || n.includes('kerang') || n.includes('kepiting')) return 'Fish';
-  if (n.includes('sup') || n.includes('soup') || n.includes('kuah') || n.includes('soto') || n.includes('bakso')) return 'Soup';
   if (n.includes('pizza')) return 'Pizza';
   if (n.includes('burger')) return 'Hamburger';
   if (n.includes('sandwich')) return 'Sandwich';
@@ -155,7 +155,7 @@ export function suggestKategoriIcon(nama: string): string {
   if (n.includes('anggur') || n.includes('grape')) return 'Grape';
   if (n.includes('buah') || n.includes('fruit')) return 'Apple';
   if (n.includes('telur') || n.includes('egg')) return 'EggFried';
-  if (n.includes('tahu') || n.includes('tempe') || n.includes('bean')) return 'Bean';
+  if (/\btahu\b/.test(n) || n.includes('tempe') || n.includes('bean')) return 'Bean';
   if (n.includes('kacang') || n.includes('nut')) return 'Nut';
   if (n.includes('cokelat') || n.includes('chocolate') || n.includes('permen') || n.includes('candy')) return 'Candy';
   if (n.includes('donat') || n.includes('donut')) return 'Donut';
