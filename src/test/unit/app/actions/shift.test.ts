@@ -20,8 +20,12 @@ import {
   autoCloseShifts,
   bukaShift,
   getDaftarKasir,
+  getDaftarKasirLengkap,
   getJadwalShift,
   getKasKeluarAktif,
+  getRiwayatShift,
+  getShiftAktif,
+  getSisaPesanan,
   hapusJadwalShift,
   hapusKasKeluar,
   simpanJadwalShift,
@@ -738,5 +742,206 @@ describe('getDaftarKasir', () => {
     authMock.mockResolvedValue(null)
 
     await expect(getDaftarKasir()).resolves.toEqual({ error: 'Unauthorized' })
+  })
+
+  it('mengembalikan username kasir untuk owner', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
+    prismaMock.users.findMany.mockResolvedValue([{ username: 'kasir1' }, { username: 'kasir2' }])
+
+    await expect(getDaftarKasir()).resolves.toEqual({ kasir: ['kasir1', 'kasir2'] })
+  })
+})
+
+describe('getDaftarKasirLengkap', () => {
+  it('menolak selain owner', async () => {
+    authMock.mockResolvedValue(sessionUntuk('cashier'))
+
+    await expect(getDaftarKasirLengkap()).resolves.toEqual({ error: 'Unauthorized' })
+  })
+
+  it('mengembalikan id dan username kasir aktif', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
+    prismaMock.users.findMany.mockResolvedValue([
+      { id: 2, username: 'kasir1' },
+      { id: 3, username: 'kasir2' },
+    ])
+
+    await expect(getDaftarKasirLengkap()).resolves.toEqual({
+      kasir: [
+        { id: 2, username: 'kasir1' },
+        { id: 3, username: 'kasir2' },
+      ],
+    })
+  })
+})
+
+describe('getSisaPesanan', () => {
+  it('menolak tanpa session', async () => {
+    authMock.mockResolvedValue(null)
+
+    await expect(getSisaPesanan()).resolves.toEqual({ error: 'Unauthorized' })
+  })
+
+  it('menghitung pesanan yang belum selesai', async () => {
+    prismaMock.pesanan.count.mockResolvedValue(3)
+
+    await expect(getSisaPesanan()).resolves.toEqual({ sisa: 3 })
+  })
+})
+
+describe('getShiftAktif', () => {
+  it('menolak tanpa session', async () => {
+    authMock.mockResolvedValue(null)
+
+    await expect(getShiftAktif()).resolves.toEqual({ error: 'Unauthorized' })
+  })
+
+  it('mengembalikan canManage false untuk non-kasir', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
+
+    await expect(getShiftAktif()).resolves.toEqual({
+      shift: null,
+      canManage: false,
+      saranUangAwal: null,
+      saranUangAwalSendiri: null,
+      shiftLainAktif: null,
+      slotSaatIni: null,
+    })
+  })
+
+  it('menolak id kasir yang tidak valid', async () => {
+    authMock.mockResolvedValue(sessionUntuk('cashier', { id: 'bukan-angka' }))
+
+    await expect(getShiftAktif()).resolves.toEqual({ error: 'Unauthorized' })
+  })
+
+  it('mengembalikan shift null saat kasir belum membuka shift', async () => {
+    prismaMock.jadwalShift.findMany.mockResolvedValue([])
+
+    const hasil = await getShiftAktif()
+
+    expect(hasil).toMatchObject({ shift: null, canManage: true, slotSaatIni: null })
+  })
+
+  it('mengembalikan shift aktif beserta rekap dan saran uang awal', async () => {
+    prismaMock.shiftKasir.findFirst
+      .mockResolvedValueOnce(SHIFT_ROW)
+      .mockResolvedValueOnce({ id: 8, uangAkhir: '145000', kasir: { username: 'kasir0' } })
+      .mockResolvedValueOnce({ id: 9, uangAkhir: '150000' })
+      .mockResolvedValueOnce({
+        id: 11,
+        kasir: { username: 'kasir2' },
+        jadwalShift: { nama: 'Pagi' },
+      })
+    prismaMock.jadwalShift.findMany.mockResolvedValue([
+      { id: 1, nama: 'Pagi', jamMulai: 0, jamSelesai: 1440 },
+    ])
+
+    const hasil = await getShiftAktif()
+
+    expect(hasil).toMatchObject({
+      canManage: true,
+      shift: {
+        id: 9,
+        kasirUsername: 'kasir1',
+        totalTransaksi: 2,
+        totalPendapatan: 60000,
+        totalTunai: 50000,
+        totalNonTunai: 10000,
+        totalKasKeluar: 5000,
+      },
+      saranUangAwal: { shiftId: 8, nominal: 145000, dariKasir: 'kasir0' },
+      saranUangAwalSendiri: { shiftId: 9, nominal: 150000 },
+      shiftLainAktif: { shiftId: 11, kasirUsername: 'kasir2', slotNama: 'Pagi' },
+      slotSaatIni: { id: 1, nama: 'Pagi', jamMulai: 0, jamSelesai: 1440 },
+    })
+  })
+})
+
+describe('getRiwayatShift', () => {
+  it('menolak tanpa session', async () => {
+    authMock.mockResolvedValue(null)
+
+    await expect(getRiwayatShift()).resolves.toEqual({ error: 'Unauthorized' })
+  })
+
+  it('menolak role waiter', async () => {
+    authMock.mockResolvedValue(sessionUntuk('waiter'))
+
+    await expect(getRiwayatShift()).resolves.toEqual({
+      error: 'Riwayat shift hanya untuk kasir dan owner',
+    })
+  })
+
+  it('membatasi riwayat milik kasir sendiri', async () => {
+    authMock.mockResolvedValue(sessionUntuk('cashier', { id: '2' }))
+    prismaMock.shiftKasir.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          ...SHIFT_ROW,
+          statusShift: 'CLOSED',
+          totalTunai: 50000,
+          kasKeluar: [{ id: 1, nominal: '5000' }],
+        },
+      ])
+
+    const hasil = await getRiwayatShift()
+
+    const where = prismaMock.shiftKasir.findMany.mock.calls[1][0].where
+    expect(where.kasirId).toBe(2)
+    expect(where.waktuMasuk).toBeUndefined()
+    expect(hasil).toMatchObject({
+      shifts: [{ uangHarapAkhir: 145000, sumberShiftId: null, sumberShiftKasir: null }],
+    })
+  })
+
+  it('menolak id kasir yang tidak valid', async () => {
+    authMock.mockResolvedValue(sessionUntuk('cashier', { id: 'x' }))
+
+    await expect(getRiwayatShift()).resolves.toEqual({ error: 'Unauthorized' })
+  })
+
+  it('memfilter berdasarkan username kasir untuk owner', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
+    prismaMock.shiftKasir.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+
+    await getRiwayatShift({ period: 'today', kasirUsername: 'kasir1' })
+
+    const where = prismaMock.shiftKasir.findMany.mock.calls[1][0].where
+    expect(where.kasir).toEqual({ username: 'kasir1' })
+    expect(where.waktuMasuk.gte.getHours()).toBe(0)
+    expect(where.waktuMasuk.gte.getMinutes()).toBe(0)
+  })
+
+  it('menghitung awal minggu sejak Senin', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
+    prismaMock.shiftKasir.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+
+    await getRiwayatShift({ period: 'week' })
+
+    const gte = prismaMock.shiftKasir.findMany.mock.calls[1][0].where.waktuMasuk.gte as Date
+    expect((gte.getDay() + 6) % 7).toBe(0)
+  })
+
+  it('menghitung awal bulan untuk periode month', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
+    prismaMock.shiftKasir.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+
+    await getRiwayatShift({ period: 'month' })
+
+    const gte = prismaMock.shiftKasir.findMany.mock.calls[1][0].where.waktuMasuk.gte as Date
+    expect(gte.getDate()).toBe(1)
+  })
+
+  it('tidak memfilter waktu untuk periode all', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
+    prismaMock.shiftKasir.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+
+    await getRiwayatShift({ period: 'all', kasirUsername: 'all' })
+
+    const where = prismaMock.shiftKasir.findMany.mock.calls[1][0].where
+    expect(where.waktuMasuk).toBeUndefined()
+    expect(where.kasir).toBeUndefined()
   })
 })

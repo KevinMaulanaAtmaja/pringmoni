@@ -79,3 +79,7 @@ describe('Button Component', () => {
 - **Run** `npm run lint` before test
 - **Test** with Vitest (`npm run test`)
 - **Priority:** Test PBIs that are already completed by FE/BE
+- **Test = spec:** If implementation does not match the feature spec, **let the test fail and report the assertion/error**.
+- **DILARANG** melonggarkan assertion, men-skip/menghapus test, atau mengubah expected value agar test hijau.
+- Test code may only be changed to fix a **wrong setup/mock/fixture**, never to change expected behavior.
+- If the spec is ambiguous, **ask the user first** before changing a test. Fix the source code, then re-run tests.

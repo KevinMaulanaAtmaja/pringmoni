@@ -76,6 +76,14 @@ src/
 - Jangan merge branch yang meninggalkan error lint.
 - Setelah ubah `prisma/schema.prisma`: `npx prisma validate` + `npx prisma generate` (saat dev server mati).
 
+### 3.1 Test Adalah Spek (WAJIB)
+- Test merepresentasikan perilaku yang dijanjikan spek fitur, bukan kode yang kebetulan ada.
+- Jika implementasi tidak sesuai spek: **biarkan test gagal dan tampilkan error**.
+- **DILARANG** melonggarkan assertion, men-skip/menghapus test, atau mengubah expected value agar test hijau.
+- Kode test hanya boleh diubah untuk memperbaiki **setup/mock/fixture yang salah**, bukan untuk mengubah ekspektasi perilaku.
+- Perbaikan dilakukan di kode sumber; setelah itu test dijalankan ulang.
+- Jika spek ambigu: **tanya user dulu** sebelum mengubah test.
+
 ### 4. Sinkron Dokumen
 - Perubahan schema, role, route, payment, atau perilaku fitur **wajib** memperbarui `.opencode/PRD.md` + `.opencode/ARCHITECTURE.md` di commit yang sama.
 - Jangan biarkan dokumen menyebut fitur/library yang sudah tidak aktif (mis. Midtrans).

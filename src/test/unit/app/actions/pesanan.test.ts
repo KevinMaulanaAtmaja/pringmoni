@@ -47,13 +47,28 @@ import {
   pesananFixture,
   voucherFixture,
 } from '@/test/helpers/fixtures'
+import { getKategoriMenus } from '@/app/actions/menu'
+import { requireShiftAktif, shiftAktifSlotSekarang } from '@/lib/shift'
 import {
+  cancelExpiredOrders,
   cancelPesanan,
   createPesanan,
+  getActivePesananByToken,
+  getCustomerMenuData,
+  getCustomerPaymentStatus,
+  getMenusForCustomer,
   getMejaTersediaPindah,
+  getPesananById,
+  getPesananByTokenAndId,
+  getPesananForCheckout,
+  getPesananForDashboard,
+  getStatusPesananAktifMeja,
+  konfirmasiPembayaranCustomer,
   markItemDiantar,
   markPesananSelesai,
   pindahMeja,
+  updateNamaPelanggan,
+  updatePembayaran,
   updateStatusPesanan,
 } from '@/app/actions/pesanan'
 
@@ -675,5 +690,632 @@ describe('pindahMeja', () => {
     )
     expect(revalidatePathMock).toHaveBeenCalledWith('/TOKEN01')
     expect(revalidatePathMock).toHaveBeenCalledWith('/TOKEN02')
+  })
+})
+
+function barisPesanan(
+  overrides: Record<string, unknown> = {},
+  detailOverrides: Array<Record<string, unknown>> = []
+) {
+  const detail = [1, 2, 3, 4].map((i) => ({
+    id: i,
+    menuId: 7 + i,
+    jumlah: 1,
+    hargaSaatPesan: 10000,
+    catatanItem: null,
+    statusAntar: 'belum',
+    menu: { namaMenu: `Menu ${i}`, menuFoto: [] },
+    ...(detailOverrides[i - 1] ?? {}),
+  }))
+
+  return {
+    ...pesananFixture({ id: 1, totalHarga: 50000 }),
+    meja: { nomorMeja: 'L01' },
+    waiter: null,
+    kasir: null,
+    voucher: null,
+    detailPesanan: detail,
+    ...overrides,
+  }
+}
+
+describe('getMenusForCustomer', () => {
+  it('memetakan menu tersedia beserta foto dan porsi harian', async () => {
+    prismaMock.menu.findMany.mockResolvedValue([
+      {
+        id: 7,
+        namaMenu: 'Nasi Goreng',
+        deskripsi: 'Enak',
+        harga: '25000',
+        statusMenu: 'tersedia',
+        stokManual: 5,
+        kategori: { namaKategori: 'Makanan', lokasi: 'dapur', pilihanSuhu: 'panas' },
+        menuFoto: [
+          { id: 1, fotoUrl: 'a.jpg' },
+          { id: 2, fotoUrl: 'b.jpg' },
+        ],
+      },
+      {
+        id: 8,
+        namaMenu: 'Es Teh',
+        deskripsi: null,
+        harga: 5000,
+        statusMenu: 'tersedia',
+        stokManual: null,
+        kategori: { namaKategori: 'Minuman', lokasi: 'bar', pilihanSuhu: 'dingin' },
+        menuFoto: [],
+      },
+    ])
+
+    const hasil = await getMenusForCustomer()
+
+    expect(hasil[0]).toMatchObject({
+      id: 7,
+      harga: 25000,
+      kategori: 'Makanan',
+      fotoUrl: 'a.jpg',
+      porsiTersedia: 5,
+      adaResep: false,
+      bahanPembatas: [],
+    })
+    expect(hasil[0].menuFoto).toHaveLength(2)
+    expect(hasil[1]).toMatchObject({ fotoUrl: null, porsiTersedia: 0 })
+  })
+})
+
+describe('getCustomerMenuData', () => {
+  it('mengembalikan data kosong saat token meja tidak valid', async () => {
+    prismaMock.meja.findFirst.mockResolvedValue(null)
+
+    const hasil = await getCustomerMenuData('TOKEN-X')
+
+    expect(hasil).toEqual({ meja: null, menus: [], kategoris: [] })
+    expect(prismaMock.menu.findMany).not.toHaveBeenCalled()
+  })
+
+  it('menggabungkan meja, menu, dan kategori', async () => {
+    prismaMock.menu.findMany.mockResolvedValue([])
+    vi.mocked(getKategoriMenus).mockResolvedValue([{ id: 1, namaKategori: 'Makanan' }] as never)
+
+    const hasil = await getCustomerMenuData('TOKEN01')
+
+    expect(hasil.meja).toMatchObject({ nomorMeja: 'K01' })
+    expect(hasil.menus).toEqual([])
+    expect(hasil.kategoris).toEqual([{ id: 1, namaKategori: 'Makanan' }])
+  })
+})
+
+describe('getPesananForDashboard', () => {
+  it('menolak tanpa session', async () => {
+    expect(await getPesananForDashboard()).toEqual({ error: 'Unauthorized' })
+  })
+
+  it('memetakan pesanan, filter, dan tipe meja', async () => {
+    authMock.mockResolvedValue(sessionUntuk('waiter'))
+    prismaMock.pesanan.findMany.mockResolvedValue([
+      barisPesanan({
+        metodePembayaran: 'tunai',
+        namaPelanggan: null,
+        kasir: { username: 'kasir1' },
+        createdAt: new Date('2026-11-05T03:00:00.000Z'),
+        updatedAt: null,
+      }),
+      barisPesanan({
+        id: 2,
+        mejaId: 2,
+        meja: { nomorMeja: 'K02' },
+        waiter: { username: 'waiter1' },
+        kasir: null,
+        createdAt: new Date('2026-11-05T02:00:00.000Z'),
+        updatedAt: new Date('2026-11-05T02:30:00.000Z'),
+        detailPesanan: [barisPesanan().detailPesanan[0]],
+      }),
+    ])
+
+    const hasil = await getPesananForDashboard({
+      status: 'menunggu',
+      tanggal: '2026-11-05',
+      mejaId: 2,
+    })
+
+    const where = prismaMock.pesanan.findMany.mock.calls[0][0].where
+    expect(where.statusPesanan).toBe('menunggu')
+    expect(where.mejaId).toBe(2)
+    expect(where.createdAt.gte).toBeInstanceOf(Date)
+    expect(where.createdAt.lt.getTime() - where.createdAt.gte.getTime()).toBe(24 * 60 * 60 * 1000)
+
+    const daftar = hasil as Exclude<typeof hasil, { error: string }>
+    expect(daftar[0]).toMatchObject({
+      tipeMeja: 'lesehan',
+      items: 4,
+      itemNames: ['Menu 1', 'Menu 2', 'Menu 3'],
+      sisaItems: 1,
+      updatedAt: '2026-11-05T03:00:00.000Z',
+      namaPelanggan: null,
+    })
+    expect(daftar[1]).toMatchObject({
+      tipeMeja: 'kursi',
+      waiterUsername: 'waiter1',
+      kasirUsername: null,
+      updatedAt: '2026-11-05T02:30:00.000Z',
+    })
+  })
+})
+
+describe('updatePembayaran', () => {
+  it('menolak selain kasir', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
+
+    expect(
+      await updatePembayaran(1, { metodePembayaran: 'tunai', jumlahBayar: 1000, kembalian: 0 })
+    ).toEqual({ error: 'Unauthorized' })
+  })
+
+  it('meneruskan error saat shift belum aktif', async () => {
+    authMock.mockResolvedValue(sessionUntuk('cashier'))
+    vi.mocked(requireShiftAktif).mockResolvedValue({ error: 'Shift belum dibuka' } as never)
+
+    expect(
+      await updatePembayaran(1, { metodePembayaran: 'tunai', jumlahBayar: 1000, kembalian: 0 })
+    ).toEqual({ error: 'Shift belum dibuka' })
+  })
+
+  it('menolak pesanan yang tidak ditemukan', async () => {
+    authMock.mockResolvedValue(sessionUntuk('cashier'))
+    vi.mocked(requireShiftAktif).mockResolvedValue({ shiftId: 9 } as never)
+    prismaMock.pesanan.findFirst.mockResolvedValue(null)
+
+    expect(
+      await updatePembayaran(1, { metodePembayaran: 'tunai', jumlahBayar: 1000, kembalian: 0 })
+    ).toEqual({ error: 'Pesanan tidak ditemukan' })
+  })
+
+  it('menandai pembayaran berhasil dan mencatat log', async () => {
+    authMock.mockResolvedValue(sessionUntuk('cashier', { id: '2', username: 'kasir1' }))
+    vi.mocked(requireShiftAktif).mockResolvedValue({ shiftId: 9 } as never)
+    prismaMock.pesanan.findFirst.mockResolvedValue({ id: 1, totalHarga: '50000' })
+
+    const hasil = await updatePembayaran(1, {
+      metodePembayaran: 'tunai',
+      jumlahBayar: 60000,
+      kembalian: 10000,
+    })
+
+    expect(hasil).toEqual({ success: true })
+    expect(prismaMock.pesanan.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: expect.objectContaining({
+        metodePembayaran: 'tunai',
+        statusPembayaran: 'berhasil',
+        kasirId: 2,
+        shiftId: 9,
+      }),
+    })
+    expect(triggerPusherMock).toHaveBeenCalled()
+    expect(createLogMock).toHaveBeenCalledWith(
+      'PROCESS_PAYMENT',
+      expect.stringContaining('Pembayaran pesanan #1')
+    )
+    expect(revalidatePathMock).toHaveBeenCalledWith('/dashboard/kasir')
+  })
+})
+
+describe('getPesananById', () => {
+  it('menolak tanpa session', async () => {
+    expect(await getPesananById(1)).toEqual({ error: 'Unauthorized' })
+  })
+
+  it('menolak pesanan yang tidak ditemukan', async () => {
+    authMock.mockResolvedValue(sessionUntuk('waiter'))
+    prismaMock.pesanan.findFirst.mockResolvedValue(null)
+
+    expect(await getPesananById(1)).toEqual({ error: 'Pesanan tidak ditemukan' })
+  })
+
+  it('memetakan detail pesanan lengkap', async () => {
+    authMock.mockResolvedValue(sessionUntuk('waiter'))
+    prismaMock.pesanan.findFirst.mockResolvedValue(
+      barisPesanan({
+        biayaAdmin: 1000,
+        ppn: 500,
+        diskonVoucher: 5000,
+        metodePembayaran: 'tunai',
+        jumlahBayar: 60000,
+        kembalian: 10000,
+        catatan: 'tanpa sambal',
+        meja: { nomorMeja: 'L02' },
+        waiter: { username: 'waiter1' },
+        kasir: { username: 'kasir1' },
+        voucher: { kode: 'HEBAT', namaVoucher: 'Hebat', diskonPersen: 10 },
+      })
+    )
+
+    const hasil = await getPesananById(1)
+    const detail = hasil as NonNullable<Exclude<typeof hasil, { error: string }>>
+
+    expect(detail).toMatchObject({
+      tipe_meja: 'lesehan',
+      voucher_kode: 'HEBAT',
+      voucher_diskon_persen: 10,
+      biaya_admin: 1000,
+      ppn: 500,
+      jumlah_bayar: 60000,
+      waiter_username: 'waiter1',
+      kasir_username: 'kasir1',
+      catatan: 'tanpa sambal',
+    })
+    expect(detail.items[0]).toMatchObject({ nama_menu: 'Menu 1', foto_urls: [] })
+  })
+
+  it('memakai null saat field opsional kosong', async () => {
+    authMock.mockResolvedValue(sessionUntuk('waiter'))
+    prismaMock.pesanan.findFirst.mockResolvedValue(
+      barisPesanan({
+        biayaAdmin: null,
+        ppn: null,
+        jumlahBayar: null,
+        namaPelanggan: null,
+        catatan: null,
+      })
+    )
+
+    const hasil = await getPesananById(1)
+
+    expect(hasil).toMatchObject({
+      voucher_kode: null,
+      biaya_admin: null,
+      ppn: null,
+      jumlah_bayar: null,
+      nama_pelanggan: null,
+      catatan: null,
+    })
+  })
+})
+
+describe('getPesananForCheckout', () => {
+  it('mengembalikan null saat pesanan tidak ada', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(null)
+
+    expect(await getPesananForCheckout('PUB-1')).toBeNull()
+  })
+
+  it('memetakan ringkasan checkout dengan voucher', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(
+      barisPesanan({
+        midtransOrderId: 'PUB-1',
+        totalHarga: 45000,
+        diskonVoucher: 5000,
+        biayaAdmin: 1000,
+        ppn: 500,
+        statusPembayaran: 'menunggu',
+        voucher: { kode: 'HEBAT', namaVoucher: 'Hebat', diskonPersen: 10 },
+      })
+    )
+
+    const hasil = await getPesananForCheckout('PUB-1')
+
+    expect(hasil).toMatchObject({
+      subtotal: 50000,
+      diskon: 5000,
+      total: 45000,
+      biayaAdmin: 1000,
+      ppn: 500,
+      voucher: { kode: 'HEBAT', diskonPersen: 10 },
+    })
+    expect(hasil?.items[0]).toMatchObject({ namaMenu: 'Menu 1', harga: 10000 })
+  })
+})
+
+describe('getCustomerPaymentStatus', () => {
+  it('mengembalikan null saat pesanan tidak ada', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(null)
+
+    expect(await getCustomerPaymentStatus('PUB-1')).toBeNull()
+  })
+
+  it('mengembalikan status dan metode pembayaran', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue({
+      statusPembayaran: 'berhasil',
+      metodePembayaran: 'qris',
+    })
+
+    expect(await getCustomerPaymentStatus('PUB-1')).toEqual({
+      statusPembayaran: 'berhasil',
+      metodePembayaran: 'qris',
+    })
+  })
+})
+
+describe('getActivePesananByToken', () => {
+  it('mengembalikan null saat token meja tidak valid', async () => {
+    prismaMock.meja.findFirst.mockResolvedValue(null)
+
+    expect(await getActivePesananByToken('TOKEN-X')).toBeNull()
+  })
+
+  it('mengembalikan null saat tidak ada pesanan aktif', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(null)
+
+    expect(await getActivePesananByToken('TOKEN01')).toBeNull()
+  })
+
+  it('memetakan pesanan aktif milik meja', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(
+      barisPesanan({ namaPelanggan: null })
+    )
+
+    const hasil = await getActivePesananByToken('TOKEN01')
+
+    expect(hasil).toMatchObject({
+      id: 1,
+      total: 50000,
+      status: 'menunggu',
+      namaPelanggan: null,
+    })
+    expect(hasil?.items[0]).toMatchObject({ namaMenu: 'Menu 1' })
+  })
+})
+
+describe('getPesananByTokenAndId', () => {
+  it('mengembalikan null saat token meja tidak valid', async () => {
+    prismaMock.meja.findFirst.mockResolvedValue(null)
+
+    expect(await getPesananByTokenAndId('TOKEN-X', 'PUB-1')).toBeNull()
+  })
+
+  it('mengembalikan null saat pesanan tidak ada', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(null)
+
+    expect(await getPesananByTokenAndId('TOKEN01', 'PUB-1')).toBeNull()
+  })
+
+  it('memetakan pesanan berdasarkan token dan public id', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(
+      barisPesanan({
+        midtransOrderId: 'PUB-1',
+        namaPelanggan: null,
+        metodePembayaran: 'tunai',
+        meja: { nomorMeja: 'K01' },
+      })
+    )
+
+    const hasil = await getPesananByTokenAndId('TOKEN01', 'PUB-1')
+
+    expect(hasil).toMatchObject({
+      midtransOrderId: 'PUB-1',
+      subtotal: 50000,
+      total: 50000,
+      nomorMeja: 'K01',
+      metodePembayaran: 'tunai',
+      namaPelanggan: null,
+    })
+    expect(hasil?.items[0]).toMatchObject({ detailId: 1, statusAntar: 'belum' })
+  })
+})
+
+describe('konfirmasiPembayaranCustomer', () => {
+  it('menolak token meja tidak valid', async () => {
+    prismaMock.meja.findFirst.mockResolvedValue(null)
+
+    expect(await konfirmasiPembayaranCustomer('PUB-1', 'TOKEN-X', 'tunai')).toEqual({
+      error: 'Token meja tidak valid',
+    })
+  })
+
+  it('menolak pesanan yang tidak ditemukan', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(null)
+
+    expect(await konfirmasiPembayaranCustomer('PUB-1', 'TOKEN01', 'tunai')).toEqual({
+      error: 'Pesanan tidak ditemukan',
+    })
+  })
+
+  it('menolak pesanan yang sudah dikonfirmasi', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue({ statusPembayaran: 'berhasil' })
+
+    expect(await konfirmasiPembayaranCustomer('PUB-1', 'TOKEN01', 'tunai')).toEqual({
+      error: 'Pesanan sudah dikonfirmasi',
+    })
+  })
+
+  it('menolak metode pembayaran tidak valid', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue({ statusPembayaran: 'menunggu' })
+
+    expect(await konfirmasiPembayaranCustomer('PUB-1', 'TOKEN01', 'transfer')).toEqual({
+      error: 'Metode pembayaran tidak valid',
+    })
+  })
+
+  it('menolak konfirmasi setelah 60 menit', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue({
+      statusPembayaran: 'menunggu',
+      createdAt: new Date(Date.now() - 61 * 60 * 1000),
+    })
+
+    const hasil = await konfirmasiPembayaranCustomer('PUB-1', 'TOKEN01', 'tunai')
+
+    expect('error' in hasil && hasil.error).toContain('telah habis')
+  })
+
+  it('menandai QRIS sebagai berhasil dan menempel shift aktif', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue({
+      id: 1,
+      statusPembayaran: 'menunggu',
+      totalHarga: 50000,
+      createdAt: new Date(),
+    })
+    vi.mocked(shiftAktifSlotSekarang).mockResolvedValue(5)
+
+    const hasil = await konfirmasiPembayaranCustomer('PUB-1', 'TOKEN01', 'qris')
+
+    expect(hasil).toEqual({ success: true })
+    const data = prismaMock.pesanan.update.mock.calls[0][0].data
+    expect(data).toMatchObject({
+      metodePembayaran: 'qris',
+      statusPembayaran: 'berhasil',
+      jumlahBayar: 50000,
+      kembalian: 0,
+      shiftId: 5,
+    })
+    expect(triggerPusherMock).toHaveBeenCalled()
+  })
+
+  it('menyimpan metode tunai tanpa mengubah status pembayaran', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue({
+      id: 1,
+      statusPembayaran: 'menunggu',
+      totalHarga: 50000,
+      createdAt: new Date(),
+    })
+
+    const hasil = await konfirmasiPembayaranCustomer('PUB-1', 'TOKEN01', 'tunai')
+
+    expect(hasil).toEqual({ success: true })
+    const data = prismaMock.pesanan.update.mock.calls[0][0].data
+    expect(data).toMatchObject({ metodePembayaran: 'tunai' })
+    expect(data).not.toHaveProperty('statusPembayaran')
+  })
+})
+
+describe('getStatusPesananAktifMeja', () => {
+  it('mengembalikan null saat token meja tidak valid', async () => {
+    prismaMock.meja.findFirst.mockResolvedValue(null)
+
+    expect(await getStatusPesananAktifMeja('TOKEN-X')).toBeNull()
+  })
+
+  it('menandai tidak ada pesanan aktif', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(null)
+
+    expect(await getStatusPesananAktifMeja('TOKEN01')).toEqual({
+      adaPesananAktif: false,
+      sudahPilihMetode: false,
+    })
+  })
+
+  it('menandai pesanan aktif yang sudah memilih metode', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue({ id: 1, metodePembayaran: 'qris' })
+
+    expect(await getStatusPesananAktifMeja('TOKEN01')).toEqual({
+      adaPesananAktif: true,
+      sudahPilihMetode: true,
+    })
+  })
+
+  it('menandai pesanan aktif yang belum memilih metode', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue({ id: 1, metodePembayaran: null })
+
+    expect(await getStatusPesananAktifMeja('TOKEN01')).toEqual({
+      adaPesananAktif: true,
+      sudahPilihMetode: false,
+    })
+  })
+})
+
+describe('cancelExpiredOrders', () => {
+  it('tidak membatalkan saat tidak ada pesanan', async () => {
+    prismaMock.pesanan.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+
+    expect(await cancelExpiredOrders()).toEqual({ success: true })
+    expect(prismaMock.pesanan.update).not.toHaveBeenCalled()
+  })
+
+  it('membatalkan pesanan ber-metode yang sudah lewat 60 menit', async () => {
+    const lama = new Date(Date.now() - 61 * 60 * 1000)
+    prismaMock.pesanan.findMany
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          mejaId: 2,
+          createdAt: lama,
+          updatedAt: lama,
+          metodePembayaran: 'tunai',
+          midtransTransactionId: null,
+        },
+      ])
+      .mockResolvedValueOnce([])
+
+    const hasil = await cancelExpiredOrders()
+
+    expect(hasil).toEqual({ success: true })
+    expect(prismaMock.pesanan.update).toHaveBeenCalledWith({
+      where: { id: 1, statusPembayaran: 'menunggu' },
+      data: expect.objectContaining({ statusPembayaran: 'dibatalkan', catatan: 'Expired' }),
+    })
+    expect(prismaMock.meja.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: { statusMeja: 'kosong' },
+    })
+    expect(createLogMock).toHaveBeenCalledWith(
+      'CANCEL_ORDER_EXPIRED',
+      expect.stringContaining('tunai')
+    )
+  })
+
+  it('melewati pesanan ber-metode yang belum kedaluwarsa', async () => {
+    prismaMock.pesanan.findMany
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          mejaId: 2,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          metodePembayaran: 'tunai',
+          midtransTransactionId: null,
+        },
+      ])
+      .mockResolvedValueOnce([])
+
+    await cancelExpiredOrders()
+
+    expect(prismaMock.pesanan.update).not.toHaveBeenCalled()
+  })
+
+  it('membatalkan pesanan tanpa metode yang sudah lewat 60 menit', async () => {
+    prismaMock.pesanan.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: 2, mejaId: null, createdAt: new Date(Date.now() - 61 * 60 * 1000) },
+      ])
+
+    await cancelExpiredOrders()
+
+    expect(prismaMock.pesanan.update).toHaveBeenCalledWith({
+      where: { id: 2, statusPembayaran: 'menunggu' },
+      data: expect.objectContaining({ catatan: 'Tidak memilih pembayaran' }),
+    })
+    expect(prismaMock.meja.update).not.toHaveBeenCalled()
+    expect(createLogMock).toHaveBeenCalledWith(
+      'CANCEL_ORDER_EXPIRED',
+      expect.stringContaining('tidak memilih pembayaran')
+    )
+  })
+})
+
+describe('updateNamaPelanggan', () => {
+  it('menolak token meja tidak valid', async () => {
+    prismaMock.meja.findFirst.mockResolvedValue(null)
+
+    expect(await updateNamaPelanggan('PUB-1', 'TOKEN-X', 'Budi')).toEqual({
+      error: 'Token meja tidak valid',
+    })
+  })
+
+  it('menolak pesanan yang tidak ditemukan', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue(null)
+
+    expect(await updateNamaPelanggan('PUB-1', 'TOKEN01', 'Budi')).toEqual({
+      error: 'Pesanan tidak ditemukan',
+    })
+  })
+
+  it('memperbarui nama pelanggan', async () => {
+    prismaMock.pesanan.findFirst.mockResolvedValue({ id: 3 })
+
+    expect(await updateNamaPelanggan('PUB-1', 'TOKEN01', 'Budi')).toEqual({ success: true })
+    expect(prismaMock.pesanan.update).toHaveBeenCalledWith({
+      where: { id: 3 },
+      data: { namaPelanggan: 'Budi' },
+    })
   })
 })

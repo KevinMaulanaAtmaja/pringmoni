@@ -16,6 +16,7 @@ import {
   PanelLeftOpen,
   Boxes,
   History,
+  FlaskConical,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
@@ -60,6 +61,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },
         { name: "Laporan", icon: BarChart3, href: "/dashboard/laporan" },
         { name: "Shift", icon: History, href: "/dashboard/shift" },
+        { name: "Testing", icon: FlaskConical, href: "/dashboard/testing" },
       ]
 
   return (

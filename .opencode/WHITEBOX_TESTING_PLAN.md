@@ -1,6 +1,6 @@
 # Whitebox Testing Plan - Pringmoni
 
-> **Status:** IN PROGRESS (S0-S3 selesai; S4-S6 belum)
+> **Status:** Unit S0-S6 SELESAI (2026-11-06; unit suite hijau: 35 file test / 660 test). Integration test (8.4) BELUM — butuh test database PostgreSQL terisolasi + persetujuan user.
 > **Versi:** 1.0
 > **Tanggal:** 5 November 2026
 > **Project:** Pringmoni Resto POS & Monitoring
@@ -40,12 +40,13 @@
 | `@testing-library/jest-dom` | ^6.9.1 | Matcher DOM (belum dipakai) |
 | `@testing-library/user-event` | ^14.6.1 | Interaksi user (belum dipakai) |
 
-### 2.2 Test yang sudah berjalan (3 file)
-| File | Cakupan | Status |
-|------|---------|--------|
-| `src/test/proxy.test.ts` | Route protection, role matrix, nested route | Ada, perlu enhancement |
-| `src/test/lib/rate-limiter.test.ts` | Rate limit login (5 percobaan) | Ada, perlu enhancement |
-| `src/test/lib/sesi.test.ts` | Deteksi sesi aktif + label waktu | Ada, perlu enhancement |
+### 2.2 Test yang sudah berjalan (27 file, 526 test)
+| Folder | File | Cakupan |
+|--------|------|---------|
+| `src/test/unit/app/actions/` | `dashboard`, `kasir`, `laporan`, `login`, `logout`, `logs`, `meja`, `menu`, `menu-foto`, `notifikasi`, `pesanan`, `refund`, `reset-password`, `shift`, `stok-bahan`, `users`, `voucher` | Server Actions (auth, pesanan, pembayaran, shift, refund, laporan, stok, CRUD) |
+| `src/test/unit/lib/` | `export-laporan`, `fee`, `jadwal`, `log`, `print-struk`, `rate-limiter`, `sesi`, `shift`, `stok` | Library murni + integrasi tipis (PDF/Excel, struk, rate limit, sesi, stok) |
+| `src/test/unit/` | `proxy.test.ts` | Route protection, role matrix, nested route, `takenOver` |
+| `src/test/integration/` | _(kosong)_ | Disiapkan untuk integration test (lihat 8.4) |
 
 ### 2.3 Gap yang harus ditutup di Fase 0
 | Gap | Dampak | Aksi |
@@ -282,6 +283,8 @@ Target dipercepat dari 8 minggu menjadi **7 sesi kerja (~6-7 hari kerja)** karen
 | **S5** | Medium: CRUD, Log, Proxy | 1 hari | USER-001..003, MENU-001..004, TBL-001..003, VCH-001, LOG-001, PROXY-001 | 5 file test + enhance proxy | CRUD bahagia + otorisasi owner teruji |
 | **S6** | Finalisasi | 0,5 hari | Semua | Coverage report, audit flaky, update dokumen | Semua gate coverage + lint terpenuhi |
 
+> **Status implementasi:** S0-S6 selesai (S1-S3 dituntaskan 2026-11-06). Seluruh test adalah **unit test** (mock Prisma/auth/Pusher/revalidatePath, tanpa DB/network). Coverage global 94,69% stmt / 88,92% branch / 96,35% func / 95,42% line; `lib/auth.ts` 100%, `pesanan.ts` 99%, `shift.ts` 94,75% statement. Folder `src/test/integration/` masih kosong karena 8.4 butuh test database terisolasi dan di luar Definition of Done iterasi ini.
+
 ### 7.1 Detail per sesi
 
 **S0 — Foundation**
@@ -353,7 +356,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.{test,spec}.{js,ts,tsx}'],
+    include: ['src/test/**/*.{test,spec}.{js,ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov', 'json-summary'],
@@ -384,7 +387,7 @@ export default defineConfig({
 | Tujuan | Perintah |
 |--------|----------|
 | Semua test | `npm test` |
-| Satu file | `npx vitest run src/test/app/actions/pesanan.test.ts` |
+| Satu file | `npx vitest run src/test/unit/app/actions/pesanan.test.ts` |
 | Satu test | `npx vitest run -t "nama test"` |
 | Coverage | `npm run test:coverage` (setelah script ditambahkan) |
 | Watch lokal | `npx vitest` |
@@ -392,20 +395,62 @@ export default defineConfig({
 
 > Shell: jalankan perintah satu per satu (PowerShell 5.1 tidak mendukung `&&`).
 
+### 8.3 Struktur folder test (unit vs integration)
+
+```
+src/test/
+├── helpers/                # prisma-mock, auth-mock, fixtures
+├── unit/
+│   ├── app/actions/*.test.ts
+│   ├── lib/*.test.ts
+│   └── proxy.test.ts
+└── integration/            # (kosong) integration test, lihat 8.4
+```
+
+- **Unit test** (sudah ada): memanggil satu action/fungsi dengan Prisma, auth, Pusher, `revalidatePath`, dan `next/headers` di-mock. Cepat, deterministik, tanpa DB/network.
+- **Integration test** (rencana): menguji alur lintas-action dengan Prisma nyata (test database terisolasi) dan mock hanya pada boundary eksternal (Pusher, UploadThing, email). Belum diimplementasikan pada iterasi ini.
+
+### 8.4 Rencana integration testing (iterasi berikutnya)
+
+| Aspek | Rencana |
+|-------|---------|
+| Database | PostgreSQL khusus test (schema terpisah / container), migrasi via `prisma migrate deploy`, reset dengan truncate per test |
+| Isolasi | Satu transaksi per test + rollback, atau `beforeEach` truncate tabel terkait |
+| Auth | Sesi nyata (NextAuth) atau `auth()` di-mock di level boundary; jangan mock Prisma |
+| Boundary eksternal | Mock `@/lib/pusher`, UploadThing, email; tidak ada network keluar |
+| Alur kandidat | (1) customer buat pesanan -> status berubah -> kasir bayar tunai/QRIS -> struk; (2) pesanan selesai -> `potongStokDapur` kurangi stok + riwayat; (3) shift buka -> transaksi -> tutup -> rekap kas; (4) refund dengan bukti -> stok/status kembali; (5) voucher dipakai -> kuota berkurang |
+| Gate | Tetap tanpa DB produksi; integration test dipisah (`src/test/integration/`) dan dijalankan hanya bila env test DB tersedia |
+| CI/shell | Power Shell/Git Bash kompatibel, perintah terpisah (tanpa `&&`), DB dinyalakan/dimatikan oleh user |
+
+### 8.5 Rencana Penting Lain (Menunggu / TODO)
+
+Berikut item yang sengaja ditunda dan menjadi **rencana penting** ke depan:
+
+| ID | Item | Status Saat Ini | Catatan / Langkah |
+|----|------|-----------------|-------------------|
+| 8.5.1 | Component test React | Tertunda — `@testing-library/*` sudah ada di `package.json`, tapi `jsdom`/`happy-dom` belum terpasang dan `vitest.config.ts` (`environment: 'node'`) masih non-DOM | Siapkan `jsdom` + `@testing-library/jest-dom` + `@testing-library/user-event` (sudah ada versi npm-nya), lalu set `environment: 'jsdom'` untuk file komponen test. |
+| 8.5.2 | E2E browser (Playwright) | Tertunda — masih di Out of Scope rencana (§1). | Masuk evaluasi setelah unit/integration stabil. |
+| 8.5.3 | Load / performance test | Todo (PBI-9.3, PRD Modul 9). | Di luar scope unit/integration saat ini. |
+| 8.5.4 | Integration test dengan DB nyata | Belum — butuh Supabase project baru + file `.env.test` (env testing terpisah) + `prisma migrate deploy` ke test DB. | Rencana detail: §8.4. |
+| 8.5.5 | CI/CD (GitHub Actions) | Todo (PRD §5, technical debt). | Auto lint + test setelah unit/integration stabil. |
+
 ---
 
 ## 9. Definition of Done
 
 - [ ] 42 TC terimplementasi atau memiliki waiver tertulis yang disetujui user.
-- [ ] `npm test` hijau, stabil 3x berturut-turut.
+  - Sebagian besar TC terimplementasi; waiver coverage untuk area di luar target iterasi dicatat di `.opencode/PROGRESS.md` (kasir, pesanan, shift, auth/pusher/email).
+- [x] `npm test` hijau, stabil 3x berturut-turut.
 - [ ] Threshold coverage global terpenuhi; Critical >= 90% statement / >= 85% branch.
-- [ ] Tidak ada akses DB/network nyata di test.
-- [ ] `npm run lint -- --quiet` tanpa error.
-- [ ] Test mengikuti konvensi nama & lokasi file.
-- [ ] **Tidak ada test yang dilonggarkan, di-skip, dihapus, atau diubah expected value-nya** demi menutupi implementasi yang tidak sesuai spek.
-- [ ] Kegagalan karena implementasi tidak sesuai spek dilaporkan sebagai error/bug, bukan "diperbaiki" dengan mengubah test.
+  - Gate global **lolos** (94,69/88,92/96,35/95,42); target *Critical* per-file tercapai (`kasir.ts` 100%, `pesanan.ts` 99%, `shift.ts` 94,75%, `auth.ts` 100%).
+- [x] Tidak ada akses DB/network nyata di test.
+- [x] `npm run lint -- --quiet` tanpa error.
+- [x] Test mengikuti konvensi nama & lokasi file.
+- [x] **Tidak ada test yang dilonggarkan, di-skip, dihapus, atau diubah expected value-nya** demi menutupi implementasi yang tidak sesuai spek.
+- [x] Kegagalan karena implementasi tidak sesuai spek dilaporkan sebagai error/bug, bukan "diperbaiki" dengan mengubah test.
 - [ ] `.opencode/PROGRESS.md` diperbarui; technical debt unit test di PRD ditandai.
-- [ ] Tidak ada secret/credential di test atau fixture.
+  - `PROGRESS.md` sudah diperbarui; pencentangan technical debt di `PRD.md` belum dilakukan.
+- [x] Tidak ada secret/credential di test atau fixture.
 
 ---
 
@@ -432,9 +477,9 @@ export default defineConfig({
 | S1 Auth & Sesi | Selesai (2026-11-05) | 3 file test baru; `npm test` 63 test hijau; branch `login.ts` 92,15% (target >=85%); logout/forgot/reset 100% |
 | S2 Pesanan & Stok Gate | Selesai (2026-11-05) | `pesanan.test.ts` 44 test + `menu.test.ts` 16 test; `npm test` 123 test hijau; semua early-return `createPesanan` dan cabang `pindahMeja` teruji |
 | S3 Pembayaran, Kasir, Shift | Selesai (2026-11-05) | `kasir.test.ts` 21 test + `shift.test.ts` 53 test + 4 file lib; `npm test` 236 test hijau; `lib/shift` & `lib/jadwal` 100% branch |
-| S4 High Support | Belum | |
-| S5 Medium CRUD & Proxy | Belum | |
-| S6 Finalisasi | Belum | |
+| S4 High Support | Selesai (2026-11-05) | `refund`/`notifikasi`/`laporan`/`stok-bahan`/`dashboard` + `export-laporan`; `npm test` stabil |
+| S5 Medium CRUD & Proxy | Selesai (2026-11-05) | `users`/`meja`/`voucher`/`logs` + perluasan `menu` + `menu-foto`; proxy sudah diperluas |
+| S6 Finalisasi | Selesai (2026-11-05) | 27 file / 526 test hijau; stabil 3x; `tsc` bersih; lint 0 error; coverage global 76,01% stmt / 63,89% branch / 79,55% func / 77,38% line (gate 70/60/70/70) |
 
 ---
 
@@ -447,3 +492,5 @@ export default defineConfig({
 | 5 Nov 2026 | 1.2 | S2 selesai: 123 test hijau; gate pesanan/stok/voucher/meja teruji |
 | 5 Nov 2026 | 1.3 | S3 selesai: 236 test hijau; pembayaran, kas, shift, jadwal, fee, struk teruji |
 | 5 Nov 2026 | 1.4 | Restrukturisasi test ke `src/test/` (dibagi `app/actions` & `lib`); import memakai alias `@/`; `vitest.config.ts` hanya memindai `src/test/**` |
+| 6 Nov 2026 | 2.0 | S1-S3 tuntas: `lib/auth.test.ts` (18 test), `pesanan.test.ts` +13 fungsi, `shift.test.ts` +getShiftAktif/getRiwayatShift/getSisaPesanan/getDaftarKasirLengkap; coverage 94,69/88,92/96,35/95,42; `tsc` bersih; lint 0 error; 8.4 tetap menunggu test DB + persetujuan user |
+| 5 Nov 2026 | 1.5 | S4-S6 selesai: 27 file / 526 test hijau, stabil 3x; `tsc` bersih; lint 0 error; coverage global 76,01/63,89/79,55/77,38 lolos gate; ditambah `lib/stok.test.ts`; struktur unit vs integration + rencana integration (8.3-8.4) |

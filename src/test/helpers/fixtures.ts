@@ -26,6 +26,7 @@ export interface KategoriMenuFixture {
   lokasi: string
   icon: string | null
   pilihanSuhu: boolean
+  deletedAt: Date | null
 }
 
 export interface MenuFixture {
@@ -53,8 +54,9 @@ export interface PesananFixture {
   diskonVoucher: number
   jumlahBayar: number | null
   kembalian: number | null
-  biayaAdmin: number
-  ppn: number
+  biayaAdmin: number | null
+  ppn: number | null
+  midtransOrderId: string | null
   namaPelanggan: string | null
   catatan: string | null
   deletedAt: Date | null
@@ -185,6 +187,7 @@ export function kategoriMenuFixture(
     lokasi: 'dapur',
     icon: null,
     pilihanSuhu: false,
+    deletedAt: null,
     ...overrides,
   }
 }
@@ -220,6 +223,7 @@ export function pesananFixture(overrides: Partial<PesananFixture> = {}): Pesanan
     kembalian: null,
     biayaAdmin: 0,
     ppn: 0,
+    midtransOrderId: null,
     namaPelanggan: 'Budi',
     catatan: null,
     deletedAt: null,

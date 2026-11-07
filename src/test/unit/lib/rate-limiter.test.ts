@@ -84,6 +84,22 @@ describe('rate limiter login', () => {
     expect(checkRateLimit(id).remainingAttempts).toBe(4)
   })
 
+  it('checkRateLimit membersihkan entri yang lewat jendela 15 menit', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-05T10:00:00Z'))
+
+    const id = idBaru()
+    recordFailedAttempt(id)
+    recordFailedAttempt(id)
+    expect(checkRateLimit(id).remainingAttempts).toBe(3)
+
+    vi.advanceTimersByTime(15 * 60 * 1000 + 1)
+
+    const hasil = checkRateLimit(id)
+    expect(hasil).toEqual({ allowed: true, remainingAttempts: 5, blockedUntil: null })
+    expect(checkRateLimit(id).remainingAttempts).toBe(5)
+  })
+
   it('mencatat ulang tidak menambah hitungan saat masih diblokir', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-11-05T10:00:00Z'))
