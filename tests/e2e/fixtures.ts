@@ -1,7 +1,15 @@
 /* eslint-disable react-hooks/rules-of-hooks -- fixture Playwright memakai `use`, bukan React hook */
 import 'dotenv/config'
 import { test as base, expect, type Page } from '@playwright/test'
-import { PrismaClient } from '@prisma/client'
+import {
+  PrismaClient,
+  type LokasiMenu,
+  type MetodePembayaran,
+  type RoleUser,
+  type StatusBayar,
+  type StatusMenu,
+  type StatusPesanan,
+} from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
 
@@ -189,10 +197,11 @@ export class CleanupRegistry {
   }
 }
 
-export async function createTestOwner(
+export async function createTestUser(
   db: PrismaClient,
   username: string,
-  password: string
+  password: string,
+  role: RoleUser
 ) {
   const hashedPassword = await bcrypt.hash(password, 10)
 
@@ -201,11 +210,121 @@ export async function createTestOwner(
       username,
       email: null,
       password: hashedPassword,
-      role: 'owner',
+      role,
       status: true,
     },
-    select: { id: true, username: true },
+    select: { id: true, username: true, role: true },
   })
+}
+
+export async function createTestOwner(
+  db: PrismaClient,
+  username: string,
+  password: string
+) {
+  return createTestUser(db, username, password, 'owner')
+}
+
+export async function createTestMeja(
+  db: PrismaClient,
+  options: { tipe?: 'kursi' | 'lesehan'; kapasitas?: number } = {}
+) {
+  const { tipe = 'kursi', kapasitas = 4 } = options
+  // Prefix E2E_ sengaja tidak dimulai dengan K/L agar tidak menggeser
+  // penomoran meja otomatis milik data asli.
+  const nomorMeja = `E2E_${tipe === 'lesehan' ? 'L' : 'K'}_${uniqueSuffix()}`
+  const tokenMeja = `E2E${crypto.randomBytes(4).toString('hex').toUpperCase()}`
+
+  return db.meja.create({
+    data: { nomorMeja, kapasitas, tokenMeja, statusMeja: 'kosong' },
+    select: { id: true, nomorMeja: true, tokenMeja: true, kapasitas: true },
+  })
+}
+
+export async function createTestKategori(
+  db: PrismaClient,
+  options: { namaKategori?: string; lokasi?: LokasiMenu } = {}
+) {
+  const namaKategori = options.namaKategori ?? e2eName('Kategori')
+  const lokasi = options.lokasi ?? 'resto'
+
+  return db.kategoriMenu.create({
+    data: { namaKategori, lokasi, pilihanSuhu: false },
+    select: { id: true, namaKategori: true },
+  })
+}
+
+export async function createTestMenu(
+  db: PrismaClient,
+  options: {
+    kategoriId: number
+    namaMenu?: string
+    harga?: number
+    stokManual?: number
+    statusMenu?: StatusMenu
+  }
+) {
+  const namaMenu = options.namaMenu ?? e2eName('Menu')
+  const { kategoriId, harga = 25_000, stokManual = 5, statusMenu = 'tersedia' } =
+    options
+
+  return db.menu.create({
+    data: { namaMenu, kategoriId, harga, stokManual, statusMenu },
+    select: { id: true, namaMenu: true, harga: true, stokManual: true },
+  })
+}
+
+export async function createTestPesanan(
+  db: PrismaClient,
+  options: {
+    mejaId: number
+    namaPelanggan: string
+    items: Array<{
+      menuId: number
+      jumlah: number
+      hargaSaatPesan: number
+      catatanItem?: string | null
+    }>
+    statusPesanan?: StatusPesanan
+    statusPembayaran?: StatusBayar
+    metodePembayaran?: MetodePembayaran | null
+    kasirId?: number | null
+    waiterId?: number | null
+  }
+) {
+  const totalHarga = options.items.reduce(
+    (sum, item) => sum + item.hargaSaatPesan * item.jumlah,
+    0
+  )
+
+  const pesanan = await db.pesanan.create({
+    data: {
+      mejaId: options.mejaId,
+      namaPelanggan: options.namaPelanggan,
+      totalHarga,
+      statusPesanan: options.statusPesanan ?? 'menunggu',
+      statusPembayaran: options.statusPembayaran ?? 'menunggu',
+      metodePembayaran: options.metodePembayaran ?? null,
+      kasirId: options.kasirId ?? null,
+      waiterId: options.waiterId ?? null,
+      detailPesanan: {
+        create: options.items.map((item) => ({
+          menuId: item.menuId,
+          jumlah: item.jumlah,
+          hargaSaatPesan: item.hargaSaatPesan,
+          catatanItem: item.catatanItem ?? null,
+        })),
+      },
+    },
+    select: { id: true },
+  })
+
+  await db.meja.update({
+    where: { id: options.mejaId },
+    data: { statusMeja: 'terpakai' },
+  })
+
+  return pesanan
 }
 
 export async function gotoLogin(page: Page) {

@@ -1,3 +1,21 @@
+# PROGRESS - Sesi 2026-11-05 (Blackbox Modul 2 Pesanan)
+
+## ✅ SELESAI
+
+- **Fixture Modul 2** (`tests/e2e/fixtures.ts`): tambah `createTestUser(db, username, password, role)`, `createTestMeja`, `createTestKategori`, `createTestMenu`, `createTestPesanan`; `createTestOwner` mendelegasikan ke `createTestUser`.
+- **Spec Modul 2** (`tests/e2e/modul2/pesanan.spec.ts`): 7 test serial mencakup QR order + stok/meja, checkout kosong, order manual kasir + `kasirId`, waiter tandai semua item, guard item belum lengkap, pembatalan + `deletedAt`, owner read-only, serta status/filter/pencarian/detail.
+- **Verifikasi**: `npm run lint -- --quiet` dan `npx tsc --noEmit` lolos; `npx playwright test tests/e2e/modul2` **9 passed** (7 test + setup).
+- **Cleanup**: verifikasi DB setelah run → 0 sisa user/kategori/menu/meja/pesanan berprefix `E2E_` (di luar `e2e_owner`).
+- Status di `.opencode/BLACKBOX_TEST.md` diperbarui: PBI 2.1, 2.2, 2.3 -> Done.
+
+## ⏳ BELUM / CATATAN
+
+- Modul 3 dst. belum dikerjakan.
+- Akun `e2e_owner` di-seed ulang dengan password sementara (tidak dicatat di repo).
+- `npm run graph:update` berhasil dijalankan (2751 nodes, 5121 edges, 123 communities).
+
+---
+
 # PROGRESS - Sesi 2026-11-05 (Verifikasi Blackbox Modul 1.4 & 1.5)
 
 ## ✅ SELESAI
@@ -12,7 +30,7 @@
 
 ## ⏳ BELUM / CATATAN
 
-- Modul 2 dst. belum dikerjakan.
+- Modul 3 dst. belum dikerjakan.
 - Belum ada migrasi SQL untuk menormalkan sisa nilai enum legacy `dipesan` di environment lain (data di DB saat ini sudah bersih).
 
 ---
