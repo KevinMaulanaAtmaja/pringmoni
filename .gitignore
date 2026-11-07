@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/test-results.xml
+/test-results.json
 
 # playwright
 /test-results/
