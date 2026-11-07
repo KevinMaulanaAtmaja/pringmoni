@@ -5,7 +5,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.{test,spec}.{js,ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{js,ts,tsx}', 'tests/unit/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+    },
   },
   resolve: {
     alias: {

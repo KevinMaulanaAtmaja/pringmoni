@@ -12,7 +12,14 @@
         "seed-2025": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed-2025.ts",
         "seed-resep": "tsx prisma/seed-resep.ts",
         "seed-resep:dry": "tsx prisma/seed-resep.ts --dry-run",
-        "seed-menu": "tsx prisma/seed-menu.ts"
+        "seed-menu": "tsx prisma/seed-menu.ts",
+        "test:unit": "vitest run tests/unit",
+        "test:unit:watch": "vitest",
+        "test:e2e:seed": "tsx tests/e2e/seed-e2e-owner.ts",
+        "test:e2e": "playwright test",
+        "test:e2e:ui": "playwright test --ui",
+        "test:e2e:headed": "playwright test --headed",
+        "test:e2e:report": "playwright show-report"
     },
     "prisma": {
         "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
@@ -60,6 +67,7 @@
         "zod": "^4.3.6"
     },
     "devDependencies": {
+        "@playwright/test": "^1.64.1",
         "@tailwindcss/postcss": "^4",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.2",
