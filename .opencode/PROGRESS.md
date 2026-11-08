@@ -1,3 +1,23 @@
+# PROGRESS - Sesi 2026-11-08 (Rencana integration testing)
+
+> Menyusun rencana integration testing semua alur (belum implementasi) dan merapikan branch testing.
+
+## Selesai
+- Branch: `test/whitebox` jadi branch utama whitebox; `test/blackbox` gabungan e2e modul 1-2; `test/whitebox-unit-restructure` dihapus (sudah ter-merge); `develop` berisi merge `test/whitebox`.
+- `.opencode/INTEGRATION_TESTING_PLAN.md`: rencana 5 alur (pesanan+pembayaran, stok dapur, shift, refund, voucher), helper truncate, prasyarat `.env.test`/`prisma migrate deploy`, DoD.
+
+## Hasil verifikasi
+- `npx vitest run` (test/whitebox & develop): 35 file passed / 1 skipped, 660 passed / 1 skipped.
+
+## Catatan
+- Model `Voucher` tidak punya kolom kuota; skenario voucher disesuaikan (validasi diskon + relasi pemakaian).
+- Integration test belum dieksekusi (butuh kredensial Supabase `pringmoni_test`).
+
+## Berikutnya
+- Isi `.env.test`, `prisma migrate deploy`, implement helper + 5 file integration.
+
+---
+
 # PROGRESS - Sesi 2026-11-07 (Whitebox: rencana ke depan + commit unit test S0-S6)
 
 > Menyimpan item-item testing yang masih pending sebagai rencana di WHITEBOX_TESTING_PLAN (§8.5), lalu commit unit testing whitebox yang sudah selesai ke branch baru.

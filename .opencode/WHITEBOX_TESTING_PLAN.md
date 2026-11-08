@@ -422,6 +422,9 @@ src/test/
 | Gate | Tetap tanpa DB produksi; integration test dipisah (`src/test/integration/`) dan dijalankan hanya bila env test DB tersedia |
 | CI/shell | Power Shell/Git Bash kompatibel, perintah terpisah (tanpa `&&`), DB dinyalakan/dimatikan oleh user |
 
+> **Rencana detail per alur** (5 skenario + helper isolasi truncate): lihat `.opencode/INTEGRATION_TESTING_PLAN.md`.
+> Catatan: model `Voucher` tidak punya kolom kuota, jadi skenario "kuota berkurang" diganti dengan validasi diskon + relasi pemakaian.
+
 ### 8.5 Rencana Penting Lain (Menunggu / TODO)
 
 Berikut item yang sengaja ditunda dan menjadi **rencana penting** ke depan:
