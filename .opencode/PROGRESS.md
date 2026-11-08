@@ -1,3 +1,151 @@
+# PROGRESS - Sesi 2026-11-07 (Whitebox: rencana ke depan + commit unit test S0-S6)
+
+> Menyimpan item-item testing yang masih pending sebagai rencana di WHITEBOX_TESTING_PLAN (§8.5), lalu commit unit testing whitebox yang sudah selesai ke branch baru.
+
+## Selesai
+- §8.5 WHITEBOX_TESTING_PLAN: item component test React (jsdom belum terpasang), E2E Playwright (out of scope), load/performance (PBI-9.3), integration test DB nyata (butuh Supabase test + `.env.test`), CI/CD (Todo) disimpan sebagai rencana penting ke depan.
+
+## Hasil verifikasi
+- `npx vitest run`: 35 file passed / 1 skipped, 660 passed / 1 skipped (661).
+
+## Catatan
+- Unit testing S0-S6 sudah selesai; item §8.5 ditunda ke depan.
+
+## Berikutnya
+- (Opsional) Supabase project baru + `.env.test` -> jalankan integration test.
+- (Opsional) Pasang jsdom untuk component test.
+
+---
+
+# PROGRESS - Sesi 2026-11-06 (Whitebox Testing S1-S3 lanjutan)
+
+> Melanjutkan backlog coverage S1-S3 dari `.opencode/WHITEBOX_TESTING_PLAN.md`. Commit belum dibuat.
+
+## Selesai
+- S1: file baru `src/test/unit/lib/auth.test.ts` (18 test) — `authorize` (kredensial kosong, user tidak ada/nonaktif, password salah, sukses + deviceId, P1001/DatabaseNotReachable -> `DATABASE_ERROR`, error lain diteruskan), `jwt` (simpan user, `takenOver` saat versi beda, catat aktivitas, id non-angka, versi non-angka), `session` (mapping + default + token null).
+- S2: `pesanan.test.ts` +13 fungsi (menu customer, dashboard, pembayaran, checkout, status customer, konfirmasi, cancel expired, pindah meja, update nama, dll).
+- S3: `shift.test.ts` + `getShiftAktif`, `getRiwayatShift`, `getSisaPesanan`, `getDaftarKasir` sukses, `getDaftarKasirLengkap`.
+- UI report `src/app/dashboard/testing/report.ts`: status S1-S3 -> `selesai` dengan angka coverage aktual.
+- Dokumen: status implementasi + DoD + changelog `WHITEBOX_TESTING_PLAN.md` disinkronkan.
+
+## Hasil verifikasi
+- `npx vitest run` (suite penuh via `npm run test:report`): hijau; 71 test di `shift.test.ts`, 87 di `pesanan.test.ts`, 18 di `auth.test.ts`.
+- `npx tsc --noEmit`: bersih (0 error).
+- `npm run lint -- --quiet`: **0 error, 40 warning** (pre-existing).
+- `npm run test:report`: coverage global **94,69% stmt / 88,92% branch / 96,35% func / 95,42% line**.
+- Per file: `lib/auth.ts` 100/97,22/100/100; `pesanan.ts` 99/90,55/97,29/98,94; `shift.ts` 94,75/85,27/100/97,61.
+
+## Catatan
+- Seluruh test tetap **unit test**: Prisma/auth/Pusher/`revalidatePath`/`next/headers` di-mock; **tidak ada akses DB/network nyata**.
+- 8.4 Integration Test tetap **belum**: butuh test database PostgreSQL terisolasi + persetujuan user; di luar DoD iterasi ini.
+- `src/lib/upload.ts` dan `lib/logout-storage.ts` masih 0% (boundary eksternal/DOM), bukan target S1-S3.
+
+## Berikutnya
+- (Opsional, butuh persetujuan) Implementasi 8.4 dengan test DB terisolasi.
+- `npm run graph:update` lalu commit bila diminta user.
+
+---
+
+# PROGRESS - Sesi 2026-11-05 (Whitebox Testing S3-S6)
+
+> Eksekusi S3 (Pembayaran/Kasir/Shift), S4 (High Support), S5 (Medium CRUD), dan S6 (Finalisasi) dari `.opencode/WHITEBOX_TESTING_PLAN.md`. Commit belum dibuat.
+
+## Selesai
+- Restrukturisasi test ke `src/test/unit/{app/actions,lib}` + `src/test/unit/proxy.test.ts`; folder `src/test/integration/` disiapkan (masih kosong).
+- S3: `kasir.test.ts`, `shift.test.ts`, `lib/{shift,jadwal,fee,print-struk}.test.ts` (total 236 test saat itu).
+- S4: `refund.test.ts`, `notifikasi.test.ts`, `dashboard.test.ts`, `laporan.test.ts`, `stok-bahan.test.ts`, `lib/export-laporan.test.ts`.
+- S5: `users.test.ts`, `meja.test.ts`, `voucher.test.ts`, `logs.test.ts`, perluasan `menu.test.ts` (CRUD menu & kategori), plus `lib/log.test.ts`, `menu-foto.test.ts`.
+- Tambahan S6: `lib/stok.test.ts` (7 test) — agregasi resep, clamp stok 0, status `tersedia/menipis/habis`, filter `tipe: dapur` + `deletedAt: null`, idempotensi `stokDeducted`.
+- Helper `fixtures.ts`: `kategoriMenuFixture` + `deletedAt` (untuk uji restore soft-delete).
+- Perbaikan type: `lokasi: 'dapur'` -> `'cafe'` di `menu.test.ts`; `waiterUsername` ditambahkan pada fixture `ItemLaporanPesanan` di `export-laporan.test.ts`.
+
+## Hasil verifikasi
+- `npx vitest run`: **27 file, 526 test passed**; stabil pada 3x run berturut-turut (termasuk run coverage).
+- `npx tsc --noEmit`: bersih (0 error).
+- `npm run lint -- --quiet`: **0 error, 40 warning** (semua pre-existing di kode aplikasi/plugin, bukan file test).
+- `npm run test:coverage`: lolos gate global — statement **76,01%**, branch **63,89%**, function **79,55%**, line **77,38%** (threshold 70/60/70/70).
+- Coverage per area: `src/lib/stok.ts` 96,29% stmt / 94,44% branch; `export-laporan.ts` 100% stmt/line; `menu.ts` 99,09%, `users.ts` 92,85%, `laporan.ts` 86,03%.
+- Waiver coverage (belum jadi target iterasi): `kasir.ts` 31,73%, `pesanan.ts` 54,48%, `shift.ts` 68,18%; lib dengan 0% karena butuh boundary eksternal/DOM: `auth.ts`, `pusher.ts`, `email.ts`, `catatan-item.ts`, `kategori-icon.ts`.
+
+## Catatan
+- Seluruh test tetap **unit test**: Prisma/auth/Pusher/`revalidatePath`/`next/headers` di-mock; **tidak ada akses DB/network nyata**.
+- Integration test (Prisma nyata + rollback) hanya **direncanakan** di `WHITEBOX_TESTING_PLAN.md` §8.4; belum diimplementasikan.
+- Perubahan WIP lain di working tree tidak disentuh.
+
+## Berikutnya
+- (Opsional) Implementasi integration test sesuai §8.4 setelah test DB terisolasi tersedia.
+- Commit bila diminta user (usulan: `test(whitebox): selesaikan unit test S3-S6 + coverage gate`).
+
+---
+
+# PROGRESS - Sesi 2026-11-05 (Whitebox Testing S2)
+
+> Eksekusi S2 (Pesanan & Stok Gate) dari `.opencode/WHITEBOX_TESTING_PLAN.md`. Commit belum dibuat.
+
+## Selesai
+- Test baru: `src/app/actions/pesanan.test.ts` (44 test), `menu.test.ts` (16 test).
+- Cakupan pesanan: token meja invalid, menunggu pembayaran, item kosong, menu tidak ada/nonaktif, stok kurang, agregasi item, voucher tidak ada/nonaktif/minimal/valid, sukses + potong stok + status habis, rollback `newStok < 0`, menu hilang di transaksi, customer tanpa session, update status, cancel, mark selesai + potong stok dapur, toggle item diantar, daftar meja pindah, semua cabang `pindahMeja`.
+- Cakupan menu: stok harian negatif/non-integer/0/positif, menu tidak ada/nonaktif, set semua menu, set per kategori, kategori tidak ada.
+- `npm test` -> **8 file, 123 test passed**.
+- `npx tsc --noEmit` bersih; eslint terarah pada 2 file test bersih.
+- Coverage terarah `pesanan.ts` + `menu.ts`: statement 50,12%, branch 42,37%, function 33,33%, line 50,38% (fungsi lain di kedua file belum menjadi target S2; threshold global tetap sengaja merah).
+
+## Catatan
+- File yang ditambah: `src/app/actions/{pesanan,menu}.test.ts`.
+- Perubahan WIP lain di working tree **tidak disentuh**.
+
+## Berikutnya
+- S3: Pembayaran, Kasir, Shift (`kasir.test.ts`, `shift.test.ts`, `lib/{shift,jadwal,fee,print-struk}.test.ts`).
+
+---
+
+# PROGRESS - Sesi 2026-11-05 (Whitebox Testing S1)
+
+> Eksekusi S1 (Auth & Sesi) dari `.opencode/WHITEBOX_TESTING_PLAN.md`. Commit belum dibuat.
+
+## Selesai
+- Test baru: `src/app/actions/login.test.ts` (16 test), `logout.test.ts` (3), `reset-password.test.ts` (12).
+- Cakupan: rate limit dulu, kredensial kosong, user tidak ada/nonaktif, bcrypt gagal, DB `P1001`/error umum, sukses + log + reset limit, sesi lain aktif -> `perluKonfirmasi`, `takeover=1`, device sama, URL error `signIn`, `DATABASE_ERROR` (message & cause), logout, forgot/reset password, token invalid/kedaluwarsa, hash password.
+- `npm test` -> **6 file, 63 test passed**.
+- Coverage terarah: `login.ts` statement/line/function **100%**, branch **92,15%** (target >=85%); `logout.ts`, `forgot-password.ts`, `reset-password.ts`, `reset-password-confirm.ts` **100%** semua metrik.
+- `npx tsc --noEmit` bersih; eslint terarah pada 3 file test bersih.
+
+## Catatan
+- File yang ditambah: `src/app/actions/{login,logout,reset-password}.test.ts`.
+- Perubahan WIP lain di working tree **tidak disentuh**.
+- Threshold coverage global masih sengaja merah sampai S2-S5 menambah test.
+
+## Berikutnya
+- S2: Pesanan & Stok Gate (`pesanan.test.ts`, `menu.test.ts`).
+
+---
+
+# PROGRESS - Sesi 2026-11-05 (Whitebox Testing S0)
+
+> Eksekusi S0 dari `.opencode/WHITEBOX_TESTING_PLAN.md`. Commit belum dibuat.
+
+## Selesai
+- Coverage V8 aktif: pasang `@vitest/coverage-v8@4.1.1` (devDependency) + blok `coverage` dan threshold di `vitest.config.ts`.
+- Script baru `npm run test:coverage`.
+- Helper test: `src/test/helpers/prisma-mock.ts`, `auth-mock.ts`, `fixtures.ts`.
+- Enhance test existing:
+  - `src/proxy.test.ts`: role `kitchen`, route `/dashboard/shift`, sesi `takenOver` (hapus cookie + redirect), 12 test.
+  - `src/lib/rate-limiter.test.ts`: boundary blokir 5 menit, reset jendela 15 menit, record saat diblokir.
+  - `src/lib/sesi.test.ts`: cache versi sesi (TTL 3 detik), throttle aktivitas 2 menit, fail-open saat DB error.
+- `npm test` -> **3 file, 32 test passed**.
+- `npm run test:coverage` -> laporan terbentuk; baseline statement **5,05%**, branch **5,10%**, function **3,64%**, line **4,89%**. Threshold 70/60 sengaja belum terpenuhi sampai S1-S5.
+- `npx eslint` pada file yang diubah -> bersih (0 error).
+
+## Catatan
+- `npm run lint` penuh melewati timeout 5 menit di environment ini; verifikasi dilakukan dengan eslint terarah pada file yang berubah.
+- File yang diubah/ditambah: `vitest.config.ts`, `package.json`, `package-lock.json`, `src/proxy.test.ts`, `src/lib/rate-limiter.test.ts`, `src/lib/sesi.test.ts`, `src/test/helpers/*`.
+- Perubahan WIP lain di working tree (shift, dashboard, dll.) **tidak disentuh**.
+
+## Berikutnya
+- S1: Auth & Sesi (`login.test.ts`, `logout.test.ts`, `reset-password.test.ts`).
+
+---
+
 # PROGRESS - Sesi 2026-11-04
 
 > Lanjutan penyelesaian checklist sesi sebelumnya. Commit belum dibuat (menunggu instruksi user).

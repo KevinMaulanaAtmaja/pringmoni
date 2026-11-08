@@ -17,6 +17,7 @@ const roleRouteAccess: Record<string, RoleUser[]> = {
   "/dashboard/users": ["owner"],
   "/dashboard/laporan": ["owner"],
   "/dashboard/logging": ["owner"],
+  "/dashboard/testing": ["owner"],
   "/dashboard/shift": ["owner", "cashier"],
 }
 

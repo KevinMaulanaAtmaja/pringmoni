@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/test-results.xml
+/test-results.json
+/test-results/
 
 # next.js
 /.next/
@@ -35,6 +38,10 @@ debug.log
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+
+# testing environment - local only, must not be committed
+.env.test
+.env.test.local
 
 # vercel
 .vercel

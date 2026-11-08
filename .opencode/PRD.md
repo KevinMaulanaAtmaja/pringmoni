@@ -197,7 +197,7 @@
 ## 5. Future Plans
 
 ### Technical Debt
-- [ ] Unit test (vitest) untuk server actions
+- [x] Unit test (vitest) untuk server actions
 - [ ] Integration test untuk flow pesanan + pembayaran
 - [ ] CI/CD (GitHub Actions) untuk auto lint + test
 - [ ] Deploy ke Vercel + database production
