@@ -6,11 +6,10 @@ import {
   createTestMeja,
   createTestMenu,
   createTestPesanan,
-  createTestUser,
   e2eName,
-  e2eUsername,
+  getTestUser,
   loginAs,
-  randomPassword,
+  testAccount,
   type Credentials,
 } from '../fixtures'
 
@@ -28,14 +27,6 @@ function kartuPesanan(page: Page, pesananId: number) {
   return page
     .locator('.rounded-xl.border-2')
     .filter({ hasText: `#${pesananId}` })
-}
-
-async function loginStaffBaru(browser: Browser, role: 'cashier' | 'waiter') {
-  const username = e2eUsername(role)
-  const password = randomPassword()
-  const credentials = { username, password }
-
-  return { credentials, username, password }
 }
 
 test.describe('Modul 2 - Pesanan', () => {
@@ -174,14 +165,9 @@ test.describe('Modul 2 - Pesanan', () => {
     db,
     cleanup,
   }) => {
-    const staff = await loginStaffBaru(browser, 'cashier')
-    cleanup.trackUser(staff.username)
-    const kasir = await createTestUser(
-      db,
-      staff.username,
-      staff.password,
-      'cashier'
-    )
+    // Akun tetap hasil seed: tidak ada user baru yang dibuat per test.
+    const staff = testAccount('cashier')
+    const kasir = await getTestUser(db, 'cashier')
 
     const namaPelanggan = e2eName('Manual')
     const kategori = await createTestKategori(db, {
@@ -199,7 +185,7 @@ test.describe('Modul 2 - Pesanan', () => {
     cleanup.trackMeja(meja.nomorMeja)
     cleanup.trackPesananByCustomer(namaPelanggan)
 
-    const { context, page } = await sesiLogin(browser, staff.credentials)
+    const { context, page } = await sesiLogin(browser, staff)
 
     try {
       await page.goto('/dashboard/kasir/pesanan-baru')
@@ -217,20 +203,42 @@ test.describe('Modul 2 - Pesanan', () => {
         .getByRole('option')
         .filter({ hasText: meja.nomorMeja })
         .click()
+      await expect(page.getByRole('combobox')).toContainText(meja.nomorMeja)
 
-      await page
+      // Cari menu agar tidak bergantung pada urutan 8 menu pertama di grid.
+      await page.getByPlaceholder('Cari menu...').fill(menu.namaMenu)
+      const tombolMenu = page
         .locator('button')
         .filter({ hasText: menu.namaMenu })
         .first()
-        .click()
+      await expect(tombolMenu).toBeVisible({ timeout: 20000 })
+      await tombolMenu.click()
 
-      await page.getByRole('button', { name: 'Tunai' }).click()
+      // Pastikan item benar-benar masuk keranjang sebelum submit.
+      const keranjang = page.locator('div.w-96')
+      await expect(
+        keranjang.getByText(menu.namaMenu, { exact: true })
+      ).toBeVisible({ timeout: 20000 })
+
+      await page.getByRole('button', { name: 'Tunai', exact: true }).click()
       await expect(tombolBuat).toBeEnabled()
-      await tombolBuat.click()
 
-      await page.waitForURL(/\/dashboard\/kasir\/pesanan-baru\/\d+$/, {
-        timeout: 20000,
-      })
+      // Tangkap alert dari createPesanan supaya penyebab gagal terlihat jelas.
+      const navigasi = page.waitForURL(
+        /\/dashboard\/kasir\/pesanan-baru\/\d+$/,
+        { timeout: 60000 }
+      )
+      await tombolBuat.click()
+      await Promise.race([
+        navigasi,
+        new Promise<void>((_, reject) => {
+          page.once('dialog', async (dialog) => {
+            const pesan = dialog.message()
+            await dialog.accept()
+            reject(new Error(`createPesanan gagal: ${pesan}`))
+          })
+        }),
+      ])
       const pesananId = Number(page.url().match(/(\d+)$/)?.[1])
       expect(Number.isFinite(pesananId)).toBe(true)
 
@@ -266,14 +274,9 @@ test.describe('Modul 2 - Pesanan', () => {
     db,
     cleanup,
   }) => {
-    const staff = await loginStaffBaru(browser, 'waiter')
-    cleanup.trackUser(staff.username)
-    const waiter = await createTestUser(
-      db,
-      staff.username,
-      staff.password,
-      'waiter'
-    )
+    // Akun tetap hasil seed: tidak ada user baru yang dibuat per test.
+    const staff = testAccount('waiter')
+    const waiter = await getTestUser(db, 'waiter')
 
     const namaPelanggan = e2eName('WaiterSelesai')
     const kategori = await createTestKategori(db, {
@@ -300,7 +303,7 @@ test.describe('Modul 2 - Pesanan', () => {
       ],
     })
 
-    const { context, page } = await sesiLogin(browser, staff.credentials)
+    const { context, page } = await sesiLogin(browser, staff)
 
     try {
       await page.goto('/dashboard/pesanan')
@@ -357,9 +360,7 @@ test.describe('Modul 2 - Pesanan', () => {
     db,
     cleanup,
   }) => {
-    const staff = await loginStaffBaru(browser, 'waiter')
-    cleanup.trackUser(staff.username)
-    await createTestUser(db, staff.username, staff.password, 'waiter')
+    const staff = testAccount('waiter')
 
     const namaPelanggan = e2eName('WaiterSebagian')
     const kategori = await createTestKategori(db, {
@@ -392,7 +393,7 @@ test.describe('Modul 2 - Pesanan', () => {
       ],
     })
 
-    const { context, page } = await sesiLogin(browser, staff.credentials)
+    const { context, page } = await sesiLogin(browser, staff)
 
     try {
       await page.goto('/dashboard/pesanan')
@@ -438,9 +439,7 @@ test.describe('Modul 2 - Pesanan', () => {
     db,
     cleanup,
   }) => {
-    const staff = await loginStaffBaru(browser, 'waiter')
-    cleanup.trackUser(staff.username)
-    await createTestUser(db, staff.username, staff.password, 'waiter')
+    const staff = testAccount('waiter')
 
     const namaPelanggan = e2eName('Batal')
     const kategori = await createTestKategori(db, {
@@ -465,7 +464,7 @@ test.describe('Modul 2 - Pesanan', () => {
       ],
     })
 
-    const { context, page } = await sesiLogin(browser, staff.credentials)
+    const { context, page } = await sesiLogin(browser, staff)
 
     try {
       await page.goto(`/dashboard/pesanan/${pesanan.id}`)

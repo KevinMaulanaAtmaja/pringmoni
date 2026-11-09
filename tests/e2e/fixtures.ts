@@ -5,22 +5,19 @@ import {
   PrismaClient,
   type LokasiMenu,
   type MetodePembayaran,
-  type RoleUser,
   type StatusBayar,
   type StatusMenu,
   type StatusPesanan,
 } from '@prisma/client'
-import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
+import { testAccount } from './accounts'
+import type { Credentials, TestAccountKey } from './accounts'
 
 export { expect }
+export { TEST_ACCOUNTS, testAccount, testAccountRole } from './accounts'
+export type { Credentials, TestAccountKey, TestRole } from './accounts'
 
 export const E2E_PREFIX = 'E2E_'
-
-export type Credentials = {
-  username: string
-  password: string
-}
 
 type CleanupTask = {
   label: string
@@ -35,27 +32,8 @@ export function e2eName(label: string): string {
   return `${E2E_PREFIX}${label}_${uniqueSuffix()}`
 }
 
-export function e2eUsername(label: string): string {
-  return `${E2E_PREFIX}${label}_${uniqueSuffix()}`
-    .replace(/[^A-Za-z0-9_]/g, '_')
-    .slice(0, 40)
-}
-
-export function randomPassword(): string {
-  return `E2e_${crypto.randomUUID()}!`
-}
-
 export function ownerCredentials(): Credentials {
-  const username = process.env.E2E_OWNER_USERNAME ?? 'e2e_owner'
-  const password = process.env.E2E_OWNER_PASSWORD
-
-  if (!password) {
-    throw new Error(
-      'E2E_OWNER_PASSWORD belum di-set. PowerShell: $env:E2E_OWNER_PASSWORD="..." ; Git Bash: export E2E_OWNER_PASSWORD=...'
-    )
-  }
-
-  return { username, password }
+  return testAccount('owner')
 }
 
 export class CleanupRegistry {
@@ -82,7 +60,9 @@ export class CleanupRegistry {
           ],
         },
       })
-      await db.users.delete({ where: { id: user.id } })
+      // UI bisa menghapus user lebih dulu (optimistic) sehingga baris hilang
+      // di antara findUnique dan delete. deleteMany aman untuk race tersebut.
+      await db.users.deleteMany({ where: { id: user.id } })
     })
   }
 
@@ -168,6 +148,29 @@ export class CleanupRegistry {
     })
   }
 
+  trackShift(shiftId: number) {
+    this.add(`shift:${shiftId}`, async (db) => {
+      const pesanan = await db.pesanan.findMany({
+        where: { shiftId },
+        select: { id: true },
+      })
+      const pesananIds = pesanan.map((item) => item.id)
+
+      if (pesananIds.length > 0) {
+        await db.refundBukti.deleteMany({
+          where: { pesananId: { in: pesananIds } },
+        })
+        await db.detailPesanan.deleteMany({
+          where: { pesananId: { in: pesananIds } },
+        })
+        await db.pesanan.deleteMany({ where: { id: { in: pesananIds } } })
+      }
+
+      await db.kasKeluar.deleteMany({ where: { shiftId } })
+      await db.shiftKasir.deleteMany({ where: { id: shiftId } })
+    })
+  }
+
   trackVoucher(kode: string) {
     this.add(`voucher:${kode}`, async (db) => {
       const voucher = await db.voucher.findUnique({
@@ -197,32 +200,27 @@ export class CleanupRegistry {
   }
 }
 
-export async function createTestUser(
+/**
+ * Ambil akun test tetap (hasil `npm run test:e2e:seed`).
+ * Dipakai untuk login staf tanpa membuat user baru di setiap test.
+ */
+export async function getTestUser(
   db: PrismaClient,
-  username: string,
-  password: string,
-  role: RoleUser
+  key: TestAccountKey
 ) {
-  const hashedPassword = await bcrypt.hash(password, 10)
-
-  return db.users.create({
-    data: {
-      username,
-      email: null,
-      password: hashedPassword,
-      role,
-      status: true,
-    },
+  const { username } = testAccount(key)
+  const user = await db.users.findUnique({
+    where: { username },
     select: { id: true, username: true, role: true },
   })
-}
 
-export async function createTestOwner(
-  db: PrismaClient,
-  username: string,
-  password: string
-) {
-  return createTestUser(db, username, password, 'owner')
+  if (!user) {
+    throw new Error(
+      `Akun test "${username}" belum ada. Jalankan "npm run test:e2e:seed" terlebih dahulu.`
+    )
+  }
+
+  return user
 }
 
 export async function createTestMeja(
@@ -239,6 +237,52 @@ export async function createTestMeja(
     data: { nomorMeja, kapasitas, tokenMeja, statusMeja: 'kosong' },
     select: { id: true, nomorMeja: true, tokenMeja: true, kapasitas: true },
   })
+}
+
+/**
+ * Shift ACTIVE untuk kasir test. Dibuat langsung lewat Prisma agar pengujian
+ * pembayaran tidak bergantung pada alur UI Modul 7 (buka/tutup shift).
+ */
+export async function createTestShift(
+  db: PrismaClient,
+  kasirId: number,
+  options: { uangAwal?: number } = {}
+) {
+  const now = new Date()
+  const tanggal = new Date(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  )
+
+  return db.shiftKasir.create({
+    data: {
+      kasirId,
+      tanggal,
+      waktuMasuk: now,
+      uangAwal: options.uangAwal ?? 100_000,
+      statusShift: 'ACTIVE',
+      aktifKey: kasirId,
+    },
+    select: { id: true, kasirId: true, statusShift: true },
+  })
+}
+
+/**
+ * Pastikan kasir test punya shift ACTIVE. Shift milik akun tetap TIDAK
+ * didaftarkan ke cleanup supaya bisa dipakai ulang di run berikutnya.
+ */
+export async function ensureTestShift(
+  db: PrismaClient,
+  kasirId: number,
+  options: { uangAwal?: number } = {}
+) {
+  const existing = await db.shiftKasir.findFirst({
+    where: { kasirId, statusShift: 'ACTIVE' },
+    select: { id: true, kasirId: true, statusShift: true },
+  })
+
+  if (existing) return existing
+
+  return createTestShift(db, kasirId, options)
 }
 
 export async function createTestKategori(
@@ -290,6 +334,11 @@ export async function createTestPesanan(
     metodePembayaran?: MetodePembayaran | null
     kasirId?: number | null
     waiterId?: number | null
+    shiftId?: number | null
+    biayaAdmin?: number | null
+    ppn?: number | null
+    jumlahBayar?: number | null
+    kembalian?: number
   }
 ) {
   const totalHarga = options.items.reduce(
@@ -307,6 +356,11 @@ export async function createTestPesanan(
       metodePembayaran: options.metodePembayaran ?? null,
       kasirId: options.kasirId ?? null,
       waiterId: options.waiterId ?? null,
+      shiftId: options.shiftId ?? null,
+      biayaAdmin: options.biayaAdmin ?? null,
+      ppn: options.ppn ?? null,
+      jumlahBayar: options.jumlahBayar ?? null,
+      kembalian: options.kembalian ?? 0,
       detailPesanan: {
         create: options.items.map((item) => ({
           menuId: item.menuId,

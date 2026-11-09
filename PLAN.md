@@ -100,6 +100,31 @@ Fitur inti yang sudah berfungsi:
 | 6 | Belum ada test otomatis (unit test / integration) | Risiko regresi | Perlu |
 | 7 | Belum ada deployment ke production | Hanya jalan di local | Perlu |
 
+## 4.1 Blackbox Testing (Playwright)
+
+Rencana lengkap, aturan, dan status per PBI ada di `.opencode/BLACKBOX_TEST.md`.
+Semua test memakai **akun tetap** yang dibuat sekali dengan `npm run test:e2e:seed`
+(tidak membuat akun baru setiap test).
+
+| Role | Username | Password | Dipakai untuk |
+|------|----------|----------|---------------|
+| Owner | `e2e_owner` | `Owner123!` | Setup sesi, Modul 1, Modul 2 read-only |
+| Kasir | `e2e_kasir` | `Kasir123!` | Modul 2 manual, Modul 3 pembayaran |
+| Pelayan | `e2e_waiter` | `Waiter123!` | Modul 2 kelola item & status |
+| Dapur | `e2e_kitchen` | `Kitchen123!` | Modul yang butuh role kitchen |
+| Takeover | `e2e_takeover` | `Takeover123!` | Modul 1.5 ambil alih sesi |
+
+Password di atas hanya untuk akun test, bukan akun produksi.
+
+Ringkasan modul yang sudah dikerjakan:
+
+| Modul | Status | Ringkasan |
+|-------|--------|-----------|
+| 1 | Done | Login/logout, CRUD user/meja/menu, ambil alih sesi. |
+| 2 | Done | Pesanan QR & manual kasir, kelola item, pembatalan, status/filter. |
+| 3 | Done | Hitung total + admin + PPN, tunai/kembalian/struk, guard nominal, QRIS, riwayat. |
+| 4-10 | Todo | Belum ada spec (lihat `.opencode/BLACKBOX_TEST.md`). |
+
 ## 5. Plan Next Semester
 
 ### Technical Debt

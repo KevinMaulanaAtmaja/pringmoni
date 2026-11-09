@@ -20,7 +20,8 @@ Alasan:
 
 Aturan wajib:
 1. **Jangan memakai akun/data asli** (mis. `pohan`) untuk test.
-2. Akun test: `e2e_owner` (dibuat via `npm run test:e2e:seed`, password dari env).
+2. Akun login test dibuat **sekali** lewat `npm run test:e2e:seed` lalu dipakai
+   ulang oleh semua test. **Test tidak boleh membuat akun login baru per test.**
 3. Semua data buatan test memakai prefix **`E2E_`**.
 4. Cleanup **per-ID/per-nama unik** lewat fixture `cleanup` (Prisma). **Dilarang**
    `deleteMany` tanpa filter yang sempit, dan dilarang mengosongkan tabel.
@@ -28,6 +29,29 @@ Aturan wajib:
 6. Jika test gagal di tengah jalan, fixture tetap menjalankan cleanup.
 7. Sisa data yang tidak sengaja tertinggal harus terlihat dari prefix `E2E_` dan
    bisa dibersihkan manual tanpa menyentuh data asli.
+
+### 2.1 Akun test tetap (semua role)
+
+Akun di bawah dibuat/di-update oleh `npm run test:e2e:seed` (idempoten). Jangan
+membuat akun login lain di dalam spec.
+
+| Role | Username | Password | Dipakai untuk |
+|------|----------|----------|---------------|
+| Owner | `e2e_owner` | `Owner123!` | `auth.setup.ts`, Modul 1, Modul 2 read-only |
+| Kasir | `e2e_kasir` | `Kasir123!` | Modul 2 manual, Modul 3 pembayaran |
+| Pelayan | `e2e_waiter` | `Waiter123!` | Modul 2 kelola item & status |
+| Dapur | `e2e_kitchen` | `Kitchen123!` | Modul yang membutuhkan role kitchen |
+| Takeover | `e2e_takeover` | `Takeover123!` | Modul 1.5 ambil alih sesi |
+
+- Password di atas **hanya untuk akun test**, bukan akun produksi.
+- Bisa dioverride lewat env `E2E_<KEY>_USERNAME` / `E2E_<KEY>_PASSWORD`
+  (contoh `E2E_KASIR_PASSWORD`). Default tetap seperti tabel di atas.
+- `e2e_kasir` otomatis mendapat shift `ACTIVE` saat seed (dipakai Modul 3).
+- Akun `e2e_takeover` sengaja terpisah dari `e2e_owner` agar skenario takeover
+  tidak mengeluarkan sesi `storageState` owner yang dipakai project chromium.
+- **Pengecualian:** test CRUD User (Modul 1.2) membuat user sementara karena user
+  tersebut adalah **data yang sedang diuji**, bukan akun login test. User itu
+  tetap berprefix `E2E_` dan dibersihkan fixture.
 
 Risiko yang diterima:
 - Data test bisa sempat terlihat di dashboard/laporan/log selama test berjalan.
@@ -43,8 +67,11 @@ Upgrade path (belum dikerjakan):
 - Framework: Playwright (`@playwright/test`), spec di `tests/e2e/modulN/`.
 - Import `test`/`expect` dari `tests/e2e/fixtures.ts` (bukan langsung dari Playwright)
   agar cleanup otomatis tersedia.
-- Kredensial hanya dari env: `E2E_OWNER_USERNAME`, `E2E_OWNER_PASSWORD`.
-  Jangan hardcode password asli.
+- Login staf memakai `testAccount('owner' | 'cashier' | 'waiter' | 'kitchen')`
+  dan `getTestUser(db, key)` dari `tests/e2e/fixtures.ts`. Jangan membuat user
+  baru hanya untuk login.
+- Password asli/produksi tidak boleh ditulis di spec. Password akun test ada di
+  `tests/e2e/accounts.ts` dan tabel 2.1 di atas.
 - Selector stabil: role + name, label, placeholder, atau id field form.
 - Hindari `waitForTimeout`; gunakan `expect(...).toBeVisible({ timeout })` /
   `waitForURL`.
@@ -59,22 +86,22 @@ Upgrade path (belum dikerjakan):
 ## 4. Perintah
 
 ```powershell
-# 1) Siapkan akun test (sekali / saat password berubah)
-$env:E2E_OWNER_USERNAME='e2e_owner'
-$env:E2E_OWNER_PASSWORD='<password-kuat>'
+# 1) Siapkan semua akun test + shift ACTIVE kasir (sekali / saat password berubah)
 npm run test:e2e:seed
 
 # 2) Jalankan test (dev server harus hidup; Playwright reuseExistingServer)
-$env:E2E_OWNER_USERNAME='e2e_owner'
-$env:E2E_OWNER_PASSWORD='<password-kuat>'
 npm run test:e2e
 
 # Modul tertentu
 npx playwright test tests/e2e/modul1
 ```
 
-Catatan: `npm run dev` dijalankan oleh user, bukan agent. Jika dev server mati,
-Playwright akan mencoba menyalakannya lewat `webServer`.
+Catatan:
+- Tidak perlu mengisi env untuk run normal; default akun ada di tabel 2.1.
+- Override hanya bila perlu, mis. `$env:E2E_KASIR_PASSWORD='...'` sebelum seed
+  dan sebelum test.
+- `npm run dev` dijalankan oleh user, bukan agent. Jika dev server mati,
+  Playwright akan mencoba menyalakannya lewat `webServer`.
 
 ## 5. Peta Modul & Status
 
@@ -91,9 +118,9 @@ belum diverifikasi; `Todo` = belum ada spec; `N/A` = fitur belum ada (Todo di PR
 | 2 | 2.1 | Buat pesanan (QR/manual) | `modul2/pesanan.spec.ts` | Done |
 | 2 | 2.2 | Kelola item pesanan | `modul2/pesanan.spec.ts` | Done |
 | 2 | 2.3 | Status & pembatalan | `modul2/pesanan.spec.ts` | Done |
-| 3 | 3.1 | Hitung total (subtotal, pajak) | `modul3/pembayaran.spec.ts` | Todo |
-| 3 | 3.2 | Pembayaran tunai/QRIS | `modul3/pembayaran.spec.ts` | Todo |
-| 3 | 3.3 | Struk & riwayat | `modul3/pembayaran.spec.ts` | Todo |
+| 3 | 3.1 | Hitung total (subtotal, pajak) | `modul3/pembayaran.spec.ts` | Done |
+| 3 | 3.2 | Pembayaran tunai/QRIS | `modul3/pembayaran.spec.ts` | Done |
+| 3 | 3.3 | Struk & riwayat | `modul3/pembayaran.spec.ts` | Done |
 | 4 | 4.1 | Logging aktivitas | `modul4/logging.spec.ts` | Todo |
 | 5 | 5.1 | Laporan harian/bulanan | `modul5/laporan.spec.ts` | Todo |
 | 5 | 5.2 | Analitik menu terlaris | `modul5/laporan.spec.ts` | Todo |
@@ -117,6 +144,16 @@ belum diverifikasi; `Todo` = belum ada spec; `N/A` = fitur belum ada (Todo di PR
 | 10 | 10.3 | Minimal pembelian | `modul10/voucher.spec.ts` | Todo |
 | 10 | 10.4 | Voucher di menu customer | `modul10/voucher.spec.ts` | Todo |
 
+### 5.1 Ringkasan modul yang sudah dikerjakan
+
+| Modul | Spec | Ringkasan cakupan |
+|-------|------|-------------------|
+| 1 | `modul1/login.spec.ts`, `users.spec.ts`, `meja.spec.ts`, `menu.spec.ts`, `takeover.spec.ts` | Login/logout & validasi kredensial; CRUD user, meja (token unik), menu (kategori, foto, stok harian); ambil alih sesi antar perangkat (termasuk tombol Batal). |
+| 2 | `modul2/pesanan.spec.ts` | Pesanan QR customer (potong stok, kunci meja) dan manual kasir (`kasirId`); checkout keranjang kosong; kelola item oleh pelayan (selesai + guard item belum lengkap); pembatalan (`deletedAt`, meja kosong); owner read-only; tampilan/filter/pencarian status `diproses`. |
+| 3 | `modul3/pembayaran.spec.ts` | Hitung grand total (subtotal + biaya admin + PPN); pembayaran tunai + kembalian + struk; guard nominal kurang; pembayaran QRIS lewat halaman konfirmasi; riwayat transaksi + cetak struk. |
+
+Modul 4+ belum punya spec (lihat tabel status di atas).
+
 ## 6. Rencana Bertahap (Staged Implementation)
 
 Setiap tahap: tulis spec -> jalankan -> perbaiki -> cleanup -> update status tabel.
@@ -139,8 +176,9 @@ Setiap tahap: tulis spec -> jalankan -> perbaiki -> cleanup -> update status tab
    - Cleanup: hapus user sementara + log terkait.
 4. **Modul 2 Pesanan** (Done, serial)
    - Spec: `tests/e2e/modul2/pesanan.spec.ts`, `test.describe.configure({ mode: 'serial' })`.
-   - Fixture tambahan: `createTestUser(role)` (waiter/cashier), `createTestMeja`,
-     `createTestKategori`, `createTestMenu`; semua memakai `E2E_` + cleanup per-ID.
+   - Fixture tambahan: `createTestMeja`, `createTestKategori`, `createTestMenu`;
+     semua memakai `E2E_` + cleanup per-ID. Login staf memakai akun tetap
+     `e2e_kasir`/`e2e_waiter` hasil seed (bukan user baru per test).
    - Context customer tanpa `storageState`; context staff login per role agar
      `kasirId`/`waiterId` tidak tercampur.
    - **2.1 Buat pesanan**
@@ -168,8 +206,29 @@ Setiap tahap: tulis spec -> jalankan -> perbaiki -> cleanup -> update status tab
        "Diproses", pencarian `#id`/meja, dan dialog detail menampilkan item/total.
    - Cleanup urutan: user -> kategori -> menu -> meja -> pesanan didaftarkan
      sedemikian rupa sehingga saat dibalik pesanan terhapus lebih dulu.
-5. **Modul 3 Pembayaran** (serial)
-   - Tunai/QRIS, kembalian, struk, riwayat.
+5. **Modul 3 Pembayaran** (Done, serial)
+   - Spec: `tests/e2e/modul3/pembayaran.spec.ts`.
+   - Fixture tambahan: `ensureTestShift(kasirId)`; pesanan bisa diisi `shiftId`,
+     `biayaAdmin`, `ppn`, `jumlahBayar`, `kembalian`.
+   - Memakai akun tetap `e2e_kasir` + shift ACTIVE yang dibuat saat seed, agar
+     tidak bergantung pada alur buka shift Modul 7 dan tidak membuat akun baru.
+   - **3.1 Hitung total**: detail pesanan menampilkan subtotal item; dialog
+     pembayaran dan detail memakai grand total (subtotal + biaya admin + PPN).
+   - **3.2 Tunai**: input nominal ribuan, kembalian tampil di langkah konfirmasi,
+     "Bayar Tunai" menyimpan `statusPembayaran=berhasil`, `statusPesanan=diproses`,
+     `metodePembayaran=tunai`, `jumlahBayar`, `kembalian`, `kasirId`, `shiftId`;
+     dialog sukses menyediakan "Cetak Struk".
+   - **3.2 Guard tunai**: nominal kurang memicu alert
+     "Jumlah bayar kurang dari total!" dan data pesanan tidak berubah.
+   - **3.2 QRIS**: "Bayar QRIS" membuka halaman
+     `/dashboard/kasir/pesanan-baru/<id>?metode=qris`, tombol
+     "Konfirmasi Pembayaran" menyimpan `metodePembayaran=qris`,
+     `jumlahBayar=total`, `kembalian=0`, status berhasil/diproses.
+   - **3.3 Riwayat**: tab Riwayat + pencarian `#id` menampilkan metode, status,
+     kasir, dan total; tombol "Cetak" membuka dokumen struk; "Detail" menampilkan
+     pelanggan, kasir, dan total.
+   - Cleanup: shift didaftarkan sebelum pesanan sehingga saat dibalik pesanan
+     terhapus lebih dulu, lalu `kas_keluar` + shift.
 6. **Modul 4 Logging**, **Modul 5 Laporan** (read-only, hati-hati data test).
 7. **Modul 6 Stok** (serial): stok harian gate, pemotongan, transfer.
 8. **Modul 7**: shift, auto-kosongkan, refund (7.1/7.2 menunggu fitur).
@@ -180,11 +239,13 @@ Setiap tahap: tulis spec -> jalankan -> perbaiki -> cleanup -> update status tab
 
 | Entitas | Penanda | Cleanup |
 |---------|---------|---------|
-| User | `E2E_<label>_<stamp>` | hapus log berisi username, lalu user by username |
+| Akun login test | `e2e_owner`, `e2e_kasir`, `e2e_waiter`, `e2e_kitchen`, `e2e_takeover` | **Tidak dihapus test**; dibuat/di-update oleh seed |
+| User data CRUD | `E2E_user_<stamp>` | hapus log berisi username, lalu user by username |
 | Kategori | `E2E_<label>_<stamp>` | hapus kategori hanya jika tidak punya menu |
 | Menu | `E2E_<label>_<stamp>` | hapus MenuFoto/ResepMenu/DetailPesanan lalu menu by nama |
 | Meja | `E2E_K_<stamp>` / `E2E_L_<stamp>` (token `E2E` + hex) | hapus detail+pesanan lalu meja by nomor |
 | Voucher | `E2E<STAMP>` | hapus voucher by kode (setelah pesanan terkait) |
+| Shift | shift ACTIVE milik `e2e_kasir` | **Tidak dihapus test**; dipakai ulang. `trackShift` tetap ada untuk shift sementara bila dibutuhkan |
 | Pesanan | nama pelanggan `E2E_...` | hapus detail, bukti refund, pesanan |
 
 Cleanup dijalankan fixture setelah test (termasuk saat gagal), urutan task

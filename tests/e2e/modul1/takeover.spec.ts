@@ -1,28 +1,29 @@
 import {
   test,
   expect,
-  createTestOwner,
-  e2eUsername,
+  getTestUser,
   gotoLogin,
-  randomPassword,
   submitLogin,
   takeoverDialog,
+  testAccount,
   type Credentials,
 } from '../fixtures'
 import type { PrismaClient } from '@prisma/client'
-import type { CleanupRegistry } from '../fixtures'
 
-async function buatAkunOwnerSementara(
-  db: PrismaClient,
-  cleanup: CleanupRegistry
-): Promise<Credentials> {
-  const username = e2eUsername('takeover')
-  const password = randomPassword()
+/**
+ * Akun takeover tetap (hasil seed). Penanda sesi di-reset di awal skenario
+ * supaya login pertama tidak memicu dialog "Ambil alih sesi?".
+ */
+async function siapkanAkunTakeover(db: PrismaClient): Promise<Credentials> {
+  const credentials = testAccount('takeover')
+  const user = await getTestUser(db, 'takeover')
 
-  cleanup.trackUser(username)
-  await createTestOwner(db, username, password)
+  await db.users.update({
+    where: { id: user.id },
+    data: { lastLoginAt: null, lastSeenAt: null, lastLoginDevice: null },
+  })
 
-  return { username, password }
+  return credentials
 }
 
 async function loginSampaiDashboard(
@@ -40,9 +41,8 @@ test.describe('Modul 1.5 - Ambil alih sesi', () => {
   test('menampilkan konfirmasi lalu mengeluarkan sesi perangkat lama', async ({
     browser,
     db,
-    cleanup,
   }) => {
-    const credentials = await buatAkunOwnerSementara(db, cleanup)
+    const credentials = await siapkanAkunTakeover(db)
     const contextLama = await browser.newContext({
       storageState: { cookies: [], origins: [] },
     })
@@ -80,9 +80,8 @@ test.describe('Modul 1.5 - Ambil alih sesi', () => {
   test('menekan Batal tidak mengeluarkan sesi perangkat lama', async ({
     browser,
     db,
-    cleanup,
   }) => {
-    const credentials = await buatAkunOwnerSementara(db, cleanup)
+    const credentials = await siapkanAkunTakeover(db)
     const contextLama = await browser.newContext({
       storageState: { cookies: [], origins: [] },
     })

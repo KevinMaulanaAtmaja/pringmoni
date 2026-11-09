@@ -7,9 +7,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: 1,
-  timeout: 60_000,
+  // Supabase/dev-server bisa lambat (server action 1-3 detik). Beri ruang agar
+  // test alur panjang (mis. Modul 2 QR checkout) tidak kena timeout.
+  timeout: Number(process.env.E2E_TIMEOUT ?? 120_000),
   expect: {
-    timeout: 15_000,
+    timeout: 20_000,
   },
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
