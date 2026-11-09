@@ -195,6 +195,7 @@ model Pesanan {
   refundedAt            DateTime?         @map("refunded_at")
   refundedById          Int?              @map("refunded_by_id")
   totalHarga            Decimal           @default(0) @map("total_harga") @db.Decimal(10, 2)
+  dpNominal             Decimal           @default(0) @map("dp_nominal") @db.Decimal(10, 2)
   voucherId             Int?              @map("voucher_id")
   diskonVoucher         Decimal           @default(0) @map("diskon_voucher") @db.Decimal(10, 2)
   metodePembayaran      MetodePembayaran? @map("metode_pembayaran")
@@ -456,6 +457,8 @@ enum StatusReservasi {
   dikonfirmasi
   batal
   expired
+  selesai
+  no_show
 }
 
 model Reservasi {
@@ -473,6 +476,13 @@ model Reservasi {
   confirmedById   Int?            @map("confirmed_by_id")
   confirmedAt     DateTime?       @map("confirmed_at")
   cancelledAt     DateTime?       @map("cancelled_at")
+  selesaiAt       DateTime?       @map("selesai_at")
+  noShowAt        DateTime?       @map("no_show_at")
+  dpPersen        Int             @default(20) @map("dp_persen")
+  dpNominal       Decimal         @default(0) @map("dp_nominal") @db.Decimal(10, 2)
+  dpMetode        MetodePembayaran? @map("dp_metode")
+  dpStatus        StatusBayar     @default(menunggu) @map("dp_status")
+  dpPaidAt        DateTime?       @map("dp_paid_at")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime?       @map("updated_at")
 

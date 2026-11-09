@@ -67,6 +67,7 @@ interface Pesanan {
   statusPesanan: string
   statusPembayaran: string
   totalHarga: number
+  dpNominal?: number
   biayaAdmin: number | null
   ppn: number | null
   metodePembayaran: string | null
@@ -419,7 +420,7 @@ export default function KasirPage() {
   function getGrandTotal(p: Pesanan | null | undefined, metode?: string) {
     if (!p) return 0
     const excludeFee = metode === 'tunai'
-    return (p.totalHarga || 0) + (excludeFee ? 0 : (p.biayaAdmin || 0)) + (excludeFee ? 0 : (p.ppn || 0))
+    return (p.totalHarga || 0) - (p.dpNominal || 0) + (excludeFee ? 0 : (p.biayaAdmin || 0)) + (excludeFee ? 0 : (p.ppn || 0))
   }
 
   function formatSingkat(amount: number) {
@@ -864,6 +865,7 @@ export default function KasirPage() {
                                   catatan: i.catatanItem,
                                 })),
                                 totalHarga: Number(p.totalHarga),
+                                dpNominal: p.dpNominal ? Number(p.dpNominal) : undefined,
                                 adminFee: p.biayaAdmin ? Number(p.biayaAdmin) : undefined,
                                 ppn: p.ppn ? Number(p.ppn) : undefined,
                                 metodePembayaran: p.metodePembayaran,
@@ -966,6 +968,7 @@ export default function KasirPage() {
                           catatan: i.catatanItem,
                         })),
                         totalHarga: Number(selectedPesanan.totalHarga),
+                        dpNominal: selectedPesanan.dpNominal ? Number(selectedPesanan.dpNominal) : undefined,
                         adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
                         ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
                         metodePembayaran: selectedPesanan.metodePembayaran,
@@ -1067,8 +1070,27 @@ export default function KasirPage() {
                 <p className="text-xl font-bold text-green-800">
                     {selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}
                 </p>
-                <p className="text-green-600 text-xs">Total Tagihan</p>
+                <p className="text-green-600 text-xs">
+                  {selectedPesanan && (selectedPesanan.dpNominal || 0) > 0 ? "Sisa Tagihan (Pelunasan)" : "Total Tagihan"}
+                </p>
               </div>
+
+              {selectedPesanan && (selectedPesanan.dpNominal || 0) > 0 && (
+                <div className="bg-emerald-50/90 border border-emerald-200 rounded-lg p-2.5 text-xs text-emerald-800 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Pre-order / Menu:</span>
+                    <span className="font-medium text-gray-900">{formatRupiah(selectedPesanan.totalHarga)}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-700">
+                    <span>DP Reservasi (Telah Lunas):</span>
+                    <span className="font-semibold">- {formatRupiah(selectedPesanan.dpNominal || 0)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold border-t border-emerald-200 pt-1 text-emerald-950">
+                    <span>Sisa Yang Harus Dibayar:</span>
+                    <span>{formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}</span>
+                  </div>
+                </div>
+              )}
 
               {/* Payment Method Selection */}
               <div className="space-y-1.5">
@@ -1125,8 +1147,16 @@ export default function KasirPage() {
                   <CheckCircle className="w-10 h-10 mx-auto text-yellow-600" />
                   <p className="text-base font-bold">Konfirmasi Pembayaran Tunai</p>
                   <div className="bg-white rounded-lg p-3 space-y-1.5 text-left text-sm">
+                    {selectedPesanan && (selectedPesanan.dpNominal || 0) > 0 && (
+                      <div className="flex justify-between text-xs text-emerald-700">
+                        <span>DP Reservasi (Lunas)</span>
+                        <span className="font-semibold">- {formatRupiah(selectedPesanan.dpNominal || 0)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Total Tagihan</span>
+                      <span className="text-gray-500">
+                        {selectedPesanan && (selectedPesanan.dpNominal || 0) > 0 ? "Sisa Tagihan" : "Total Tagihan"}
+                      </span>
                       <span className="font-bold">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}</span>
                     </div>
                     <div className="flex justify-between">
@@ -1169,8 +1199,16 @@ export default function KasirPage() {
                     </span>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm divide-y divide-gray-200">
+                    {selectedPesanan && (selectedPesanan.dpNominal || 0) > 0 && (
+                      <div className="flex justify-between pb-1 text-xs text-emerald-700">
+                        <span>DP Reservasi (Lunas)</span>
+                        <span className="font-semibold">- {formatRupiah(selectedPesanan.dpNominal || 0)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between pb-1.5">
-                      <span className="text-gray-500">Total Tagihan</span>
+                      <span className="text-gray-500">
+                        {selectedPesanan && (selectedPesanan.dpNominal || 0) > 0 ? "Sisa Tagihan" : "Total Tagihan"}
+                      </span>
                       <span className="font-semibold">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}</span>
                     </div>
                     <div className="flex justify-between pt-1.5">
@@ -1310,6 +1348,7 @@ export default function KasirPage() {
                     catatan: i.catatanItem,
                   })),
                   totalHarga: Number(selectedPesanan.totalHarga),
+                  dpNominal: selectedPesanan.dpNominal ? Number(selectedPesanan.dpNominal) : undefined,
                   adminFee: selectedPesanan.biayaAdmin ? Number(selectedPesanan.biayaAdmin) : undefined,
                   ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
                   metodePembayaran: selectedPesanan.metodePembayaran,

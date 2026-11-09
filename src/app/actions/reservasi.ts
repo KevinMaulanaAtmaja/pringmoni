@@ -4,11 +4,14 @@ import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
+import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
-import { Prisma, StatusMeja, StatusPesanan, StatusBayar, StatusReservasi } from "@prisma/client"
+import { Prisma, MetodePembayaran, StatusMeja, StatusPesanan, StatusBayar, StatusReservasi } from "@prisma/client"
 import crypto from "crypto"
+import { DP_PERSEN, hitungRincianDp } from "@/lib/dp"
 
 const ALLOWED_ROLES = ["owner", "cashier", "waiter"] as const
+const METODE_DP = [MetodePembayaran.tunai, MetodePembayaran.qris, MetodePembayaran.transfer]
 
 export interface CreateReservasiItem {
   menuId: number
@@ -25,6 +28,7 @@ export interface CreateReservasiData {
   catatan?: string | null
   items?: CreateReservasiItem[]
   batasMenit?: number
+  dpMetode?: MetodePembayaran | null
 }
 
 async function requireReservasiRole() {
@@ -57,6 +61,7 @@ export async function createReservasi(data: CreateReservasiData) {
     catatan,
     items = [],
     batasMenit = 180,
+    dpMetode,
   } = data
 
   if (!Number.isInteger(mejaId) || mejaId <= 0) {
@@ -135,9 +140,21 @@ export async function createReservasi(data: CreateReservasiData) {
     totalHarga += harga * jumlahTotal
   }
 
+  if (totalHarga <= 0) {
+    return { error: "Reservasi wajib memesan minimal 1 menu (DP 20% dihitung dari total pre-order)" }
+  }
+  if (!dpMetode || !METODE_DP.includes(dpMetode)) {
+    return { error: "Metode pembayaran DP wajib dipilih" }
+  }
+  const rincianDp = hitungRincianDp(totalHarga)
+  const dpNominal = rincianDp.dpNominal
+
   const batasKonfirmasi = new Date(waktuKedatanganDate.getTime() + batasMenit * 60000)
 
   const reservasi = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT id FROM meja WHERE id = ${mejaId} FOR UPDATE
+    `
     const created = await tx.reservasi.create({
       data: {
         mejaId,
@@ -149,6 +166,11 @@ export async function createReservasi(data: CreateReservasiData) {
         catatan: catatan?.trim() || null,
         statusReservasi: StatusReservasi.menunggu_kedatangan,
         createdById: userId,
+        dpPersen: DP_PERSEN,
+        dpNominal: new Prisma.Decimal(dpNominal),
+        dpMetode,
+        dpStatus: StatusBayar.berhasil,
+        dpPaidAt: new Date(),
         detailReservasi: {
           create: items
             .filter((item) => itemPrices.has(item.menuId) && item.jumlah > 0)
@@ -172,7 +194,7 @@ export async function createReservasi(data: CreateReservasiData) {
 
   await createLog(
     "CREATE_RESERVASI",
-    `Reservasi #${reservasi.id} dibuat untuk ${namaPelanggan} di Meja ${meja.nomorMeja} (${jumlahOrang} org) pada ${waktuKedatanganDate.toLocaleString("id-ID")}`,
+    `Reservasi #${reservasi.id} dibuat untuk ${namaPelanggan} di Meja ${meja.nomorMeja} (${jumlahOrang} org) pada ${waktuKedatanganDate.toLocaleString("id-ID")}. DP ${DP_PERSEN}% via ${dpMetode} sebesar Rp${dpNominal.toLocaleString("id-ID")}${rincianDp.pembulatan > 0 ? ` (pembulatan +Rp${rincianDp.pembulatan.toLocaleString("id-ID")})` : ""}, sisa tagihan Rp${rincianDp.sisaTagihan.toLocaleString("id-ID")}`,
     userId
   )
 
@@ -181,7 +203,14 @@ export async function createReservasi(data: CreateReservasiData) {
   revalidatePath("/dashboard/meja")
   revalidatePath("/dashboard/pesanan")
 
-  return { success: true, reservasiId: reservasi.id, totalHarga }
+  return {
+    success: true,
+    reservasiId: reservasi.id,
+    totalHarga,
+    dpNominal,
+    sisaTagihan: rincianDp.sisaTagihan,
+    pembulatan: rincianDp.pembulatan,
+  }
 }
 
 export async function getReservasi(filters?: { status?: string }) {
@@ -237,6 +266,11 @@ export async function getReservasi(filters?: { status?: string }) {
       (sum, d) => sum + Number(d.hargaSaatPesan) * d.jumlah,
       0
     ),
+    dpPersen: r.dpPersen,
+    dpNominal: Number(r.dpNominal),
+    dpMetode: r.dpMetode,
+    dpStatus: r.dpStatus,
+    dpPaidAt: r.dpPaidAt,
   }))
 }
 
@@ -285,6 +319,12 @@ export async function confirmKedatanganReservasi(reservasiId: number) {
     return { error: "Reservasi sudah dikonfirmasi menjadi pesanan" }
   }
 
+  const now = new Date()
+  const batasKonfirmasiDate = new Date(reservasi.batasKonfirmasi)
+  if (Number.isNaN(batasKonfirmasiDate.getTime()) || now > batasKonfirmasiDate) {
+    return { error: "Reservasi sudah expired (batas konfirmasi lewat)" }
+  }
+
   const jumlahPerMenu = new Map<number, number>()
   for (const detail of reservasi.detailReservasi) {
     jumlahPerMenu.set(detail.menuId, (jumlahPerMenu.get(detail.menuId) ?? 0) + detail.jumlah)
@@ -317,6 +357,7 @@ export async function confirmKedatanganReservasi(reservasiId: number) {
         waiterId: session.user.role === "waiter" ? userId : null,
         statusPesanan: StatusPesanan.menunggu,
         totalHarga,
+        dpNominal: reservasi.dpNominal,
         namaPelanggan: reservasi.namaPelanggan,
         catatan: reservasi.catatan,
         metodePembayaran: null,

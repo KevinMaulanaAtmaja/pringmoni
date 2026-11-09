@@ -21,6 +21,7 @@ import {
 } from "@/app/actions/reservasi"
 import { getMenusForCustomer } from "@/app/actions/pesanan"
 import { getKategoriMenus } from "@/app/actions/menu"
+import { hitungRincianDp, DP_PERSEN } from "@/lib/dp"
 
 type StatusFilter = "all" | "menunggu_kedatangan" | "dikonfirmasi" | "batal" | "expired"
 
@@ -52,6 +53,11 @@ interface ReservasiRow {
   createdAt: Date | string
   items: ReservasiItemRow[]
   totalHarga: number
+  dpPersen: number
+  dpNominal: number
+  dpMetode: string | null
+  dpStatus: string
+  dpPaidAt: Date | string | null
 }
 
 interface MejaRow {
@@ -101,6 +107,12 @@ const STATUS_LABEL: Record<StatusFilter, string> = {
   expired: "Expired",
 }
 
+const METODE_DP_LABEL: Record<string, string> = {
+  tunai: "Tunai",
+  qris: "QRIS",
+  transfer: "Transfer",
+}
+
 function formatKategoriNama(nama: string) {
   return nama
     .split(" ")
@@ -127,6 +139,7 @@ export default function ReservasiPage() {
     jumlahOrang: "2",
     waktuKedatangan: "",
     catatan: "",
+    dpMetode: "tunai",
   })
   const [reservasiItems, setReservasiItems] = useState<ReservasiItemDraft[]>([])
   const [menuSearch, setMenuSearch] = useState("")
@@ -168,12 +181,19 @@ export default function ReservasiPage() {
     setLoadingReservasi(true)
     try {
       await expireReservasi()
-      const [resResult, mejaResult, menuResult, kategoriResult] = await Promise.all([
+      const [resSettled, mejaSettled, menuSettled, kategoriSettled] = await Promise.allSettled([
         getReservasi({ status: "all" }),
         getMejaUntukReservasi(),
         getMenusForCustomer(),
         getKategoriMenus(),
       ])
+      const resResult = resSettled.status === "fulfilled" ? resSettled.value : undefined
+      const mejaResult = mejaSettled.status === "fulfilled" ? mejaSettled.value : undefined
+      const menuResult = menuSettled.status === "fulfilled" ? menuSettled.value : undefined
+      const kategoriResult = kategoriSettled.status === "fulfilled" ? kategoriSettled.value : undefined
+      for (const settled of [resSettled, mejaSettled, menuSettled, kategoriSettled]) {
+        if (settled.status === "rejected") console.error(settled.reason)
+      }
       if (Array.isArray(resResult)) setReservasiList(resResult as ReservasiRow[])
       if (Array.isArray(mejaResult)) setMejaReservasi(mejaResult as MejaRow[])
       setMenusReservasi(Array.isArray(menuResult) ? (menuResult as MenuRow[]) : [])
@@ -233,6 +253,10 @@ export default function ReservasiPage() {
     return sum + (menu ? menu.harga * item.jumlah : 0)
   }, 0)
 
+  const rincianDp = useMemo(() => hitungRincianDp(totalPreorder), [totalPreorder])
+  const dpNominal = rincianDp.dpNominal
+  const sisaTagihan = rincianDp.sisaTagihan
+
   function qtyMenu(menuId: number) {
     return reservasiItems.find((i) => i.menuId === menuId)?.jumlah ?? 0
   }
@@ -286,7 +310,7 @@ export default function ReservasiPage() {
   }
 
   function resetFormReservasi() {
-    setReservasiForm({ mejaId: "", namaPelanggan: "", noHp: "", jumlahOrang: "2", waktuKedatangan: "", catatan: "" })
+    setReservasiForm({ mejaId: "", namaPelanggan: "", noHp: "", jumlahOrang: "2", waktuKedatangan: "", catatan: "", dpMetode: "tunai" })
     setReservasiItems([])
     setMenuSearch("")
     setActiveKategori("Semua")
@@ -310,6 +334,10 @@ export default function ReservasiPage() {
       showNotice("error", "Meja, nama pelanggan, dan waktu kedatangan wajib diisi")
       return
     }
+    if (reservasiItems.length === 0) {
+      showNotice("error", "Reservasi wajib memesan minimal 1 menu (DP 20% dihitung dari pre-order)")
+      return
+    }
     setSubmittingReservasi(true)
     try {
       const items = reservasiItems
@@ -323,6 +351,7 @@ export default function ReservasiPage() {
         waktuKedatangan: new Date(reservasiForm.waktuKedatangan).toISOString(),
         catatan: reservasiForm.catatan || null,
         items,
+        dpMetode: reservasiForm.dpMetode as "tunai" | "qris" | "transfer",
       })
       if ("error" in result) {
         showNotice("error", result.error || "Gagal membuat reservasi")
@@ -513,15 +542,30 @@ export default function ReservasiPage() {
                 </div>
               </div>
               {r.items.length > 0 && (
-                <div className="bg-gray-50 rounded p-2 text-sm space-y-1">
-                  <p className="font-medium text-xs text-gray-600">Pre-order:</p>
-                  {r.items.map((it) => (
-                    <p key={it.id}>
-                      - {it.jumlah}x {it.namaMenu}{" "}
-                      {it.catatanItem && <span className="text-gray-500">({it.catatanItem})</span>}
-                    </p>
-                  ))}
-                  <p className="font-medium pt-1">Total: {formatRupiah(r.totalHarga)}</p>
+                <div className="bg-gray-50 rounded-lg p-2.5 text-sm space-y-1.5 border border-gray-100">
+                  <p className="font-medium text-xs text-gray-600">Pre-order ({r.items.reduce((s, i) => s + i.jumlah, 0)} item):</p>
+                  <div className="max-h-24 overflow-y-auto space-y-0.5">
+                    {r.items.map((it) => (
+                      <p key={it.id} className="text-xs text-gray-700">
+                        • {it.jumlah}x {it.namaMenu}{" "}
+                        {it.catatanItem && <span className="text-gray-400">({it.catatanItem})</span>}
+                      </p>
+                    ))}
+                  </div>
+                  <div className="border-t border-gray-200 pt-1.5 mt-1 text-xs space-y-0.5">
+                    <div className="flex justify-between font-medium text-gray-700">
+                      <span>Total Pre-order</span>
+                      <span>{formatRupiah(r.totalHarga)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-emerald-700">
+                      <span>DP {r.dpPersen}% ({METODE_DP_LABEL[r.dpMetode ?? ""] ?? r.dpMetode ?? "-"})</span>
+                      <span>{formatRupiah(r.dpNominal)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Sisa Tagihan</span>
+                      <span>{formatRupiah(Math.max(0, r.totalHarga - r.dpNominal))}</span>
+                    </div>
+                  </div>
                 </div>
               )}
               {r.statusReservasi === "menunggu_kedatangan" && (
@@ -690,7 +734,7 @@ export default function ReservasiPage() {
                     </div>
                     <div>
                       <h3 className="font-heading text-sm font-semibold">Pilih Menu Pre-order</h3>
-                      <p className="text-xs text-gray-500">Opsional · minimal 1 porsi per menu</p>
+                      <p className="text-xs text-gray-500">Wajib · minimal 1 menu (DP 20% dari total)</p>
                     </div>
                   </div>
                   {reservasiItems.length > 0 && (
@@ -793,7 +837,7 @@ export default function ReservasiPage() {
               </div>
               {reservasiItems.length === 0 ? (
                 <div className="px-4 py-6 text-center text-sm text-gray-400">
-                  Belum ada menu dipilih. Pilih menu di kotak kanan — minimal 1 porsi per menu.
+                  Belum ada menu dipilih. Pilih menu di kotak kanan — reservasi wajib memesan minimal 1 menu.
                 </div>
               ) : (
                 <div className="divide-y">
@@ -886,6 +930,80 @@ export default function ReservasiPage() {
                 </div>
               )}
             </section>
+
+            {/* Kotak 4: DP 20% */}
+            <section className="rounded-xl border bg-white overflow-hidden shadow-xs">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-emerald-50/50">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading text-sm font-semibold text-gray-900">Uang Muka (DP 20%)</h3>
+                  <Badge className="bg-emerald-600 text-white text-[11px]">Wajib 20%</Badge>
+                </div>
+                <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px]">
+                  Pembulatan Ribuan
+                </Badge>
+              </div>
+              <div className="p-4 space-y-3.5">
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Total Pre-order</span>
+                    <span className="font-medium text-gray-900">{formatRupiah(totalPreorder)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>DP {DP_PERSEN}% (perhitungan murni)</span>
+                    <span>{formatRupiah(rincianDp.dpMentah)}</span>
+                  </div>
+                  {rincianDp.pembulatan > 0 && (
+                    <div className="rounded-lg bg-emerald-50/80 border border-emerald-100 px-3 py-2 text-xs space-y-1">
+                      <div className="flex items-center justify-between text-emerald-800 font-medium">
+                        <span>Pembulatan ke atas (kelipatan Rp 1.000)</span>
+                        <span>+ {formatRupiah(rincianDp.pembulatan)}</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-700 leading-tight">
+                        Dibulatkan agar tidak ada uang receh (misal Rp 150) yang menyulitkan transaksi kasir atau kembalian tunai.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-xl border-2 border-emerald-500/40 bg-emerald-50/60 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                        Total DP Wajib Dibayar
+                      </p>
+                      <p className="text-[11px] text-emerald-700">Dibayar sekarang saat reservasi dibuat</p>
+                    </div>
+                    <span className="text-xl font-extrabold text-emerald-800">{formatRupiah(dpNominal)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-sm pt-1 border-t">
+                  <span className="text-gray-600">Sisa Pelunasan Saat Kedatangan</span>
+                  <span className="font-semibold text-gray-900">{formatRupiah(sisaTagihan)}</span>
+                </div>
+
+                <div className="pt-1">
+                  <Label className="text-sm font-semibold text-gray-800">Metode Pembayaran DP</Label>
+                  <p className="text-[11px] text-gray-500 mb-2">Pilih metode yang digunakan pelanggan untuk membayar DP</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["tunai", "qris", "transfer"] as const).map((metode) => (
+                      <button
+                        key={metode}
+                        type="button"
+                        onClick={() => setReservasiForm((f) => ({ ...f, dpMetode: metode }))}
+                        className={`rounded-lg border-2 px-2.5 py-2 text-xs font-semibold transition-all ${
+                          reservasiForm.dpMetode === metode
+                            ? "border-emerald-600 bg-emerald-50 text-emerald-700 shadow-xs"
+                            : "border-gray-200 hover:border-gray-300 text-gray-700"
+                        }`}
+                      >
+                        {METODE_DP_LABEL[metode]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
             </div>
             )}
           </div>
@@ -907,8 +1025,10 @@ export default function ReservasiPage() {
             ) : (
               <>
                 <div className="text-sm text-gray-600 sm:self-center">
-                  Total pre-order:{" "}
-                  <span className="font-bold text-green-700">{formatRupiah(totalPreorder)}</span>
+                  DP 20%: <span className="font-bold text-emerald-700">{formatRupiah(dpNominal)}</span>
+                  {rincianDp.pembulatan > 0 && <span className="text-[11px] text-emerald-600"> (dibulatkan)</span>}
+                  <span className="text-gray-400"> · </span>
+                  Sisa: <span className="font-medium">{formatRupiah(sisaTagihan)}</span>
                 </div>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row">
                   <Button variant="outline" onClick={() => setReservasiStep(1)}>
@@ -1131,8 +1251,18 @@ export default function ReservasiPage() {
                       ))}
                     </div>
                     <div className="flex items-center justify-between border-t bg-muted/40 px-4 py-2.5 text-sm font-semibold">
-                      <span>Total</span>
-                      <span className="text-emerald-700">{formatRupiah(confirmTarget.totalHarga)}</span>
+                      <span className="text-gray-700">Total Pre-order</span>
+                      <span className="text-gray-900">{formatRupiah(confirmTarget.totalHarga)}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t bg-emerald-50 px-4 py-2.5 text-sm">
+                      <span className="font-medium text-emerald-900">
+                        DP {confirmTarget.dpPersen}% ({METODE_DP_LABEL[confirmTarget.dpMetode ?? ""] ?? confirmTarget.dpMetode ?? "-"} - Telah Lunas)
+                      </span>
+                      <span className="font-semibold text-emerald-700">- {formatRupiah(confirmTarget.dpNominal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t bg-emerald-100/50 px-4 py-2.5 text-sm font-bold">
+                      <span className="text-emerald-950">Sisa Tagihan di Kasir</span>
+                      <span className="text-emerald-800 text-base">{formatRupiah(Math.max(0, confirmTarget.totalHarga - confirmTarget.dpNominal))}</span>
                     </div>
                   </div>
                 )}

@@ -4,6 +4,7 @@ import type { RoleUser } from "@prisma/client"
 import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
+import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 
 /**
@@ -126,6 +127,10 @@ async function sweepTengahMalam(hariIni: Date) {
         data: { statusMeja: "kosong" },
       }),
     ])
+
+    for (const mejaId of mejaIds) {
+      await finalizeReservasiUntukMeja(mejaId, "batal")
+    }
 
     if (pesananTerbatal.count > 0) {
       await createLog(

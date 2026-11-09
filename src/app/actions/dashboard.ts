@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
+import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { getNotifikasiTerlambat } from "@/app/actions/notifikasi"
 import type { RoleUser } from "@/types"
@@ -306,6 +307,10 @@ export async function autoCancelStaleUnpaid() {
         data: { statusMeja: 'kosong' },
       }),
     ])
+
+    for (const mejaId of mejaIds) {
+      await finalizeReservasiUntukMeja(mejaId, "batal")
+    }
 
     const byMethod = stale.reduce<Record<string, number>>((acc, p) => {
       const key = p.metodePembayaran || 'tanpa_metode'
