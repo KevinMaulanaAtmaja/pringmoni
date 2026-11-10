@@ -1,3 +1,21 @@
+# PROGRESS - Sesi 2026-11-10 (Latihan uji operasi DB di file terpisah)
+
+> Menyimpan 5 test case operasi database ke file terpisah + menjelaskan konsep dasar testing.
+
+## Selesai
+- File baru latihan: `src/test/unit/app/actions/meja-operasi.test.ts` (102 baris) — 5 test case operasi DB (getMeja x2, createMeja x2 + it.each, kosongkanMeja x1).
+- Konsep dijelaskan: `describe`, `it`, `expect`, `.mockResolvedValue/Once`, `beforeEach/afterEach`, `vi.mock/hoisted`.
+
+## Hasil verifikasi
+- `npx vitest run src/test/unit/app/actions/meja-operasi.test.ts` -> 7/7 passed.
+- `npx vitest run` (full) -> 36 file passed / 1 skipped, 667 passed / 1 skipped.
+- `npx eslint` pada file baru -> bersih (0 error).
+
+## Berikutnya
+- Lanjut rencana whitebox testing / implementasi test berikutnya.
+
+---
+
 # PROGRESS - Sesi 2026-11-08 (Rencana integration testing)
 
 > Menyusun rencana integration testing semua alur (belum implementasi) dan merapikan branch testing.
