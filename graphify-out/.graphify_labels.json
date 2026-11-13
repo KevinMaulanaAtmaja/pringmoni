@@ -48,7 +48,6 @@
   "62": "20261015000002_reseed_resep_bahan_bungkus/migration.sql",
   "63": "20261015000003_bersihkan_keterangan_dan_bumbu_non_makanan/migration.sql",
   "64": "stok-bahan.ts",
-  "65": "prisma.ts",
   "66": "cloudinary",
   "68": "20261022120000_add_session_takeover/migration.sql",
   "69": "seed-menu.ts",

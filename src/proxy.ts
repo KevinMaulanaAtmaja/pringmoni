@@ -32,6 +32,9 @@ const RESERVED_ROOT_SEGMENTS = new Set([
 // Public pages that never need a session
 const PUBLIC_ROUTES = ["/", "/login", "/reset-password"]
 
+// Customer reservation routes (tanpa login): /reservasi/[tokenMeja], /reservasi/status
+const RESERVASI_PUBLIC_PATTERN = /^\/reservasi(\/[^/]+)?$/
+
 // Customer kiosk routes: /[tokenMeja], /[tokenMeja]/pesanan, /[tokenMeja]/checkout, ...
 const CUSTOMER_TOKEN_PATTERN = /^[a-zA-Z0-9-]+$/
 const CUSTOMER_SUBPATH_PATTERN =
@@ -64,6 +67,7 @@ function getRouteRole(pathname: string): RoleUser[] | null {
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.includes(pathname)) return true
   if (/^\/reset-password\/[^/]+$/.test(pathname)) return true
+  if (RESERVASI_PUBLIC_PATTERN.test(pathname)) return true
 
   const segments = pathname.split("/").filter(Boolean)
   if (segments.length === 0) return false

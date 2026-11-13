@@ -24,6 +24,8 @@ type JenisAksiLog =
   | "CONFIRM_RESERVASI"
   | "CANCEL_RESERVASI"
   | "EXPIRE_RESERVASI"
+  | "CREATE_RESERVASI_CUSTOMER"
+  | "VERIFIKASI_DP_CUSTOMER"
 
 async function getIp(): Promise<string | null> {
   try {

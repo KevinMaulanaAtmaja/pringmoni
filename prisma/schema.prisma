@@ -407,6 +407,13 @@ enum JenisAksiLog {
   CONFIRM_RESERVASI
   CANCEL_RESERVASI
   EXPIRE_RESERVASI
+  CREATE_RESERVASI_CUSTOMER
+  VERIFIKASI_DP_CUSTOMER
+}
+
+enum SumberReservasi {
+  offline
+  online
 }
 
 enum StatusVoucher {
@@ -463,6 +470,7 @@ enum StatusReservasi {
 
 model Reservasi {
   id              Int             @id @default(autoincrement())
+  kodeReservasi   String?         @unique @map("kode_reservasi")
   mejaId          Int             @map("meja_id")
   namaPelanggan   String          @map("nama_pelanggan")
   noHp            String?         @map("no_hp")
@@ -471,7 +479,9 @@ model Reservasi {
   batasKonfirmasi DateTime        @map("batas_konfirmasi")
   catatan         String?         @map("catatan")
   statusReservasi StatusReservasi @default(menunggu_kedatangan) @map("status_reservasi")
-  createdById     Int             @map("created_by_id")
+  sumber          SumberReservasi @default(offline)
+  createdById     Int?            @map("created_by_id")
+  alasanBatal     String?         @map("alasan_batal")
   pesananId       Int?            @map("pesanan_id")
   confirmedById   Int?            @map("confirmed_by_id")
   confirmedAt     DateTime?       @map("confirmed_at")
@@ -483,11 +493,12 @@ model Reservasi {
   dpMetode        MetodePembayaran? @map("dp_metode")
   dpStatus        StatusBayar     @default(menunggu) @map("dp_status")
   dpPaidAt        DateTime?       @map("dp_paid_at")
+  dpBuktiUrl      String?         @map("dp_bukti_url")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime?       @map("updated_at")
 
   meja            Meja            @relation(fields: [mejaId], references: [id])
-  createdBy       Users           @relation("ReservasiCreatedBy", fields: [createdById], references: [id])
+  createdBy       Users?          @relation("ReservasiCreatedBy", fields: [createdById], references: [id])
   confirmedBy     Users?          @relation("ReservasiConfirmedBy", fields: [confirmedById], references: [id])
   pesanan         Pesanan?        @relation(fields: [pesananId], references: [id])
   detailReservasi DetailReservasi[]

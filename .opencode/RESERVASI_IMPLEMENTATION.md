@@ -133,3 +133,55 @@ Status terakhir:
 - Belum ada reservasi online dari customer.
 - Belum ada DP/pembayaran di muka.
 - Kitchen belum punya tampilan pre-order reservasi.
+
+## 9. Reservasi Customer via QR (P3) — Rencana Eksekusi
+
+Keputusan user (2026-11-13):
+
+1. **Entry point**: tombol "Reservasi Meja Ini" di header halaman customer `/[tokenMeja]` menuju route baru `/reservasi/[tokenMeja]`. QR tercetak tidak diubah.
+2. **Pre-order wajib min. 1 menu** (sama seperti alur staf) → DP 20% dibulatkan ke atas ke Rp 1.000 (`src/lib/dp.ts`).
+3. **DP dibayar online**: QRIS statis + upload bukti → `dpStatus: menunggu` → diverifikasi kasir (owner/cashier) dari dashboard.
+4. **Expiry**: `batasKonfirmasi = waktuKedatangan + EXPIRY_JAM_DEFAULT` dengan `EXPIRY_JAM_DEFAULT = 3` (konstanta di `src/lib/reservasi.ts`). Berlaku untuk reservasi staf maupun customer.
+5. **DP hangus** jika expired/no-show; refund hanya manual oleh owner.
+6. **Jam kedatangan ditampilkan jelas** ke customer sebagai patokan persiapan resto — di langkah ringkasan, layar sukses (kode reservasi), dan halaman cek status ("Resto menyiapkan pesanan Anda sebelum jam kedatangan").
+
+### Perubahan schema (migrasi)
+
+| Field | Perubahan |
+|-------|-----------|
+| `Reservasi.kodeReservasi` | `String? @unique` — kode pendek 6 char, backfill row lama |
+| `Reservasi.sumber` | `enum SumberReservasi { offline online } @default(offline)` |
+| `Reservasi.createdById` | `Int` → `Int?` (reservasi online tanpa user) |
+| `Reservasi.alasanBatal` | `String?` |
+| `JenisAksiLog` | tambah `CREATE_RESERVASI_CUSTOMER`, `VERIFIKASI_DP_CUSTOMER` |
+
+### Action baru (`src/app/actions/reservasi-customer.ts`)
+
+| Action | Perilaku |
+|--------|----------|
+| `createReservasiCustomer(data)` | Publik, `sumber: "online"`, `createdById: null`. Rate limit per IP/no HP + honeypot. Validasi token meja, meja tidak `dipesan`/pesanan aktif, kapasitas, waktu kedatangan (tidak masa lalu, maks H+7), pre-order min. 1 + stok. DP → `menunggu`. Pusher event ke dashboard. |
+| `getReservasiCustomerByToken(token)` | Data meja + menu untuk form. |
+| `cekStatusReservasi(kode, noHp)` | Status untuk halaman customer. |
+| `uploadBuktiDp(reservasiId, file)` | Upload bukti DP (reuse UploadThing). |
+
+### Action tambahan (`src/app/actions/reservasi.ts`)
+
+| Action | Perilaku |
+|--------|----------|
+| `verifikasiDpCustomer(reservasiId)` | Owner/cashier: `dpStatus: berhasil` + `dpPaidAt`, log audit. |
+
+### Halaman baru
+
+| Route | Isi |
+|-------|-----|
+| `/reservasi/[tokenMeja]` | Stepper: Data & Waktu (nama, no HP, jumlah orang, `datetime-local`) → Pre-order → Ringkasan + DP (rincian, kebijakan) → Bayar DP (QRIS + upload bukti) → Sukses (kode reservasi + jam kedatangan). |
+| `/reservasi/status` | Input kode + no HP → status + jam kedatangan. |
+
+### Dashboard
+
+- Kartu reservasi: badge "DP menunggu verifikasi" + tombol **Verifikasi DP**.
+- Filter status tambah turunan `dpStatus = menunggu`.
+
+### Verifikasi
+
+`prisma migrate dev` (dev server mati) → `npx tsc --noEmit` → `npm run lint -- --quiet` → `npm run graph:update`. E2E: reservasi online → meja `dipesan` + badge staf → upload bukti → verifikasi → konfirmasi kedatangan → order selesai; uji expiry (ubah `batasKonfirmasi` ke masa lalu) & rate limit.

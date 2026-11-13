@@ -18,6 +18,7 @@ import {
   cancelReservasi,
   expireReservasi,
   getMejaUntukReservasi,
+  verifikasiDpCustomer,
 } from "@/app/actions/reservasi"
 import { getMenusForCustomer } from "@/app/actions/pesanan"
 import { getKategoriMenus } from "@/app/actions/menu"
@@ -36,6 +37,8 @@ interface ReservasiItemRow {
 
 interface ReservasiRow {
   id: number
+  kodeReservasi: string | null
+  sumber: string
   mejaId: number
   nomorMeja: string
   namaPelanggan: string
@@ -58,6 +61,8 @@ interface ReservasiRow {
   dpMetode: string | null
   dpStatus: string
   dpPaidAt: Date | string | null
+  dpBuktiUrl: string | null
+  alasanBatal: string | null
 }
 
 interface MejaRow {
@@ -153,6 +158,7 @@ export default function ReservasiPage() {
   const [submittingCancel, setSubmittingCancel] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState<ReservasiRow | null>(null)
   const [submittingConfirm, setSubmittingConfirm] = useState(false)
+  const [verifyingDpId, setVerifyingDpId] = useState<number | null>(null)
   const [confirmResult, setConfirmResult] = useState<{
     pesananId: number
     namaPelanggan: string
@@ -180,7 +186,11 @@ export default function ReservasiPage() {
     }
     setLoadingReservasi(true)
     try {
-      await expireReservasi()
+      try {
+        await expireReservasi()
+      } catch (e) {
+        console.error(e)
+      }
       const [resSettled, mejaSettled, menuSettled, kategoriSettled] = await Promise.allSettled([
         getReservasi({ status: "all" }),
         getMejaUntukReservasi(),
@@ -396,6 +406,23 @@ export default function ReservasiPage() {
     }
   }
 
+  async function handleVerifikasiDp(reservasi: ReservasiRow) {
+    setVerifyingDpId(reservasi.id)
+    try {
+      const result = await verifikasiDpCustomer(reservasi.id)
+      if ("error" in result) {
+        showNotice("error", result.error || "Gagal memverifikasi DP")
+        return
+      }
+      showNotice("success", `DP reservasi ${reservasi.kodeReservasi ?? `#${reservasi.id}`} terverifikasi`)
+      fetchReservasiData()
+    } catch (error) {
+      showNotice("error", error instanceof Error ? error.message : "Terjadi kesalahan")
+    } finally {
+      setVerifyingDpId(null)
+    }
+  }
+
   function openCancelDialog(reservasi: ReservasiRow) {
     setCancelTarget(reservasi)
     setCancelAlasan("")
@@ -510,7 +537,7 @@ export default function ReservasiPage() {
             <div key={r.id} className="bg-white rounded-xl border p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-lg">Meja {r.nomorMeja}</h3>
                     <Badge
                       className={
@@ -523,7 +550,15 @@ export default function ReservasiPage() {
                     >
                       {STATUS_LABEL[r.statusReservasi as StatusFilter] ?? r.statusReservasi}
                     </Badge>
+                    {r.sumber === "online" && (
+                      <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800">
+                        Online
+                      </Badge>
+                    )}
                   </div>
+                  {r.kodeReservasi && (
+                    <p className="text-xs text-gray-500 font-mono mt-0.5">{r.kodeReservasi}</p>
+                  )}
                   <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                     <Users className="w-3 h-3" /> {r.namaPelanggan} - {r.jumlahOrang} orang
                   </p>
@@ -561,12 +596,55 @@ export default function ReservasiPage() {
                       <span>DP {r.dpPersen}% ({METODE_DP_LABEL[r.dpMetode ?? ""] ?? r.dpMetode ?? "-"})</span>
                       <span>{formatRupiah(r.dpNominal)}</span>
                     </div>
+                    <div className="flex items-center justify-between pt-1">
+                      <Badge
+                        variant="outline"
+                        className={
+                          r.dpStatus === "berhasil"
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                            : r.dpStatus === "menunggu"
+                            ? "border-amber-300 bg-amber-50 text-amber-800"
+                            : "border-gray-300 bg-gray-50 text-gray-700"
+                        }
+                      >
+                        {r.dpStatus === "berhasil"
+                          ? "DP Terverifikasi"
+                          : r.dpStatus === "menunggu"
+                          ? "DP Menunggu Verifikasi"
+                          : `DP ${r.dpStatus}`}
+                      </Badge>
+                      {r.dpBuktiUrl && (
+                        <a
+                          href={r.dpBuktiUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-emerald-700 underline"
+                        >
+                          <ImageIcon className="w-3 h-3" /> Lihat bukti DP
+                        </a>
+                      )}
+                    </div>
                     <div className="flex justify-between text-gray-600">
                       <span>Sisa Tagihan</span>
                       <span>{formatRupiah(Math.max(0, r.totalHarga - r.dpNominal))}</span>
                     </div>
                   </div>
                 </div>
+              )}
+              {r.statusReservasi === "menunggu_kedatangan" && r.sumber === "online" && r.dpStatus === "menunggu" && (
+                <Button
+                  size="sm"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => handleVerifikasiDp(r)}
+                  disabled={verifyingDpId === r.id}
+                >
+                  {verifyingDpId === r.id ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                  )}
+                  Verifikasi DP
+                </Button>
               )}
               {r.statusReservasi === "menunggu_kedatangan" && (
                 <div className="flex gap-2">

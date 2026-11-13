@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
-import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
+import { EXPIRY_JAM_DEFAULT, finalizeReservasiUntukMeja } from "@/lib/reservasi"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { Prisma, MetodePembayaran, StatusMeja, StatusPesanan, StatusBayar, StatusReservasi } from "@prisma/client"
 import crypto from "crypto"
@@ -60,7 +60,7 @@ export async function createReservasi(data: CreateReservasiData) {
     waktuKedatangan,
     catatan,
     items = [],
-    batasMenit = 180,
+    batasMenit = EXPIRY_JAM_DEFAULT * 60,
     dpMetode,
   } = data
 
@@ -239,6 +239,8 @@ export async function getReservasi(filters?: { status?: string }) {
 
   return reservasi.map((r) => ({
     id: r.id,
+    kodeReservasi: r.kodeReservasi,
+    sumber: r.sumber,
     mejaId: r.mejaId,
     nomorMeja: r.meja?.nomorMeja ?? "-",
     namaPelanggan: r.namaPelanggan,
@@ -271,6 +273,8 @@ export async function getReservasi(filters?: { status?: string }) {
     dpMetode: r.dpMetode,
     dpStatus: r.dpStatus,
     dpPaidAt: r.dpPaidAt,
+    dpBuktiUrl: r.dpBuktiUrl,
+    alasanBatal: r.alasanBatal,
   }))
 }
 
@@ -531,6 +535,51 @@ export async function expireReservasi() {
   revalidatePath("/dashboard/meja")
 
   return { success: true, count: expired.length }
+}
+
+export async function verifikasiDpCustomer(reservasiId: number) {
+  const authResult = await requireReservasiRole()
+  if ("error" in authResult) return authResult
+  const { session } = authResult
+
+  if (session.user.role !== "owner" && session.user.role !== "cashier") {
+    return { error: "Hanya owner/kasir yang dapat memverifikasi DP" }
+  }
+
+  const userId = session.user.id ? parseInt(session.user.id) : null
+  if (!userId) return { error: "Sesi tidak valid" }
+
+  if (!Number.isInteger(reservasiId) || reservasiId <= 0) {
+    return { error: "Reservasi tidak valid" }
+  }
+
+  const reservasi = await prisma.reservasi.findFirst({
+    where: { id: reservasiId },
+    include: { meja: { select: { nomorMeja: true } } },
+  })
+  if (!reservasi) return { error: "Reservasi tidak ditemukan" }
+  if (reservasi.dpStatus !== StatusBayar.menunggu) {
+    return { error: "DP reservasi ini sudah diproses" }
+  }
+  if (!reservasi.dpBuktiUrl) {
+    return { error: "Bukti DP belum diunggah" }
+  }
+
+  await prisma.reservasi.update({
+    where: { id: reservasiId },
+    data: { dpStatus: StatusBayar.berhasil, dpPaidAt: new Date(), updatedAt: new Date() },
+  })
+
+  await createLog(
+    "VERIFIKASI_DP_CUSTOMER",
+    `DP reservasi #${reservasiId} (${reservasi.namaPelanggan}) diverifikasi sebesar Rp${Number(
+      reservasi.dpNominal
+    ).toLocaleString("id-ID")} — meja ${reservasi.meja?.nomorMeja ?? "-"}`,
+    userId
+  )
+
+  revalidatePath("/dashboard/reservasi")
+  return { success: true }
 }
 
 export async function getMejaUntukReservasi() {

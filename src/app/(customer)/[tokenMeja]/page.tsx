@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -445,6 +446,12 @@ return (
 
                     {!loading && !error && (
                      <div className="flex items-center gap-2">
+                         <Button variant="outline" size="sm" className="rounded-full" asChild>
+                             <Link href={`/reservasi/${tokenMeja}`}>
+                                 <Ticket className="size-4 mr-1.5" />
+                                 Reservasi
+                             </Link>
+                         </Button>
                          {adaPesananAktif && (
                              <PindahMejaSheet
                                  tokenMejaSaatIni={tokenMeja}
