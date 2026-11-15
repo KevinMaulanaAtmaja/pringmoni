@@ -32,6 +32,7 @@ import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getQrisStaticUrl } from "@/lib/qris-static"
 import { hitungRincianDp } from "@/lib/dp"
+import { ACARA_RESERVASI, gabungCatatanReservasi } from "@/lib/reservasi-catatan"
 import { useUploadThing } from "@/lib/uploadthing-client"
 import {
   createReservasiCustomer,
@@ -121,6 +122,7 @@ export default function ReservasiCustomerPage() {
   const [noHp, setNoHp] = useState("")
   const [jumlahOrang, setJumlahOrang] = useState("2")
   const [waktuKedatangan, setWaktuKedatangan] = useState("")
+  const [acara, setAcara] = useState("")
   const [catatan, setCatatan] = useState("")
   const [keranjang, setKeranjang] = useState<Record<number, number>>({})
   const [setuju, setSetuju] = useState(false)
@@ -276,7 +278,7 @@ export default function ReservasiCustomerPage() {
         noHp,
         jumlahOrang: Number(jumlahOrang),
         waktuKedatangan: new Date(waktuKedatangan).toISOString(),
-        catatan: catatan.trim() || null,
+        catatan: gabungCatatanReservasi(acara, catatan),
         items: itemsTerpilih.map((item) => ({ menuId: item.id, jumlah: item.jumlah })),
         dpBuktiUrl: buktiUrl,
       })
@@ -543,12 +545,31 @@ export default function ReservasiCustomerPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="catatan">Catatan (opsional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Pilih jenis acara jika ada, lalu tambahkan detail kebutuhan.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {ACARA_RESERVASI.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setAcara((prev) => (prev === item ? "" : item))}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                        acara === item
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                          : "border-input text-muted-foreground hover:border-emerald-300"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
                 <textarea
                   id="catatan"
                   value={catatan}
                   onChange={(e) => setCatatan(e.target.value)}
                   rows={2}
-                  placeholder="Contoh: butuh kursi bayi, area lesehan, dll."
+                  placeholder="Contoh: dekat jendela, butuh kursi bayi, area lesehan, dll."
                   className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </div>
@@ -693,15 +714,36 @@ export default function ReservasiCustomerPage() {
                   <span>Total Pre-order</span>
                   <span>{formatRupiah(totalHarga)}</span>
                 </div>
-                <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 space-y-1 text-sm">
+                <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm">
                   <div className="flex justify-between font-semibold text-emerald-800">
                     <span>DP {rincian.persen}% (dibulatkan)</span>
                     <span>{formatRupiah(rincian.dpNominal)}</span>
                   </div>
-                  <div className="flex justify-between text-emerald-700 text-xs">
-                    <span>Sisa dibayar saat kedatangan</span>
-                    <span>{formatRupiah(rincian.sisaTagihan)}</span>
+                </div>
+
+                <div className="rounded-xl border-2 border-amber-500/50 bg-amber-50/80 p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                        Sisa Pelunasan Saat Kedatangan
+                      </p>
+                      <p className="text-[11px] text-amber-700">
+                        Dibayar saat Anda tiba di resto
+                      </p>
+                    </div>
+                    <span className="text-2xl font-extrabold text-amber-800">
+                      {formatRupiah(rincian.sisaTagihan)}
+                    </span>
                   </div>
+                </div>
+
+                <div className="flex justify-between text-sm pt-1 border-t">
+                  <span className="text-muted-foreground">
+                    Total Bayar <span className="text-xs">(DP + pelunasan)</span>
+                  </span>
+                  <span className="font-semibold">
+                    {formatRupiah(rincian.dpNominal + rincian.sisaTagihan)}
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -762,8 +804,12 @@ export default function ReservasiCustomerPage() {
                   <p className="text-2xl font-bold text-emerald-700">
                     {formatRupiah(rincian.dpNominal)}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Sisa {formatRupiah(rincian.sisaTagihan)} dibayar saat kedatangan
+                  <p className="text-sm font-bold text-amber-700">
+                    Sisa Pelunasan {formatRupiah(rincian.sisaTagihan)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Dibayar saat kedatangan · Total Bayar{" "}
+                    {formatRupiah(rincian.dpNominal + rincian.sisaTagihan)}
                   </p>
                 </div>
 

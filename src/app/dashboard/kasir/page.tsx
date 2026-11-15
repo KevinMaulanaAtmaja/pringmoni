@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight, Undo2 } from "lucide-react"
+import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight, Undo2, ImageIcon } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
 import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
 import { RefundDialog } from "@/components/pesanan/refund-dialog"
+import { RefundDetailDialog } from "@/components/pesanan/refund-detail-dialog"
 import { useSession } from "next-auth/react"
 import { printStruk } from "@/lib/print-struk"
 import { pisahCatatanItem } from "@/lib/catatan-item"
+import { isRefundWithinLimit } from "@/lib/refund"
 import { VarianBadge } from "@/components/ui/varian-badge"
 import { ShiftKasirPanel, useShiftAktif } from "@/components/kasir/ShiftKasirPanel"
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
@@ -89,6 +91,13 @@ export default function KasirPage() {
   const role = rawRole === 'kasir' ? 'cashier' : rawRole
   const isOwner = role === 'owner'
 
+  const canRefund = (p: Pesanan) =>
+    role === 'cashier' &&
+    p.statusPembayaran === 'berhasil' &&
+    p.statusPesanan !== 'dibatalkan' &&
+    p.statusPesanan !== 'refund' &&
+    isRefundWithinLimit(p.createdAt)
+
   const [activeTab, setActiveTab] = useState<"belum" | "riwayat">(isOwner ? "riwayat" : "belum")
   const [pesananBelum, setPesananBelum] = useState<Pesanan[]>([])
   const [pesananRiwayat, setPesananRiwayat] = useState<Pesanan[]>([])
@@ -116,6 +125,7 @@ export default function KasirPage() {
   const [showMethodWarning, setShowMethodWarning] = useState(false)
   const pendingMethodAction = useRef<"tunai-step" | null>(null)
   const [refundTarget, setRefundTarget] = useState<Pesanan | null>(null)
+  const [refundInfoTarget, setRefundInfoTarget] = useState<Pesanan | null>(null)
 
   // Gate shift: kasir tidak boleh bertransaksi sebelum shift-nya sendiri dibuka.
   const { shift: shiftAktif, ready: shiftReady, refreshShift } = useShiftAktif()
@@ -841,14 +851,15 @@ export default function KasirPage() {
                         </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-1.5 justify-end">
-                           {(role === 'cashier' || role === 'kasir') && p.statusPembayaran === 'berhasil' && p.statusPesanan !== 'dibatalkan' && p.statusPesanan !== 'refund' && (
+                          {p.statusPembayaran === 'refund' && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setRefundTarget(p)}
+                              onClick={() => setRefundInfoTarget(p)}
+                              title="Lihat bukti foto refund"
                             >
-                              <Undo2 className="w-4 h-4" />
-                              <span className="hidden xl:inline">Refund</span>
+                              <ImageIcon className="w-4 h-4" />
+                              <span>Bukti</span>
                             </Button>
                           )}
                           {p.statusPembayaran === "berhasil" && (
@@ -1338,6 +1349,21 @@ export default function KasirPage() {
                     Selesai &amp; Kosongkan Meja
                   </Button>
                 )}
+                {activeTab === "belum" && canRefund(selectedPesanan) && (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => {
+                      const target = selectedPesanan
+                      setIsDetailOpen(false)
+                      setRefundTarget(target)
+                    }}
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    <Undo2 className="w-5 h-5 mr-2" />
+                    Refund
+                  </Button>
+                )}
                 <Button variant="outline" size="lg" onClick={() => printStruk({
                   id: selectedPesanan.id,
                   nomorMeja: selectedPesanan.nomorMeja,
@@ -1387,6 +1413,13 @@ export default function KasirPage() {
           setRefundTarget(null)
           pollData()
         }}
+      />
+
+      <RefundDetailDialog
+        open={refundInfoTarget !== null}
+        onOpenChange={(open) => { if (!open) setRefundInfoTarget(null) }}
+        pesananId={refundInfoTarget?.id ?? null}
+        nomorMeja={refundInfoTarget?.nomorMeja}
       />
 
       {/* Cancel Confirmation - Step 1 */}

@@ -1,3 +1,28 @@
+# PROGRESS - Sesi 2026-11-15 (Refund & Polish Reservasi)
+
+> Branch `feature/refund-reservasi-polish`, di atas `feat/reservasi-customer-qr` (`0aa78f9`).
+
+## SELESAI
+
+- Refund: batas 3 hari (`src/lib/refund.ts`), validasi server di `ajukanRefund`, tombol refund tetap tampil di Riwayat Pesanan (disabled jika lewat 3 hari), dihapus dari tabel Riwayat Kasir, refund kasir hanya dari detail pesanan aktif.
+- Pesanan Aktif hanya menampilkan pesanan 24 jam terakhir; riwayat kasir mengambil 300 baris agar bukti refund lama tetap terjangkau.
+- Reservasi: form staf 3 langkah (detail -> menu -> DP), chip acara + catatan terstruktur (`src/lib/reservasi-catatan.ts`), penekanan sisa pelunasan; halaman customer menyesuaikan alur dan catatan.
+- Auth/proxy: bypass server action `/dashboard/reservasi` + guard `takenOver` agar tidak memicu E394.
+- Hidrasi: sanitizer atribut `bis_skin_checked` via `next/script` `beforeInteractive` di root layout.
+
+## VERIFIKASI
+
+- `npm run lint` 0 error (warning pre-existing).
+- `npx tsc --noEmit` 0 error.
+- `npm test` 24/24 passed.
+- `npm run graph:update` dijalankan.
+
+## BELUM
+
+- Uji manual end-to-end refund & reservasi.
+
+---
+
 # PROGRESS - Sesi 2026-11-04 (Reservasi PBI-7.1)
 
 > Branch `feat/reservasi`, di atas `origin/develop` `08fb1be`. Commit belum dibuat (menunggu instruksi user).

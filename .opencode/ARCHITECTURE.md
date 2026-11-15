@@ -95,7 +95,7 @@ src/app/
 | `kasir.ts` | pesanan belum bayar, konfirmasi pembayaran QRIS/tunai |
 | `shift.ts` | getJadwalShift/simpan/update/hapus (owner), bukaShift/tutupShift/tambahKasKeluar (kasir), getRiwayatShift (owner semua / kasir miliknya), getShiftAktif (termasuk saran uang awal dari shift kasir lain) |
 | `voucher.ts` | CRUD voucher + validasi diskon/minimal belanja |
-| `refund.ts` | refund pesanan + bukti foto |
+| `refund.ts` | refund pesanan + bukti foto, batas 3 hari sejak `createdAt` (`src/lib/refund.ts`) |
 | `notifikasi.ts` | getNotifikasiTerlambat (pesanan >30 menit belum ditangani + sweep tengah malam) |
 | `dashboard.ts` | statistik dashboard |
 | `laporan.ts` | laporan harian/bulanan + analitik menu terlaris |
@@ -157,6 +157,11 @@ ke `/login?takenOver=1`, yang menampilkan **dialog sekali** "Sesi diambil alih"
 Catatan: enforcement dilakukan di **proxy** sehingga request lama (termasuk POST
 server action) dialihkan ke login **sebelum** aksi dieksekusi. Role yang sudah
 login tapi tidak punya akses route diarahkan ke `/dashboard` (bukan `/login`).
+
+Catatan: POST server action ke `/dashboard/reservasi` dikecualikan dari redirect
+proxy (`SERVER_ACTION_BYPASS`). Action `requireReservasiRole` menolak sesi
+`takenOver`, sehingga error auth dikembalikan sebagai error action (bukan
+redirect HTML yang memicu E394).
 
 ## 6. Real-time Flow
 

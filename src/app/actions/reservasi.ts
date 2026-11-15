@@ -34,6 +34,9 @@ export interface CreateReservasiData {
 async function requireReservasiRole() {
   const session = await auth()
   if (!session?.user) return { error: "Unauthorized" as const }
+  if (session.user.takenOver) {
+    return { error: "Sesi sudah berakhir. Silakan login ulang." as const }
+  }
   if (!ALLOWED_ROLES.includes(session.user.role as typeof ALLOWED_ROLES[number])) {
     return { error: "Hanya owner/kasir/waiter yang bisa mengelola reservasi" as const }
   }

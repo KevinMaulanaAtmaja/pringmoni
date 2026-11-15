@@ -32,6 +32,7 @@ import { VarianBadge } from "@/components/ui/varian-badge"
 import { useNotification } from "@/hooks/use-notification"
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 import { RefundDialog } from "@/components/pesanan/refund-dialog"
+import { REFUND_LIMIT_DAYS, isRefundWithinLimit } from "@/lib/refund"
 import { useSession } from "next-auth/react"
 
 const statusColors: Record<string, string> = {
@@ -48,6 +49,8 @@ const statusBayarColors: Record<string, string> = {
   dibatalkan: "bg-red-100 text-red-800",
   refund: "bg-purple-100 text-purple-800",
 }
+
+const ACTIVE_ORDER_WINDOW_MS = 24 * 60 * 60 * 1000
 
 interface PesananItem {
   id: number
@@ -103,6 +106,13 @@ export default function PesananPage() {
   const { data: session } = useSession()
   const rawRole = ((session?.user?.role as string) || userRole || 'kasir').toLowerCase()
   const role = rawRole === 'kasir' ? 'cashier' : rawRole
+  const refundEligible = (p: PesananItem) =>
+    role === 'cashier' &&
+    p.statusBayar === 'berhasil' &&
+    p.status !== 'dibatalkan' &&
+    p.status !== 'refund'
+  const canRefund = (p: PesananItem) =>
+    refundEligible(p) && isRefundWithinLimit(p.waktu)
   const router = useRouter()
   const { notifyNewOrder, notifyOrderPaid } = useNotification()
   const prevNotifiedOrderIdsRef = useRef<Set<number>>(new Set())
@@ -148,7 +158,10 @@ export default function PesananPage() {
     }
   }, [checkedMap])
   
-  const pesananAktif = pesanan.filter(p => p.status === 'menunggu' || p.status === 'diproses')
+  const pesananAktif = pesanan.filter(p =>
+    (p.status === 'menunggu' || p.status === 'diproses') &&
+    Date.now() - new Date(p.waktu).getTime() <= ACTIVE_ORDER_WINDOW_MS
+  )
   const pesananRiwayat = pesanan.filter(p => p.status !== 'menunggu' && p.status !== 'diproses')
 
   const filteredAktif = useMemo(() => {
@@ -566,8 +579,15 @@ export default function PesananPage() {
                       <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
                         <Eye className="w-5 h-5 mr-2" /> Detail
                       </Button>
-                      {(role === 'cashier') && p.statusBayar === 'berhasil' && p.status !== 'dibatalkan' && p.status !== 'refund' && (
-                        <Button variant="outline" size="lg" onClick={() => setRefundTarget(p)} className="text-base">
+                      {refundEligible(p) && (
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          onClick={() => setRefundTarget(p)}
+                          disabled={!canRefund(p)}
+                          title={!canRefund(p) ? `Refund hanya dapat dilakukan maksimal ${REFUND_LIMIT_DAYS} hari setelah pemesanan` : undefined}
+                          className="text-base"
+                        >
                           <Undo2 className="w-5 h-5 mr-2" /> Refund
                         </Button>
                       )}
@@ -701,11 +721,13 @@ export default function PesananPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-1 justify-end">
-                          {(role === 'cashier') && p.statusBayar === 'berhasil' && p.status !== 'dibatalkan' && p.status !== 'refund' && (
+                          {refundEligible(p) && (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => setRefundTarget(p)}
+                              disabled={!canRefund(p)}
+                              title={!canRefund(p) ? `Refund hanya dapat dilakukan maksimal ${REFUND_LIMIT_DAYS} hari setelah pemesanan` : undefined}
                             >
                               <Undo2 className="w-3.5 h-3.5" />
                               <span className="hidden lg:inline">Refund</span>
