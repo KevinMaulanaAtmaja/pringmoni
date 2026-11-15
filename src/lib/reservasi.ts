@@ -16,7 +16,7 @@ export const EXPIRY_JAM_DEFAULT = (() => {
 })()
 
 /** Batas hari ke depan yang boleh dipilih customer untuk waktu kedatangan. */
-export const MAKS_HARI_KE_DEPAN = 7
+export { MAKS_HARI_KE_DEPAN } from "@/lib/reservasi-jadwal"
 
 /**
  * Kode reservasi pendek untuk customer (mis. "7K2P9Q"), unik di DB.

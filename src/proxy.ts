@@ -32,7 +32,7 @@ const RESERVED_ROOT_SEGMENTS = new Set([
 // Public pages that never need a session
 const PUBLIC_ROUTES = ["/", "/login", "/reset-password"]
 
-// Customer reservation routes (tanpa login): /reservasi/[tokenMeja], /reservasi/status
+// Customer reservation routes (tanpa login): /reservasi/[kodeAkses], /reservasi/status
 const RESERVASI_PUBLIC_PATTERN = /^\/reservasi(\/[^/]+)?$/
 
 // Customer kiosk routes: /[tokenMeja], /[tokenMeja]/pesanan, /[tokenMeja]/checkout, ...

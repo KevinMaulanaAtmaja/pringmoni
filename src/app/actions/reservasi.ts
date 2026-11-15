@@ -4,7 +4,11 @@ import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
-import { EXPIRY_JAM_DEFAULT, finalizeReservasiUntukMeja } from "@/lib/reservasi"
+import { EXPIRY_JAM_DEFAULT } from "@/lib/reservasi"
+import {
+  hitungBatasKonfirmasi,
+  validasiWaktuKedatangan,
+} from "@/lib/reservasi-jadwal"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { Prisma, MetodePembayaran, StatusMeja, StatusPesanan, StatusBayar, StatusReservasi } from "@prisma/client"
 import crypto from "crypto"
@@ -78,6 +82,10 @@ export async function createReservasi(data: CreateReservasiData) {
   if (Number.isNaN(waktuKedatanganDate.getTime())) {
     return { error: "Waktu kedatangan tidak valid" }
   }
+  const errorJadwal = validasiWaktuKedatangan(waktuKedatanganDate)
+  if (errorJadwal) {
+    return { error: errorJadwal }
+  }
 
   const meja = await prisma.meja.findFirst({
     where: { id: mejaId, deletedAt: null },
@@ -149,7 +157,10 @@ export async function createReservasi(data: CreateReservasiData) {
   const rincianDp = hitungRincianDp(totalHarga)
   const dpNominal = rincianDp.dpNominal
 
-  const batasKonfirmasi = new Date(waktuKedatanganDate.getTime() + batasMenit * 60000)
+  const batasKonfirmasi = hitungBatasKonfirmasi(
+    waktuKedatanganDate,
+    batasMenit / 60
+  )
 
   const reservasi = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`

@@ -68,6 +68,8 @@ src/app/
 │   ├── checkout/page.tsx             # Konfirmasi pesanan
 │   ├── pembayaran/...                # Pembayaran QRIS/tunai
 │   └── pesanan/page.tsx              # Lihat pesanan
+├── reservasi/[kodeAkses]/page.tsx    # Reservasi publik (link umum, pilih meja)
+├── reservasi/status/page.tsx         # Cek status reservasi
 ├── dashboard/                        # Admin dashboard
 │   ├── page.tsx                      # Statistik
 │   ├── pesanan/page.tsx              # Kelola pesanan
@@ -83,10 +85,14 @@ src/app/
 └── api/uploadthing/                  # Upload gambar
 ```
 
+> Reservasi customer memakai **link umum** `/reservasi/<kodeAkses>` (kode publik di `src/lib/reservasi-akses.ts`, bukan token meja). Halaman memuat menu + daftar meja kosong; server (`reservasi-customer.ts`) memvalidasi kode akses dan mengunci meja secara transaksional (`FOR UPDATE` + cek reservasi/pesanan aktif). Meja tanpa QR tetap muncul di daftar selama statusnya `kosong`.
+
 ## 4. Server Actions
 
 | File | Fungsi |
 |------|--------|
+| `reservasi.ts` | CRUD reservasi offline, konfirmasi kedatangan, batal, expire, verifikasi DP |
+| `reservasi-customer.ts` | Link reservasi publik: daftar meja kosong, buat reservasi online + DP |
 | `meja.ts` | getMejas, createMeja, updateMeja, getMejaByToken, kosongkanMeja |
 | `menu.ts` | getMenus, createMenu, updateMenu, deleteMenu, aturStokHarian (+ per kategori) |
 | `menu-foto.ts` | kelola foto menu (tambah/hapus/urutan) |

@@ -16,10 +16,14 @@ import { createLogNoSession } from "@/lib/log"
 import { triggerPusher, ORDERS_CHANNEL } from "@/lib/pusher"
 import {
   EXPIRY_JAM_DEFAULT,
-  MAKS_HARI_KE_DEPAN,
   expireReservasiLazy,
   generateKodeReservasi,
 } from "@/lib/reservasi"
+import {
+  hitungBatasKonfirmasi,
+  validasiWaktuKedatangan,
+} from "@/lib/reservasi-jadwal"
+import { kodeAksesValid } from "@/lib/reservasi-akses"
 import { getMenusForCustomer } from "@/app/actions/pesanan"
 import { getKategoriMenus } from "@/app/actions/menu"
 
@@ -30,7 +34,8 @@ interface ItemReservasiInput {
 }
 
 interface CreateReservasiCustomerInput {
-  tokenMeja: string
+  kodeAkses: string
+  mejaId: number
   namaPelanggan: string
   noHp: string
   jumlahOrang: number
@@ -100,40 +105,45 @@ function normalisasiNoHp(input: string): string | null {
   return digits
 }
 
-export async function getReservasiCustomerByToken(tokenMeja: string) {
-  if (!tokenMeja) return { error: "Token meja tidak valid" as const }
+export async function getReservasiCustomer(kodeAkses: string) {
+  if (!kodeAksesValid(kodeAkses)) {
+    return { error: "Link reservasi tidak valid atau sudah tidak berlaku" as const }
+  }
 
-  const meja = await prisma.meja.findFirst({
-    where: { tokenMeja, deletedAt: null },
-    select: { id: true, nomorMeja: true, kapasitas: true, statusMeja: true },
-  })
-  if (!meja) return { error: "Meja tidak ditemukan" as const }
-
-  const [menus, kategoris, reservasiAktif, pesananAktif] = await Promise.all([
+  const [menus, kategoris, mejas] = await Promise.all([
     getMenusForCustomer(),
     getKategoriMenus(),
-    prisma.reservasi.findFirst({
+    prisma.meja.findMany({
       where: {
-        mejaId: meja.id,
-        statusReservasi: {
-          in: [StatusReservasi.menunggu_kedatangan, StatusReservasi.dikonfirmasi],
+        deletedAt: null,
+        statusMeja: StatusMeja.kosong,
+        reservasi: {
+          none: {
+            statusReservasi: {
+              in: [StatusReservasi.menunggu_kedatangan, StatusReservasi.dikonfirmasi],
+            },
+          },
+        },
+        pesanan: {
+          none: {
+            statusPesanan: { in: [StatusPesanan.menunggu, StatusPesanan.diproses] },
+            statusPembayaran: { not: StatusBayar.berhasil },
+            deletedAt: null,
+          },
         },
       },
-      select: { id: true },
-    }),
-    prisma.pesanan.findFirst({
-      where: {
-        mejaId: meja.id,
-        statusPesanan: { in: [StatusPesanan.menunggu, StatusPesanan.diproses] },
-        statusPembayaran: { not: StatusBayar.berhasil },
-        deletedAt: null,
-      },
-      select: { id: true },
+      orderBy: { nomorMeja: "asc" },
+      select: { id: true, nomorMeja: true, kapasitas: true },
     }),
   ])
 
   return {
-    meja,
+    mejas: mejas.map((meja) => ({
+      id: meja.id,
+      nomorMeja: meja.nomorMeja,
+      kapasitas: meja.kapasitas,
+      tipeMeja: meja.nomorMeja.toUpperCase().startsWith("L") ? "lesehan" : "kursi",
+    })),
     menus,
     kategoris: kategoris.map((k) => ({
       id: k.id,
@@ -141,8 +151,6 @@ export async function getReservasiCustomerByToken(tokenMeja: string) {
       lokasi: k.lokasi,
       pilihanSuhu: k.pilihanSuhu,
     })),
-    tidakBisaReservasi:
-      meja.statusMeja !== StatusMeja.kosong || !!reservasiAktif || !!pesananAktif,
     expiryJam: EXPIRY_JAM_DEFAULT,
   }
 }
@@ -185,15 +193,9 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
   }
 
   const waktuKedatangan = new Date(data.waktuKedatangan)
-  if (Number.isNaN(waktuKedatangan.getTime())) {
-    return { error: "Waktu kedatangan tidak valid" }
-  }
-  const now = new Date()
-  if (waktuKedatangan.getTime() < now.getTime() - 5 * 60 * 1000) {
-    return { error: "Waktu kedatangan sudah lewat" }
-  }
-  if (waktuKedatangan.getTime() > now.getTime() + MAKS_HARI_KE_DEPAN * 24 * 60 * 60 * 1000) {
-    return { error: `Waktu kedatangan maksimal ${MAKS_HARI_KE_DEPAN} hari ke depan` }
+  const errorWaktu = validasiWaktuKedatangan(waktuKedatangan)
+  if (errorWaktu) {
+    return { error: errorWaktu }
   }
 
   const dpBuktiUrl = (data.dpBuktiUrl || "").trim()
@@ -201,11 +203,23 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
     return { error: "Bukti pembayaran DP wajib diunggah" }
   }
 
+  if (!kodeAksesValid(data.kodeAkses)) {
+    return { error: "Link reservasi tidak valid atau sudah tidak berlaku" }
+  }
+
+  const mejaId = Number(data.mejaId)
+  if (!Number.isInteger(mejaId) || mejaId <= 0) {
+    return { error: "Pilih meja yang tersedia terlebih dahulu" }
+  }
+
   const meja = await prisma.meja.findFirst({
-    where: { tokenMeja: data.tokenMeja, deletedAt: null },
+    where: { id: mejaId, deletedAt: null },
     select: { id: true, nomorMeja: true, kapasitas: true, statusMeja: true },
   })
   if (!meja) return { error: "Meja tidak ditemukan" }
+  if (meja.statusMeja !== StatusMeja.kosong) {
+    return { error: `Meja ${meja.nomorMeja} sedang dipakai. Silakan pilih meja lain.` }
+  }
   if (jumlahOrang > meja.kapasitas) {
     return { error: `Kapasitas meja ${meja.nomorMeja} maksimal ${meja.kapasitas} orang` }
   }
@@ -240,9 +254,7 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
   }
 
   const rincian = hitungRincianDp(totalHarga)
-  const batasKonfirmasi = new Date(
-    waktuKedatangan.getTime() + EXPIRY_JAM_DEFAULT * 60 * 60 * 1000
-  )
+  const batasKonfirmasi = hitungBatasKonfirmasi(waktuKedatangan, EXPIRY_JAM_DEFAULT)
 
   let kode = generateKodeReservasi()
   let reservasiId: number | null = null

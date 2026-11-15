@@ -1,3 +1,49 @@
+# PROGRESS - Sesi 2026-11-15 (Link Reservasi Umum + Window 7 Hari)
+
+> Branch `feat/reservasi-customer-qr`; commit dibuat di akhir sesi, tanpa PR.
+
+## SELESAI
+
+- **Link reservasi umum**: `src/lib/reservasi-akses.ts` (kode publik `PRINGSEWU26` + `LINK_RESERVASI_PUBLIK`). Route di-rename `src/app/reservasi/[tokenMeja]` -> `src/app/reservasi/[kodeAkses]`; customer memilih meja kosong dari daftar (termasuk meja tanpa QR). Server `createReservasiCustomer` menerima `kodeAkses` + `mejaId` dan memvalidasi meja kosong secara transaksional.
+- **Window 7 hari konsisten**: `batasAkhirReservasi()` = akhir hari H+7 (8 tanggal), chip memakai `i <= MAKS_HARI_KE_DEPAN`, daftar tanggal dihitung ulang tiap menit dan tanggal terpilih di-reset saat melewati tengah malam.
+- **UI tanggal**: select Bulan/Tahun + helper `aturTanggal`/`bulanDalamRentang`/`hariDalamRentang`/`opsiTahun` dihapus; chip tanggal diperbesar (grid), teks info diringkas.
+- **Agentation**: toolbar hanya dirender saat `NODE_ENV === "development"`.
+- **Link menu customer**: tombol Reservasi memakai `LINK_RESERVASI_PUBLIK`.
+- **Verifikasi**: `npm run lint -- --quiet` -> 0 error; `npm test` -> 34 test lulus; `npx tsc` via config sementara (tanpa `.next`) -> 0 error.
+- **Dokumen**: PRD (catatan PBI-7.1), ARCHITECTURE (route + server action), PROGRESS.
+
+## BELUM
+
+- Uji manual E2E (dilewati atas permintaan user).
+- `npm run build` belum dijalankan (menunggu dev server user dimatikan).
+
+---
+
+# PROGRESS - Sesi 2026-11-14 (Jadwal Reservasi Tetap + Rencana Owner Settings)
+
+> Branch aktif; perubahan belum di-commit (menunggu instruksi user).
+
+## SELESAI
+
+- **Jadwal reservasi tetap**: `src/lib/reservasi-jadwal.ts` berisi konstanta 13:00–21:00, kedatangan terakhir 20:30, slot 30 menit, maksimal 7 hari, serta helper `validasiWaktuKedatangan`, `hitungBatasKonfirmasi`, `periodeJam`, `formatMenit`, `SLOT_RESERVASI`.
+- **Cap konfirmasi DP**: `batasKonfirmasi = min(kedatangan + expiry, jam tutup 21:00)` diterapkan di reservasi customer dan offline.
+- **Reservasi customer**: `src/app/actions/reservasi-customer.ts` memakai helper jadwal; `src/app/reservasi/[tokenMeja]/page.tsx` memakai slot 30 menit, tab sesi Siang/Sore/Malam, validasi terpusat, dan teks kebijakan cap 21:00.
+- **Mobile footer**: action bar customer dinaikkan (`bottom-14 sm:bottom-9`) agar tombol Lanjut tidak menutupi footer yang bisa wrap 2 baris di HP.
+- **Reservasi offline**: `src/app/actions/reservasi.ts` memvalidasi jam operasional dan memakai cap yang sama.
+- **Test**: `src/lib/reservasi-jadwal.test.ts` — 10 test lulus (slot, periode, validasi, cap).
+- **Verifikasi**: `npx eslint` file terkait → 0 error (2 warning pre-existing di halaman customer); `npx tsc --noEmit` → hanya error stale `.next/types/validator.ts` untuk halaman `testing` yang sudah dihapus.
+- **Dokumen rencana owner**: `.opencode/RESERVASI_PLAN.md` §8 ditambahkan (status RENCANA, belum diimplementasi). Implementasi owner settings yang sempat dibuat sudah dikembalikan seluruhnya.
+- **PRD**: catatan PBI-7.1 diperbarui dengan jadwal tetap + cap DP.
+
+## BELUM
+
+- Implementasi pengaturan jam oleh owner (menunggu persetujuan rencana §8).
+- Update `graph:update` setelah perubahan sesi ini.
+- Uji manual E2E: slot customer 13:00–20:30, tolak slot di luar jam, cap DP 21:00, reservasi offline di luar jam ditolak.
+- Commit/PR (belum diminta user).
+
+---
+
 # PROGRESS - Sesi 2026-11-04 (Reservasi PBI-7.1)
 
 > Branch `feat/reservasi`, di atas `origin/develop` `08fb1be`. Commit belum dibuat (menunggu instruksi user).

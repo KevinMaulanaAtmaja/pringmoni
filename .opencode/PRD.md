@@ -130,6 +130,10 @@
 
 > Catatan PBI-7.1: Reservasi offline dikelola dari `/dashboard/reservasi` oleh OWNER/CASHIER/WAITER. Meja di-hold dengan status `dipesan` tanpa memotong stok. Konfirmasi kedatangan membuat pesanan dan memotong `menu.stokManual` dalam satu transaksi. Reservasi yang melewati `batasKonfirmasi` otomatis menjadi `expired` dan meja dikembalikan ke `kosong`. Detail teknis: `.opencode/RESERVASI_PLAN.md` dan `.opencode/RESERVASI_IMPLEMENTATION.md`.
 >
+> Jadwal reservasi saat ini **tetap** (belum dapat diatur owner): jam buka 13:00, kedatangan terakhir 20:30, jam tutup 21:00, slot tiap 30 menit, maksimal 7 hari ke depan. `batasKonfirmasi` DP dihitung dari waktu kedatangan + expiry (default 3 jam) tetapi **di-cap pada jam tutup 21:00** hari yang sama. Rencana pengaturan jam oleh owner ada di `.opencode/RESERVASI_PLAN.md` §8 (status: rencana, belum diimplementasi).
+>
+> Reservasi customer memakai **link umum** `/reservasi/PRINGSEWU26` (kode akses publik di `src/lib/reservasi-akses.ts`, bukan token meja). Customer memilih sendiri meja yang masih kosong — termasuk meja yang belum punya QR — lalu server memvalidasi ulang status meja secara transaksional. Rentang tanggal = hari ini s/d H+7 (**8 tanggal**, dihitung ulang saat melewati tengah malam). Pemilih bulan/tahun manual dihapus; cukup chip tanggal. Link lama per meja (`/reservasi/<tokenMeja>`) tidak dipakai lagi.
+>
 > Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan). Ditambah lagi, saat lewat tengah malam (00:00) sisa pesanan aktif yang belum dibayar ikut dibatalkan otomatis oleh `getNotifikasiTerlambat()` — lihat PBI-8.4.
 >
 > Catatan PBI-7.3 (pembagian hak akses shift):

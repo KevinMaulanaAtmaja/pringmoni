@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   AlertTriangle,
+  Armchair,
   ArrowLeft,
   ArrowRight,
   CalendarDays,
@@ -22,6 +23,7 @@ import {
   ShoppingBag,
   Trash2,
   Users,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -32,10 +34,22 @@ import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getQrisStaticUrl } from "@/lib/qris-static"
 import { hitungRincianDp } from "@/lib/dp"
+import {
+  BATAS_KEDATANGAN_RESERVASI_MENIT,
+  INTERVAL_SLOT_RESERVASI_MENIT,
+  JAM_BUKA_RESERVASI_MENIT,
+  JAM_TUTUP_RESERVASI_MENIT,
+  MAKS_HARI_KE_DEPAN,
+  SLOT_RESERVASI,
+  formatMenit,
+  hitungBatasKonfirmasi,
+  periodeJam,
+  validasiWaktuKedatangan,
+} from "@/lib/reservasi-jadwal"
 import { useUploadThing } from "@/lib/uploadthing-client"
 import {
   createReservasiCustomer,
-  getReservasiCustomerByToken,
+  getReservasiCustomer,
 } from "@/app/actions/reservasi-customer"
 
 interface MenuItem {
@@ -62,7 +76,7 @@ interface MejaInfo {
   id: number
   nomorMeja: string
   kapasitas: number
-  statusMeja: string
+  tipeMeja: string
 }
 
 interface HasilReservasi {
@@ -89,12 +103,47 @@ function formatWaktu(iso: string) {
   })
 }
 
-function toLocalInputValue(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`
+const pad2 = (n: number) => String(n).padStart(2, "0")
+
+function toTanggalInputValue(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
 }
+
+const PERIODE_RESERVASI = Array.from(new Set(SLOT_RESERVASI.map(periodeJam)))
+
+function sesiTersediaUntukTanggal(tanggal: string) {
+  const batasLewat = Date.now() - 5 * 60 * 1000
+  return (
+    PERIODE_RESERVASI.find((periode) =>
+      SLOT_RESERVASI.some(
+        (slot) =>
+          periodeJam(slot) === periode &&
+          new Date(`${tanggal}T${slot}`).getTime() >= batasLewat
+      )
+    ) ?? PERIODE_RESERVASI[0]
+  )
+}
+
+function formatTanggalPanjang(value: string) {
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ""
+  return date.toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+}
+
+const SARAN_CATATAN = [
+  "Acara bukber",
+  "Acara ulang tahun",
+  "Acara solawatan",
+  "Acara tasyakuran",
+  "Acara arisan keluarga",
+  "Butuh kursi bayi",
+  "Area lesehan",
+]
 
 function validasiNoHp(value: string) {
   const digits = value.replace(/[^0-9+]/g, "")
@@ -106,21 +155,33 @@ const LANGKAH = ["Data & Waktu", "Pre-order", "Ringkasan", "Bayar DP"]
 export default function ReservasiCustomerPage() {
   const params = useParams()
   const router = useRouter()
-  const tokenMeja = (params?.tokenMeja as string) || ""
+  const kodeAkses = (params?.kodeAkses as string) || ""
 
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [meja, setMeja] = useState<MejaInfo | null>(null)
+  const [mejas, setMejas] = useState<MejaInfo[]>([])
+  const [mejaId, setMejaId] = useState<number | null>(null)
   const [menus, setMenus] = useState<MenuItem[]>([])
   const [kategoris, setKategoris] = useState<KategoriItem[]>([])
-  const [tidakBisa, setTidakBisa] = useState(false)
   const [expiryJam, setExpiryJam] = useState(3)
+
+  const [hariIni, setHariIni] = useState(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
 
   const [step, setStep] = useState(1)
   const [nama, setNama] = useState("")
   const [noHp, setNoHp] = useState("")
   const [jumlahOrang, setJumlahOrang] = useState("2")
-  const [waktuKedatangan, setWaktuKedatangan] = useState("")
+  const [tanggalKedatangan, setTanggalKedatangan] = useState(() =>
+    toTanggalInputValue(new Date())
+  )
+  const [jamKedatangan, setJamKedatangan] = useState("")
+  const [sesiAktif, setSesiAktif] = useState(() =>
+    sesiTersediaUntukTanggal(toTanggalInputValue(new Date()))
+  )
   const [catatan, setCatatan] = useState("")
   const [keranjang, setKeranjang] = useState<Record<number, number>>({})
   const [setuju, setSetuju] = useState(false)
@@ -134,6 +195,19 @@ export default function ReservasiCustomerPage() {
   const [hasil, setHasil] = useState<HasilReservasi | null>(null)
   const [copied, setCopied] = useState(false)
 
+  const meja = useMemo(
+    () => mejas.find((m) => m.id === mejaId) ?? null,
+    [mejas, mejaId]
+  )
+
+  const waktuKedatangan = useMemo(
+    () =>
+      tanggalKedatangan && jamKedatangan
+        ? `${tanggalKedatangan}T${jamKedatangan}`
+        : "",
+    [tanggalKedatangan, jamKedatangan]
+  )
+
   const { startUpload, isUploading } = useUploadThing("dpBukti", {
     onClientUploadComplete: (res: { url: string; key: string }[]) => {
       if (res?.length) setBuktiUrl(res[0].url)
@@ -144,25 +218,24 @@ export default function ReservasiCustomerPage() {
   useEffect(() => {
     let aktif = true
     async function load() {
-      if (!tokenMeja) {
-        setLoadError("Token meja tidak valid")
+      if (!kodeAkses) {
+        setLoadError("Link reservasi tidak valid")
         setLoading(false)
         return
       }
       try {
-        const data = await getReservasiCustomerByToken(tokenMeja)
+        const data = await getReservasiCustomer(kodeAkses)
         if (!aktif) return
         if ("error" in data) {
-          setLoadError(data.error ?? "Gagal memuat data meja")
+          setLoadError(data.error ?? "Gagal memuat data reservasi")
         } else {
-          setMeja(data.meja)
+          setMejas(data.mejas)
           setMenus(data.menus as MenuItem[])
           setKategoris(data.kategoris)
-          setTidakBisa(data.tidakBisaReservasi)
           if (data.expiryJam) setExpiryJam(data.expiryJam)
         }
       } catch {
-        if (aktif) setLoadError("Gagal memuat data meja. Coba muat ulang halaman.")
+        if (aktif) setLoadError("Gagal memuat data reservasi. Coba muat ulang halaman.")
       } finally {
         if (aktif) setLoading(false)
       }
@@ -171,13 +244,93 @@ export default function ReservasiCustomerPage() {
     return () => {
       aktif = false
     }
-  }, [tokenMeja])
+  }, [kodeAkses])
 
-  const minWaktu = useMemo(() => toLocalInputValue(new Date()), [])
-  const maxWaktu = useMemo(
-    () => toLocalInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
-    []
-  )
+  useEffect(() => {
+    const cek = () => {
+      const d = new Date()
+      d.setHours(0, 0, 0, 0)
+      setHariIni((prev) => (prev.getTime() === d.getTime() ? prev : d))
+    }
+    const id = window.setInterval(cek, 60_000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    const hariIniStr = toTanggalInputValue(hariIni)
+    if (tanggalKedatangan < hariIniStr) {
+      setTanggalKedatangan(hariIniStr)
+      setJamKedatangan("")
+      setSesiAktif(sesiTersediaUntukTanggal(hariIniStr))
+    }
+  }, [hariIni, tanggalKedatangan])
+
+  useEffect(() => {
+    if (meja && Number(jumlahOrang) > meja.kapasitas) setMejaId(null)
+  }, [jumlahOrang, meja])
+
+  const pilihanTanggal = useMemo(() => {
+    const daftar: { value: string; label: string; sub: string }[] = []
+    const namaHari = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
+    const namaBulan = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Mei",
+      "Jun",
+      "Jul",
+      "Agu",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Des",
+    ]
+    const dasar = new Date(hariIni)
+    for (let i = 0; i <= MAKS_HARI_KE_DEPAN; i++) {
+      const d = new Date(dasar)
+      d.setDate(dasar.getDate() + i)
+      daftar.push({
+        value: toTanggalInputValue(d),
+        label: i === 0 ? "Hari ini" : i === 1 ? "Besok" : namaHari[d.getDay()],
+        sub: `${d.getDate()} ${namaBulan[d.getMonth()]} ${d.getFullYear()}`,
+      })
+    }
+    return daftar
+  }, [hariIni])
+
+  function jamTerlewat(jam: string) {
+    if (!tanggalKedatangan) return false
+    const target = new Date(`${tanggalKedatangan}T${jam}`)
+    return target.getTime() < Date.now()
+  }
+
+  function pilihTanggal(value: string) {
+    setTanggalKedatangan(value)
+    if (jamKedatangan) {
+      const target = new Date(`${value}T${jamKedatangan}`)
+      if (target.getTime() < Date.now()) {
+        setJamKedatangan("")
+      } else {
+        setSesiAktif(periodeJam(jamKedatangan))
+        return
+      }
+    }
+    setSesiAktif(sesiTersediaUntukTanggal(value))
+  }
+
+  function toggleSaranCatatan(saran: string) {
+    setCatatan((prev) => {
+      const bersih = prev.trim()
+      if (bersih.toLowerCase().includes(saran.toLowerCase())) {
+        return bersih
+          .replace(new RegExp(`,?\\s*${saran}`, "i"), "")
+          .replace(/^,\s*/, "")
+          .trim()
+      }
+      return bersih ? `${bersih}, ${saran}` : saran
+    })
+  }
 
   const itemsTerpilih = useMemo(
     () =>
@@ -197,12 +350,17 @@ export default function ReservasiCustomerPage() {
     if (!waktuKedatangan) return null
     const t = new Date(waktuKedatangan)
     if (Number.isNaN(t.getTime())) return null
-    return new Date(t.getTime() + expiryJam * 60 * 60 * 1000)
+    return hitungBatasKonfirmasi(t, expiryJam)
   }, [waktuKedatangan, expiryJam])
 
   const jumlahMenuTotal = useMemo(
     () => Object.values(keranjang).reduce((a, b) => a + b, 0),
     [keranjang]
+  )
+
+  const slotSesi = useMemo(
+    () => SLOT_RESERVASI.filter((slot) => periodeJam(slot) === sesiAktif),
+    [sesiAktif]
   )
 
   const menusTampil = useMemo(() => {
@@ -229,18 +387,29 @@ export default function ReservasiCustomerPage() {
   function lanjut() {
     setFormError(null)
     if (step === 1) {
-      if (nama.trim().length < 2) return setFormError("Nama pelanggan wajib diisi")
-      if (!validasiNoHp(noHp)) return setFormError("Nomor HP tidak valid (contoh: 081234567890)")
+      const errs: string[] = []
+      if (nama.trim().length < 2) errs.push("Nama pelanggan wajib diisi")
+      if (!validasiNoHp(noHp))
+        errs.push("Nomor HP tidak valid (contoh: 081234567890)")
       const org = Number(jumlahOrang)
-      if (!Number.isInteger(org) || org < 1) return setFormError("Jumlah orang tidak valid")
-      if (meja && org > meja.kapasitas)
-        return setFormError(`Kapasitas meja maksimal ${meja.kapasitas} orang`)
-      if (!waktuKedatangan) return setFormError("Pilih tanggal & jam kedatangan")
-      const t = new Date(waktuKedatangan).getTime()
-      if (Number.isNaN(t)) return setFormError("Waktu kedatangan tidak valid")
-      if (t < Date.now() - 5 * 60 * 1000) return setFormError("Waktu kedatangan sudah lewat")
-      if (t > Date.now() + 7 * 24 * 60 * 60 * 1000)
-        return setFormError("Waktu kedatangan maksimal 7 hari ke depan")
+      if (!Number.isInteger(org) || org < 1) {
+        errs.push("Jumlah orang tidak valid")
+      } else if (!meja) {
+        errs.push("Pilih meja yang tersedia")
+      } else if (org > meja.kapasitas) {
+        errs.push(
+          `Kapasitas meja ${meja.nomorMeja} maksimal ${meja.kapasitas} orang`
+        )
+      }
+      if (!waktuKedatangan) {
+        errs.push("Pilih tanggal & jam kedatangan")
+      } else {
+        const errorWaktu = validasiWaktuKedatangan(new Date(waktuKedatangan))
+        if (errorWaktu) errs.push(errorWaktu)
+      }
+      if (errs.length) {
+        return setFormError(errs.map((e) => `• ${e}`).join("\n"))
+      }
     }
     if (step === 2 && itemsTerpilih.length === 0) {
       return setFormError("Pilih minimal 1 menu pre-order")
@@ -267,11 +436,13 @@ export default function ReservasiCustomerPage() {
 
   async function handleSubmit() {
     setFormError(null)
+    if (!mejaId) return setFormError("Pilih meja yang tersedia terlebih dahulu")
     if (!buktiUrl) return setFormError("Unggah bukti pembayaran DP terlebih dahulu")
     setSubmitting(true)
     try {
       const res = await createReservasiCustomer({
-        tokenMeja,
+        kodeAkses,
+        mejaId,
         namaPelanggan: nama.trim(),
         noHp,
         jumlahOrang: Number(jumlahOrang),
@@ -282,6 +453,12 @@ export default function ReservasiCustomerPage() {
       })
       if ("error" in res) {
         setFormError(res.error ?? "Gagal membuat reservasi")
+        if (res.error?.includes("Meja")) {
+          setMejaId(null)
+          void getReservasiCustomer(kodeAkses).then((data) => {
+            if (!("error" in data)) setMejas(data.mejas)
+          })
+        }
         return
       }
       setHasil({
@@ -326,30 +503,8 @@ export default function ReservasiCustomerPage() {
           <CardContent className="p-6 text-center space-y-4">
             <AlertTriangle className="size-10 text-destructive mx-auto" />
             <p className="font-semibold">{loadError}</p>
-            <Button variant="outline" onClick={() => router.push(`/${tokenMeja}`)}>
-              <ArrowLeft className="size-4 mr-2" /> Kembali ke Menu
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (tidakBisa) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-6 text-center space-y-4">
-            <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
-              <AlertTriangle className="size-7 text-amber-600" />
-            </div>
-            <h1 className="font-heading font-bold text-lg">Meja Tidak Dapat Direservasi</h1>
-            <p className="text-sm text-muted-foreground">
-              Meja {meja?.nomorMeja ?? ""} sudah direservasi customer lain atau sedang dipakai.
-              Silakan pilih meja lain atau hubungi staf restoran.
-            </p>
-            <Button variant="outline" onClick={() => router.push(`/${tokenMeja}`)}>
-              <ArrowLeft className="size-4 mr-2" /> Kembali ke Menu
+            <Button variant="outline" onClick={() => router.push("/")}>
+              <ArrowLeft className="size-4 mr-2" /> Kembali ke Beranda
             </Button>
           </CardContent>
         </Card>
@@ -434,7 +589,7 @@ export default function ReservasiCustomerPage() {
               <Link href="/reservasi/status">Cek Status Reservasi</Link>
             </Button>
             <Button asChild variant="outline" className="w-full h-12">
-              <Link href={`/${tokenMeja}`}>Kembali ke Menu</Link>
+              <Link href="/">Kembali ke Beranda</Link>
             </Button>
           </div>
         </div>
@@ -450,14 +605,16 @@ export default function ReservasiCustomerPage() {
             size="icon"
             variant="ghost"
             className="h-9 w-9"
-            onClick={() => (step > 1 ? setStep(step - 1) : router.push(`/${tokenMeja}`))}
+            onClick={() => (step > 1 ? setStep(step - 1) : router.push("/"))}
           >
             <ArrowLeft className="size-5" />
           </Button>
           <div>
             <h1 className="font-heading font-semibold text-sm">Reservasi Meja</h1>
             <p className="text-xs text-muted-foreground">
-              Meja {meja?.nomorMeja} · maks {meja?.kapasitas} orang
+              {meja
+                ? `Meja ${meja.nomorMeja} · maks ${meja.kapasitas} orang`
+                : "Pilih meja, tanggal, dan jam kedatangan"}
             </p>
           </div>
         </div>
@@ -491,7 +648,9 @@ export default function ReservasiCustomerPage() {
           <Card>
             <CardContent className="p-4 space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="nama">Nama Pelanggan *</Label>
+                <Label htmlFor="nama">
+                  Nama Pelanggan <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="nama"
                   value={nama}
@@ -500,7 +659,9 @@ export default function ReservasiCustomerPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="hp">Nomor HP *</Label>
+                <Label htmlFor="hp">
+                  Nomor HP <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="hp"
                   inputMode="tel"
@@ -514,34 +675,232 @@ export default function ReservasiCustomerPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="orang" className="flex items-center gap-1.5">
-                  <Users className="size-3.5" /> Jumlah Orang *
+                  <Users className="size-3.5" /> Jumlah Orang{" "}
+                  <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="orang"
-                  type="number"
-                  min={1}
-                  max={meja?.kapasitas}
-                  value={jumlahOrang}
-                  onChange={(e) => setJumlahOrang(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="waktu" className="flex items-center gap-1.5">
-                  <CalendarDays className="size-3.5" /> Waktu Kedatangan *
-                </Label>
-                <Input
-                  id="waktu"
-                  type="datetime-local"
-                  min={minWaktu}
-                  max={maxWaktu}
-                  value={waktuKedatangan}
-                  onChange={(e) => setWaktuKedatangan(e.target.value)}
-                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 shrink-0"
+                    aria-label="Kurangi jumlah orang"
+                    disabled={Number(jumlahOrang) <= 1}
+                    onClick={() =>
+                      setJumlahOrang((v) => String(Math.max(1, Number(v) - 1)))
+                    }
+                  >
+                    <Minus className="size-4" />
+                  </Button>
+                  <Input
+                    id="orang"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={meja?.kapasitas}
+                    value={jumlahOrang}
+                    onChange={(e) => setJumlahOrang(e.target.value)}
+                    className="text-center text-base font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 shrink-0"
+                    aria-label="Tambah jumlah orang"
+                    disabled={!!meja && Number(jumlahOrang) >= meja.kapasitas}
+                    onClick={() =>
+                      setJumlahOrang((v) =>
+                        String(Math.min(meja?.kapasitas ?? 99, Number(v) + 1))
+                      )
+                    }
+                  >
+                    <Plus className="size-4" />
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Maksimal 7 hari ke depan. Resto mulai menyiapkan pesanan menjelang jam ini.
+                  {meja
+                    ? `Maksimal ${meja.kapasitas} orang sesuai kapasitas Meja ${meja.nomorMeja}.`
+                    : "Pilih meja di bawah untuk melihat batas kapasitas."}
                 </p>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Armchair className="size-3.5" /> Pilih Meja{" "}
+                  <span className="text-destructive">*</span>
+                </Label>
+                {mejas.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">
+                    Tidak ada meja kosong saat ini. Silakan hubungi staf restoran.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {mejas.map((m) => {
+                      const cukup = Number(jumlahOrang) <= m.kapasitas
+                      const aktifMeja = mejaId === m.id
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          disabled={!cukup}
+                          onClick={() => setMejaId(m.id)}
+                          className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+                            aktifMeja
+                              ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600"
+                              : cukup
+                                ? "border-input hover:bg-muted"
+                                : "cursor-not-allowed border-dashed opacity-50"
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span
+                              className={`text-sm font-semibold ${
+                                aktifMeja ? "text-emerald-800" : ""
+                              }`}
+                            >
+                              Meja {m.nomorMeja}
+                            </span>
+                            {aktifMeja && <Check className="size-3.5 text-emerald-600" />}
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground">
+                            {m.tipeMeja === "lesehan" ? "Lesehan" : "Kursi"} · {m.kapasitas} org
+                          </span>
+                          {!cukup && (
+                            <span className="block text-[10px] text-destructive">
+                              Kurang kapasitas
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Semua meja kosong bisa dipilih, termasuk meja yang belum punya QR.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <CalendarDays className="size-3.5" /> Waktu Kedatangan{" "}
+                  <span className="text-destructive">*</span>
+                </Label>
+
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {pilihanTanggal.map((t) => {
+                    const aktifTanggal = tanggalKedatangan === t.value
+                    return (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => pilihTanggal(t.value)}
+                        className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                          aktifTanggal
+                            ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600"
+                            : "border-input hover:bg-muted"
+                        }`}
+                      >
+                        <span
+                          className={`block text-[11px] font-medium ${
+                            aktifTanggal ? "text-emerald-700" : "text-muted-foreground"
+                          }`}
+                        >
+                          {t.label}
+                        </span>
+                        <span
+                          className={`block text-sm font-bold leading-tight ${
+                            aktifTanggal ? "text-emerald-800" : ""
+                          }`}
+                        >
+                          {t.sub}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {tanggalKedatangan && (
+                  <p className="text-xs font-medium text-emerald-700">
+                    {formatTanggalPanjang(tanggalKedatangan)}
+                  </p>
+                )}
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1.5">Pilih jam kedatangan</p>
+                  {!tanggalKedatangan ? (
+                    <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground text-center">
+                      Pilih tanggal terlebih dahulu untuk melihat pilihan jam.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-1.5 overflow-x-auto pb-1">
+                        {PERIODE_RESERVASI.map((periode) => {
+                          const aktif = sesiAktif === periode
+                          const jumlahTersedia = SLOT_RESERVASI.filter(
+                            (slot) => periodeJam(slot) === periode && !jamTerlewat(slot)
+                          ).length
+                          return (
+                            <button
+                              key={periode}
+                              type="button"
+                              onClick={() => setSesiAktif(periode)}
+                              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                                aktif
+                                  ? "border-emerald-600 bg-emerald-600 text-white"
+                                  : "border-input hover:bg-muted"
+                              }`}
+                            >
+                              {periode}
+                              <span
+                                className={`ml-1 ${
+                                  aktif ? "text-white/70" : "text-muted-foreground"
+                                }`}
+                              >
+                                ({jumlahTersedia})
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {slotSesi.map((jam) => {
+                          const lewat = jamTerlewat(jam)
+                          const aktifJam = jamKedatangan === jam
+                          return (
+                            <button
+                              key={jam}
+                              type="button"
+                              disabled={lewat}
+                              onClick={() => setJamKedatangan(jam)}
+                              className={`rounded-lg border px-2 py-1.5 text-center transition-colors ${
+                                aktifJam
+                                  ? "border-emerald-600 bg-emerald-600 text-white"
+                                  : "border-input hover:bg-muted"
+                              } ${lewat ? "cursor-not-allowed opacity-40" : ""}`}
+                            >
+                              <span className="block text-sm font-semibold leading-tight">
+                                {jam}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {slotSesi.every((jam) => jamTerlewat(jam)) && (
+                        <p className="text-xs text-muted-foreground">
+                          Tidak ada jam tersedia di sesi ini. Pilih sesi lain atau tanggal
+                          berikutnya.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Jam {formatMenit(JAM_BUKA_RESERVASI_MENIT)}–
+                  {formatMenit(BATAS_KEDATANGAN_RESERVASI_MENIT)} · slot{" "}
+                  {INTERVAL_SLOT_RESERVASI_MENIT} menit · maksimal {MAKS_HARI_KE_DEPAN} hari ke
+                  depan.
+                </p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="catatan">Catatan (opsional)</Label>
                 <textarea
                   id="catatan"
@@ -551,6 +910,29 @@ export default function ReservasiCustomerPage() {
                   placeholder="Contoh: butuh kursi bayi, area lesehan, dll."
                   className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Saran cepat (ketuk untuk menambahkan):
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {SARAN_CATATAN.map((saran) => {
+                    const dipilih = catatan.toLowerCase().includes(saran.toLowerCase())
+                    return (
+                      <button
+                        key={saran}
+                        type="button"
+                        onClick={() => toggleSaranCatatan(saran)}
+                        className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                          dipilih
+                            ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                            : "border-input text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {dipilih && <Check className="mr-1 inline size-3" />}
+                        {saran}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -731,7 +1113,8 @@ export default function ReservasiCustomerPage() {
                 <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 space-y-1">
                   <p>
                     Reservasi otomatis <b>batal</b> jika belum dikonfirmasi hingga{" "}
-                    <b>{expiryJam} jam setelah jam kedatangan</b>.
+                    <b>{expiryJam} jam setelah jam kedatangan</b>, maksimal pukul{" "}
+                    <b>{formatMenit(JAM_TUTUP_RESERVASI_MENIT)}</b> di hari yang sama.
                   </p>
                   <p>DP yang sudah dibayar <b>hangus</b> jika tidak datang / tidak dikonfirmasi.</p>
                 </div>
@@ -786,7 +1169,9 @@ export default function ReservasiCustomerPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Bukti Pembayaran DP *</Label>
+                  <Label>
+                    Bukti Pembayaran DP <span className="text-destructive">*</span>
+                  </Label>
                   {buktiUrl ? (
                     <div className="flex items-center gap-2 rounded-lg border p-2">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -834,15 +1219,31 @@ export default function ReservasiCustomerPage() {
           </>
         )}
 
-        {formError && (
-          <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3 text-sm text-destructive flex gap-2">
-            <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-            {formError}
-          </div>
-        )}
       </main>
 
-      <div className="fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur border-t p-4">
+      {formError && (
+        <div className="fixed right-4 top-4 z-50 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-destructive/30 bg-destructive/10 p-3 shadow-lg backdrop-blur">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-destructive">Periksa Kembali</p>
+              <p className="mt-0.5 whitespace-pre-line text-xs text-destructive/90">
+                {formError}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Tutup peringatan"
+              onClick={() => setFormError(null)}
+              className="shrink-0 rounded-md p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="fixed bottom-14 sm:bottom-9 inset-x-0 z-20 border-t bg-background/95 backdrop-blur p-3">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           {step === 2 && (
             <div className="flex-1">
@@ -862,14 +1263,14 @@ export default function ReservasiCustomerPage() {
           )}
           {step < 4 ? (
             <Button
-              className="h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="ml-auto h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={lanjut}
             >
               Lanjut <ArrowRight className="size-4 ml-1" />
             </Button>
           ) : (
             <Button
-              className="h-11 px-6 flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="ml-auto h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
               disabled={submitting || isUploading || !buktiUrl}
               onClick={handleSubmit}
             >

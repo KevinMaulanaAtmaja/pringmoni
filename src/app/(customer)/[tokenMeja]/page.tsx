@@ -16,6 +16,7 @@ import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "
 import { getVoucherAktif } from "@/app/actions/voucher";
 import { simpanKeranjangCheckout, simpanKodeVoucher, ambilKeranjangCheckout } from "@/lib/checkout-storage";
 import { hitungPotonganDiskon } from "@/lib/voucher";
+import { LINK_RESERVASI_PUBLIK } from "@/lib/reservasi-akses";
 import type { CustomerMenu } from "@/types";
 import type { VoucherOpsi, VoucherTerpakai } from "@/types";
 import type { KeranjangItem } from "@/components/customer/cart-sheet";
@@ -447,7 +448,7 @@ return (
                     {!loading && !error && (
                      <div className="flex items-center gap-2">
                          <Button variant="outline" size="sm" className="rounded-full" asChild>
-                             <Link href={`/reservasi/${tokenMeja}`}>
+                             <Link href={LINK_RESERVASI_PUBLIK}>
                                  <Ticket className="size-4 mr-1.5" />
                                  Reservasi
                              </Link>

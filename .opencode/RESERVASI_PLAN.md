@@ -215,3 +215,150 @@ scan QR dipesan  -> layar "Sudah direservasi oleh customer lain"
 3. Branch baru dari `feat/reservasi` (mis. `feat/reservasi-customer-qr`).
 4. Commit + push WIP MVP.
 5. Eksekusi P0 -> P1 -> P2 -> P3, verifikasi tiap fase, commit terpisah.
+
+## 8. Rencana: Pengaturan Jam Reservasi oleh Owner
+
+> **Status: RENCANA — BELUM DIIMPLEMENTASI.**
+> Jangan membuat model, migration, halaman, atau action apa pun untuk bagian ini
+> sampai user menyetujui. Semua perubahan owner-settings yang sempat dibuat sudah
+> dikembalikan (schema, migration, helper, action, halaman, menu sidebar).
+>
+> Tujuan: owner bisa mengatur jam operasional reservasi dari dashboard. Saat ini
+> jam reservasi masih hardcoded di halaman customer (`07:00–22:00`, slot per jam)
+> dan validasi server hanya mengecek waktu lewat + maksimal 7 hari.
+
+### 8.1 Keputusan yang sudah disepakati
+
+| Aturan | Nilai default |
+|--------|---------------|
+| Jam buka reservasi | 13:00 |
+| Jam tutup | 21:00 |
+| Kedatangan terakhir | 20:30 |
+| Interval slot | 30 menit |
+| Maksimal hari ke depan | 7 hari |
+| Batas konfirmasi DP | 3 jam setelah kedatangan |
+
+1. Slot customer mengikuti pengaturan owner (bukan hardcoded lagi).
+2. Batas konfirmasi DP = `waktuKedatangan + expiryJam`, **tetapi tidak boleh
+   melewati jam tutup di hari yang sama**.
+3. Reservasi offline/staf juga wajib mengikuti jam operasional yang sama.
+4. Owner dapat mengubah jam buka, jam tutup, kedatangan terakhir, interval slot,
+   maksimal hari ke depan, dan expiry DP.
+5. Tampilan customer memakai tab sesi (Siang/Sore/Malam) — bagian ini masuk
+   fase polish setelah pengaturan owner selesai.
+
+### 8.2 Desain data (usulan)
+
+Model singleton baru di `prisma/schema.prisma`:
+
+```prisma
+model PengaturanReservasi {
+  id                   Int      @id @default(1)
+  jamBukaMenit         Int      @default(780)  // 13:00
+  jamTutupMenit        Int      @default(1260) // 21:00
+  batasKedatanganMenit Int      @default(1230) // 20:30
+  intervalSlotMenit    Int      @default(30)
+  maksHariKeDepan      Int      @default(7)
+  expiryJam            Int      @default(3)
+  updatedAt            DateTime @updatedAt
+  updatedById          Int?
+
+  @@map("pengaturan_reservasi")
+}
+```
+
+- Semua jam disimpan sebagai **menit sejak 00:00** agar validasi bebas timezone
+  parsing.
+- Migration resmi + `INSERT ... ON CONFLICT DO NOTHING` untuk baris `id = 1`
+  dengan nilai default.
+- Tidak perlu relasi FK ke `Users`; `updatedById` cukup untuk audit.
+
+### 8.3 Helper murni (client + server)
+
+File usulan: `src/lib/reservasi-slot.ts` (tanpa import Prisma agar bisa dipakai
+client component).
+
+- `DEFAULT_PENGATURAN_RESERVASI`
+- `formatMenit(menit) -> "HH:mm"`
+- `periodeJam(jam) -> Pagi/Siang/Sore/Malam`
+- `generateSlotReservasi(pengaturan) -> string[]`
+- `validasiWaktuKedatangan(date, pengaturan, now) -> string | null`
+  - tolak waktu lewat, lewat batas hari, di luar jam buka–kedatangan terakhir,
+    dan tidak sejajar dengan interval slot.
+- `hitungBatasKonfirmasi(waktuKedatangan, pengaturan) -> Date`
+  - `min(kedatangan + expiryJam, jam tutup hari itu)`.
+
+File server: `src/lib/pengaturan-reservasi.ts`
+
+- `getPengaturanReservasi()` membaca baris `id = 1`; fallback ke default bila
+  baris belum ada atau DB error agar reservasi tidak ikut mati.
+
+### 8.4 Server actions
+
+File usulan: `src/app/actions/pengaturan.ts`
+
+- `getPengaturanReservasiOwner()` — hanya role `owner`.
+- `simpanPengaturanReservasi(input)` — hanya `owner`, validasi:
+  - `jamTutup > jamBuka`
+  - `jamBuka <= batasKedatangan <= jamTutup`
+  - interval hanya 15/30/60 menit
+  - maksimal hari 1–30
+  - expiry DP 1–48 jam
+  - upsert `id = 1`, catat `createLog("UPDATE_PENGATURAN", ...)`,
+    `revalidatePath` dashboard + halaman reservasi customer.
+- Tambahkan `"UPDATE_PENGATURAN"` ke union `JenisAksiLog` di `src/lib/log.ts`.
+
+### 8.5 Halaman owner
+
+File usulan: `src/app/dashboard/pengaturan/page.tsx`
+
+- Form: jam buka, jam tutup, kedatangan terakhir (`input type="time"`),
+  interval slot (`Select`), maksimal hari, expiry DP.
+- Pratinjau slot live dikelompokkan per periode (Siang/Sore/Malam).
+- Tombol Simpan + Kembalikan Default; pesan sukses/error inline.
+- Menu "Pengaturan" dengan ikon `Settings` hanya untuk role owner, di
+  `Sidebar.tsx` dan `SidebarMobile` pada `DashboardClient.tsx`.
+
+### 8.6 Integrasi reservasi
+
+1. `getReservasiCustomerByToken` mengembalikan `pengaturan` (dan `expiryJam`
+   dari pengaturan, bukan konstanta).
+2. `createReservasiCustomer` memakai `validasiWaktuKedatangan` dan
+   `hitungBatasKonfirmasi`; hapus pemakaian `MAKS_HARI_KE_DEPAN` dan
+   `EXPIRY_JAM_DEFAULT` untuk kasus ini.
+3. `createReservasi` offline di `src/app/actions/reservasi.ts` memakai helper
+   validasi yang sama.
+4. Halaman `src/app/reservasi/[tokenMeja]/page.tsx`:
+   - hapus `JAM_SLOTS` hardcoded,
+   - generate slot dari pengaturan yang dikirim server,
+   - validasi `lanjut` memakai helper,
+   - tampilkan batas konfirmasi hasil cap jam tutup,
+   - fase lanjutan: tab sesi Siang/Sore/Malam dan default ke sesi terdekat.
+
+### 8.7 Verifikasi
+
+- Dev server mati sebelum `npx prisma generate` / migration.
+- `npx prisma validate`
+- `npx prisma migrate deploy` (migration baru)
+- `npx tsc --noEmit` (abaikan error stale `.next` yang sudah ada)
+- `npx eslint` terarah pada file yang diubah
+- Unit test Vitest untuk `generateSlotReservasi`, `validasiWaktuKedatangan`,
+  dan `hitungBatasKonfirmasi` (termasuk kasus cap 21:00).
+- E2E manual:
+  1. Owner ubah jam buka/tutup -> slot customer berubah.
+  2. Customer pilih slot di luar jam -> ditolak server.
+  3. Reservasi offline di luar jam -> ditolak.
+  4. Kedatangan 20:30 + expiry 3 jam -> batas konfirmasi 21:00.
+  5. Owner non-owner membuka halaman -> ditolak.
+- `npm run graph:update` sebelum commit.
+
+### 8.8 Urutan eksekusi yang diusulkan
+
+1. Setujui rencana ini.
+2. Branch baru (mis. `feat/pengaturan-reservasi-owner`).
+3. Schema + migration + `prisma generate`.
+4. Helper murni + helper server + unit test.
+5. Server actions + halaman owner + menu sidebar.
+6. Integrasi customer & offline.
+7. Docs (`PRD`, `ARCHITECTURE`, `PROGRESS`) + graph update + commit.
+
