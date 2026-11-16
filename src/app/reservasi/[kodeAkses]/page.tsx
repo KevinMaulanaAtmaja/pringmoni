@@ -12,8 +12,10 @@ import {
   Check,
   CheckCircle2,
   ChefHat,
+  ChevronUp,
   Clock,
   Copy,
+  Download,
   ImageIcon,
   Loader2,
   Minus,
@@ -32,6 +34,14 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { getQrisStaticUrl } from "@/lib/qris-static"
 import { hitungRincianDp } from "@/lib/dp"
 import {
@@ -77,6 +87,7 @@ interface MejaInfo {
   nomorMeja: string
   kapasitas: number
   tipeMeja: string
+  punyaQr: boolean
 }
 
 interface HasilReservasi {
@@ -145,6 +156,16 @@ const SARAN_CATATAN = [
   "Area lesehan",
 ]
 
+const PILIHAN_AREA = [
+  "Meja bebas",
+  "Indoor",
+  "Outdoor",
+  "Area ber-AC",
+  "Area luas",
+  "Lesehan",
+  "Dekat jendela",
+]
+
 function validasiNoHp(value: string) {
   const digits = value.replace(/[^0-9+]/g, "")
   return /^(\+62|62|0)8[0-9]{7,12}$/.test(digits)
@@ -183,6 +204,7 @@ export default function ReservasiCustomerPage() {
     sesiTersediaUntukTanggal(toTanggalInputValue(new Date()))
   )
   const [catatan, setCatatan] = useState("")
+  const [preferensiArea, setPreferensiArea] = useState<string[]>([])
   const [keranjang, setKeranjang] = useState<Record<number, number>>({})
   const [setuju, setSetuju] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -191,6 +213,7 @@ export default function ReservasiCustomerPage() {
   const [search, setSearch] = useState("")
 
   const [buktiUrl, setBuktiUrl] = useState("")
+  const [mengunduhQris, setMengunduhQris] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [hasil, setHasil] = useState<HasilReservasi | null>(null)
   const [copied, setCopied] = useState(false)
@@ -434,6 +457,31 @@ export default function ReservasiCustomerPage() {
     }
   }
 
+  async function unduhQris() {
+    const url = getQrisStaticUrl()
+    if (!url) return
+    setMengunduhQris(true)
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("Gagal mengunduh QRIS")
+      const blob = await res.blob()
+      const ext =
+        url.split("?")[0].match(/\.(png|jpe?g|webp)$/i)?.[1] ?? "png"
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = objectUrl
+      a.download = `qris-pringmoni.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer")
+    } finally {
+      setMengunduhQris(false)
+    }
+  }
+
   async function handleSubmit() {
     setFormError(null)
     if (!mejaId) return setFormError("Pilih meja yang tersedia terlebih dahulu")
@@ -447,7 +495,15 @@ export default function ReservasiCustomerPage() {
         noHp,
         jumlahOrang: Number(jumlahOrang),
         waktuKedatangan: new Date(waktuKedatangan).toISOString(),
-        catatan: catatan.trim() || null,
+        catatan:
+          [
+            preferensiArea.length
+              ? `Preferensi area: ${preferensiArea.join(", ")}`
+              : "",
+            catatan.trim(),
+          ]
+            .filter(Boolean)
+            .join(" | ") || null,
         items: itemsTerpilih.map((item) => ({ menuId: item.id, jumlah: item.jumlah })),
         dpBuktiUrl: buktiUrl,
       })
@@ -600,50 +656,53 @@ export default function ReservasiCustomerPage() {
   return (
     <div className="min-h-screen bg-background pb-32">
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b">
-        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-9 w-9"
-            onClick={() => (step > 1 ? setStep(step - 1) : router.push("/"))}
-          >
-            <ArrowLeft className="size-5" />
-          </Button>
-          <div>
-            <h1 className="font-heading font-semibold text-sm">Reservasi Meja</h1>
-            <p className="text-xs text-muted-foreground">
-              {meja
-                ? `Meja ${meja.nomorMeja} · maks ${meja.kapasitas} orang`
-                : "Pilih meja, tanggal, dan jam kedatangan"}
-            </p>
+        <div className="mx-auto w-full max-w-2xl px-4 lg:max-w-5xl">
+          <div className="h-16 flex items-center gap-2 lg:max-w-2xl">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-9 w-9"
+              onClick={() => (step > 1 ? setStep(step - 1) : router.push("/"))}
+            >
+              <ArrowLeft className="size-5" />
+            </Button>
+            <div>
+              <h1 className="font-heading font-semibold text-sm">Reservasi Meja</h1>
+              <p className="text-xs text-muted-foreground">
+                {meja
+                  ? `Meja ${meja.nomorMeja} · maks ${meja.kapasitas} orang`
+                  : "Pilih meja, tanggal, dan jam kedatangan"}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="max-w-2xl mx-auto px-4 pb-3 flex items-center gap-1.5">
-          {LANGKAH.map((label, i) => {
-            const n = i + 1
-            const aktif = n === step
-            const selesai = n < step
-            return (
-              <div key={label} className="flex-1 space-y-1">
-                <div
-                  className={`h-1.5 rounded-full ${
-                    selesai || aktif ? "bg-emerald-600" : "bg-muted"
-                  }`}
-                />
-                <p
-                  className={`text-[10px] text-center ${
-                    aktif ? "text-emerald-700 font-semibold" : "text-muted-foreground"
-                  }`}
-                >
-                  {label}
-                </p>
-              </div>
-            )
-          })}
+          <div className="pb-3 flex items-center gap-1.5 lg:max-w-2xl">
+            {LANGKAH.map((label, i) => {
+              const n = i + 1
+              const aktif = n === step
+              const selesai = n < step
+              return (
+                <div key={label} className="flex-1 space-y-1">
+                  <div
+                    className={`h-1.5 rounded-full ${
+                      selesai || aktif ? "bg-emerald-600" : "bg-muted"
+                    }`}
+                  />
+                  <p
+                    className={`text-[10px] text-center ${
+                      aktif ? "text-emerald-700 font-semibold" : "text-muted-foreground"
+                    }`}
+                  >
+                    {label}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-5 space-y-4">
+      <main className="mx-auto w-full max-w-2xl px-4 py-5 lg:flex lg:max-w-5xl lg:items-start lg:gap-6">
+        <div className="min-w-0 flex-1 space-y-4 lg:max-w-2xl">
         {step === 1 && (
           <Card>
             <CardContent className="p-4 space-y-4">
@@ -762,8 +821,16 @@ export default function ReservasiCustomerPage() {
                             </span>
                             {aktifMeja && <Check className="size-3.5 text-emerald-600" />}
                           </span>
-                          <span className="block text-[11px] text-muted-foreground">
-                            {m.tipeMeja === "lesehan" ? "Lesehan" : "Kursi"} · {m.kapasitas} org
+                          <span className="mt-1 flex flex-wrap items-center gap-1">
+                            <span className="text-[11px] text-muted-foreground">
+                              {m.tipeMeja === "lesehan" ? "Lesehan" : "Kursi"} ·{" "}
+                              {m.kapasitas} org
+                            </span>
+                            {!m.punyaQr && (
+                              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium text-amber-800">
+                                Tanpa QR
+                              </span>
+                            )}
                           </span>
                           {!cukup && (
                             <span className="block text-[10px] text-destructive">
@@ -776,8 +843,47 @@ export default function ReservasiCustomerPage() {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Semua meja kosong bisa dipilih, termasuk meja yang belum punya QR.
+                  Semua meja kosong bisa dipilih, termasuk meja bertanda{" "}
+                  <b>Tanpa QR</b> yang tetap dilayani staf.
                 </p>
+                <div className="space-y-2 rounded-xl border border-dashed bg-muted/30 p-3">
+                  <Label className="flex items-center gap-1.5">
+                    <Armchair className="size-3.5" /> Preferensi Area{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      (opsional)
+                    </span>
+                  </Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PILIHAN_AREA.map((area) => {
+                      const dipilih = preferensiArea.includes(area)
+                      return (
+                        <button
+                          key={area}
+                          type="button"
+                          onClick={() =>
+                            setPreferensiArea((prev) =>
+                              prev.includes(area)
+                                ? prev.filter((a) => a !== area)
+                                : [...prev, area]
+                            )
+                          }
+                          className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                            dipilih
+                              ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                              : "border-input text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {dipilih && <Check className="mr-1 inline size-3" />}
+                          {area}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Pilih area favorit Anda — kasir menyesuaikan penempatan meja.
+                    Preferensi ikut tercatat pada reservasi.
+                  </p>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
@@ -813,6 +919,11 @@ export default function ReservasiCustomerPage() {
                         >
                           {t.sub}
                         </span>
+                        {aktifTanggal && jamKedatangan && (
+                          <span className="mt-0.5 block text-[10px] font-semibold text-emerald-700">
+                            {jamKedatangan}
+                          </span>
+                        )}
                       </button>
                     )
                   })}
@@ -821,6 +932,7 @@ export default function ReservasiCustomerPage() {
                 {tanggalKedatangan && (
                   <p className="text-xs font-medium text-emerald-700">
                     {formatTanggalPanjang(tanggalKedatangan)}
+                    {jamKedatangan ? ` · pukul ${jamKedatangan}` : ""}
                   </p>
                 )}
 
@@ -975,82 +1087,108 @@ export default function ReservasiCustomerPage() {
                   </CardContent>
                 </Card>
               )}
-              {menusTampil.map((menu) => {
-                const qty = keranjang[menu.id] ?? 0
-                const habis = (menu.porsiTersedia ?? 0) <= 0
-                return (
-                  <Card key={menu.id} className={habis ? "opacity-60" : ""}>
-                    <CardContent className="p-3 flex gap-3">
-                      <div className="size-16 rounded-lg bg-muted overflow-hidden shrink-0 flex items-center justify-center">
-                        {menu.fotoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={menu.fotoUrl}
-                            alt={menu.namaMenu}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <ShoppingBag className="size-6 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{menu.namaMenu}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">
-                          {menu.deskripsi || menu.kategori}
-                        </p>
-                        <div className="flex items-center justify-between mt-1.5">
-                          <div>
-                            <p className="text-sm font-semibold text-emerald-700">
-                              {formatRupiah(menu.harga)}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              sisa {menu.porsiTersedia ?? 0} porsi
-                            </p>
-                          </div>
-                          {habis ? (
-                            <Badge variant="secondary" className="text-[10px]">
-                              Habis
-                            </Badge>
-                          ) : qty === 0 ? (
-                            <Button
-                              size="sm"
-                              className="h-8 bg-emerald-600 hover:bg-emerald-700"
-                              onClick={() => tambah(menu, 1)}
-                            >
-                              <Plus className="size-4 mr-1" /> Tambah
-                            </Button>
+              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
+                {menusTampil.map((menu) => {
+                  const qty = keranjang[menu.id] ?? 0
+                  const habis = (menu.porsiTersedia ?? 0) <= 0
+                  return (
+                    <Card
+                      key={menu.id}
+                      className={`gap-0 py-0 ${habis ? "opacity-60" : ""}`}
+                    >
+                      <CardContent className="flex h-full flex-col p-0">
+                        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+                          {menu.fotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={menu.fotoUrl}
+                              alt={menu.namaMenu}
+                              className="h-full w-full object-cover"
+                            />
                           ) : (
-                            <div className="flex items-center gap-1.5">
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8"
-                                onClick={() => tambah(menu, -1)}
-                              >
-                                {qty === 1 ? (
-                                  <Trash2 className="size-3.5" />
-                                ) : (
-                                  <Minus className="size-3.5" />
-                                )}
-                              </Button>
-                              <span className="w-6 text-center text-sm font-semibold">{qty}</span>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8"
-                                disabled={qty >= (menu.porsiTersedia ?? 0)}
-                                onClick={() => tambah(menu, 1)}
-                              >
-                                <Plus className="size-3.5" />
-                              </Button>
+                            <div className="flex h-full w-full items-center justify-center">
+                              <ShoppingBag className="size-5 text-muted-foreground" />
                             </div>
                           )}
+                          {habis && (
+                            <Badge
+                              variant="secondary"
+                              className="absolute right-1.5 top-1.5 text-[9px]"
+                            >
+                              Habis
+                            </Badge>
+                          )}
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+                        <div className="flex flex-1 flex-col gap-1 p-2">
+                          <p className="line-clamp-2 min-h-9 text-[13px] font-medium leading-tight">
+                            {menu.namaMenu}
+                          </p>
+                          <p className="line-clamp-1 text-[10px] text-muted-foreground">
+                            {menu.deskripsi || menu.kategori}
+                          </p>
+                          <div className="mt-auto space-y-1.5 pt-1">
+                            <div className="flex items-baseline justify-between gap-1">
+                              <p className="text-[13px] font-semibold text-emerald-700">
+                                {formatRupiah(menu.harga)}
+                              </p>
+                              <p className="text-[9px] text-muted-foreground">
+                                sisa {menu.porsiTersedia ?? 0}
+                              </p>
+                            </div>
+                            {habis ? (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-8 w-full"
+                                disabled
+                              >
+                                Habis
+                              </Button>
+                            ) : qty === 0 ? (
+                              <Button
+                                size="sm"
+                                className="h-8 w-full bg-emerald-600 hover:bg-emerald-700"
+                                onClick={() => tambah(menu, 1)}
+                              >
+                                <Plus className="mr-1 size-3.5" /> Tambah
+                              </Button>
+                            ) : (
+                              <div className="flex items-center justify-between gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="size-7"
+                                  onClick={() => tambah(menu, -1)}
+                                  aria-label={`Kurangi ${menu.namaMenu}`}
+                                >
+                                  {qty === 1 ? (
+                                    <Trash2 className="size-3" />
+                                  ) : (
+                                    <Minus className="size-3" />
+                                  )}
+                                </Button>
+                                <span className="min-w-5 text-center text-sm font-semibold">
+                                  {qty}
+                                </span>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="size-7"
+                                  disabled={qty >= (menu.porsiTersedia ?? 0)}
+                                  onClick={() => tambah(menu, 1)}
+                                  aria-label={`Tambah ${menu.namaMenu}`}
+                                >
+                                  <Plus className="size-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
             </div>
           </>
         )}
@@ -1097,6 +1235,14 @@ export default function ReservasiCustomerPage() {
                   <span className="text-muted-foreground">Jam kedatangan</span>
                   <span className="font-medium text-right">{formatWaktu(waktuKedatangan)}</span>
                 </div>
+                {preferensiArea.length > 0 && (
+                  <div className="flex justify-between gap-3">
+                    <span className="shrink-0 text-muted-foreground">Preferensi area</span>
+                    <span className="font-medium text-right">
+                      {preferensiArea.join(", ")}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Batas konfirmasi</span>
                   <span className="font-medium text-right">
@@ -1118,14 +1264,26 @@ export default function ReservasiCustomerPage() {
                   </p>
                   <p>DP yang sudah dibayar <b>hangus</b> jika tidak datang / tidak dikonfirmasi.</p>
                 </div>
-                <label className="flex items-start gap-2 pt-1 cursor-pointer">
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 transition-colors ${
+                    setuju
+                      ? "border-emerald-500 bg-emerald-50/70"
+                      : "border-amber-300 bg-amber-50/70"
+                  }`}
+                >
                   <Checkbox
                     checked={setuju}
                     onCheckedChange={(v) => setSetuju(v === true)}
-                    className="mt-0.5"
+                    className="mt-0.5 size-5 shrink-0 border-2 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600"
                   />
-                  <span className="text-xs text-muted-foreground">
-                    Saya menyetujui kebijakan reservasi dan DP di atas.
+                  <span className="space-y-0.5">
+                    <span className="block text-sm font-medium leading-snug text-foreground">
+                      Saya menyetujui kebijakan reservasi dan DP di atas{" "}
+                      <span className="text-destructive">*</span>
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      Wajib dicentang sebelum melanjutkan.
+                    </span>
                   </span>
                 </label>
               </CardContent>
@@ -1152,12 +1310,29 @@ export default function ReservasiCustomerPage() {
 
                 <div className="bg-white rounded-xl p-4 border flex flex-col items-center">
                   {getQrisStaticUrl() ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={getQrisStaticUrl()}
-                      alt="QRIS Statis"
-                      className="w-56 h-56 object-contain"
-                    />
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={getQrisStaticUrl()}
+                        alt="QRIS Statis"
+                        className="w-56 h-56 object-contain"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={unduhQris}
+                        disabled={mengunduhQris}
+                      >
+                        {mengunduhQris ? (
+                          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                        ) : (
+                          <Download className="mr-1.5 size-3.5" />
+                        )}
+                        Unduh QRIS
+                      </Button>
+                    </>
                   ) : (
                     <div className="w-56 h-56 flex items-center justify-center text-xs text-muted-foreground">
                       QRIS belum tersedia — hubungi staf
@@ -1218,7 +1393,93 @@ export default function ReservasiCustomerPage() {
             </div>
           </>
         )}
+        </div>
 
+        {step === 2 && (
+          <aside className="hidden lg:sticky lg:top-24 lg:block lg:w-72 lg:shrink-0">
+            <div className="overflow-hidden rounded-2xl border bg-background/95 shadow-xl backdrop-blur">
+              <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="size-4 text-emerald-600" />
+                  <p className="font-heading text-sm font-semibold">Keranjang</p>
+                </div>
+                <Badge variant="secondary">{jumlahMenuTotal} item</Badge>
+              </div>
+              <div className="max-h-[45vh] space-y-3 overflow-y-auto px-4 py-3">
+                {itemsTerpilih.length === 0 ? (
+                  <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+                    Belum ada menu yang dipilih.
+                  </p>
+                ) : (
+                  itemsTerpilih.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2">
+                      <div className="size-9 shrink-0 overflow-hidden rounded-lg bg-muted">
+                        {item.fotoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.fotoUrl}
+                            alt={item.namaMenu}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center">
+                            <ShoppingBag className="size-3.5 text-muted-foreground" />
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium">{item.namaMenu}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {formatRupiah(item.harga * item.jumlah)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="size-6"
+                          onClick={() => tambah(item, -1)}
+                          aria-label={`Kurangi ${item.namaMenu}`}
+                        >
+                          {item.jumlah === 1 ? (
+                            <Trash2 className="size-3" />
+                          ) : (
+                            <Minus className="size-3" />
+                          )}
+                        </Button>
+                        <span className="w-4 text-center text-xs font-semibold">
+                          {item.jumlah}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="size-6"
+                          disabled={item.jumlah >= (item.porsiTersedia ?? 0)}
+                          onClick={() => tambah(item, 1)}
+                          aria-label={`Tambah ${item.namaMenu}`}
+                        >
+                          <Plus className="size-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="space-y-1 border-t px-4 py-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Total pre-order</span>
+                  <span>{jumlahMenuTotal} item</span>
+                </div>
+                <p className="text-base font-bold text-emerald-700">
+                  {formatRupiah(totalHarga)}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  DP {rincian.persen}% · {formatRupiah(rincian.dpNominal)}
+                </p>
+              </div>
+            </div>
+          </aside>
+        )}
       </main>
 
       {formError && (
@@ -1243,40 +1504,169 @@ export default function ReservasiCustomerPage() {
         </div>
       )}
 
-      <div className="fixed bottom-14 sm:bottom-9 inset-x-0 z-20 border-t bg-background/95 backdrop-blur p-3">
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4">
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-2 sm:gap-3">
+          {step > 1 && (
+            <Button
+              variant="outline"
+              className="pointer-events-auto h-11 shrink-0 rounded-full border bg-background/95 px-3 shadow-lg backdrop-blur sm:px-4"
+              onClick={() => setStep(step - 1)}
+              disabled={submitting}
+              aria-label="Kembali ke langkah sebelumnya"
+            >
+              <ArrowLeft className="size-4" />
+              <span className="ml-1 hidden sm:inline">Kembali</span>
+            </Button>
+          )}
           {step === 2 && (
-            <div className="flex-1">
-              <p className="text-[10px] text-muted-foreground">{jumlahMenuTotal} item dipilih</p>
-              <p className="font-semibold text-sm">
-                {totalHarga > 0 ? formatRupiah(totalHarga) : "Belum dipilih"}
-              </p>
-            </div>
+            <Sheet>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  className="pointer-events-auto flex h-12 min-w-0 flex-1 items-center gap-2 rounded-full border bg-background/95 px-3 text-left shadow-lg backdrop-blur transition-colors hover:bg-muted/60 lg:hidden"
+                  aria-label="Lihat keranjang pre-order"
+                >
+                  {itemsTerpilih.length > 0 ? (
+                    <span className="flex shrink-0 -space-x-2">
+                      {itemsTerpilih.slice(0, 3).map((item) => (
+                        <span
+                          key={item.id}
+                          className="size-8 overflow-hidden rounded-full border-2 border-background bg-muted"
+                        >
+                          {item.fotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.fotoUrl}
+                              alt={item.namaMenu}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center">
+                              <ShoppingBag className="size-3.5 text-muted-foreground" />
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                      {itemsTerpilih.length > 3 && (
+                        <span className="flex size-8 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-semibold">
+                          +{itemsTerpilih.length - 3}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                      <ShoppingBag className="size-4 text-muted-foreground" />
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] text-muted-foreground">
+                      {jumlahMenuTotal} item dipilih
+                    </span>
+                    <span className="block truncate text-sm font-semibold">
+                      {totalHarga > 0 ? formatRupiah(totalHarga) : "Belum dipilih"}
+                    </span>
+                  </span>
+                  <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto p-4 pb-8">
+                <SheetHeader className="text-left">
+                  <SheetTitle>Keranjang Pre-order</SheetTitle>
+                  <SheetDescription>
+                    {jumlahMenuTotal > 0
+                      ? `${jumlahMenuTotal} item · ${formatRupiah(totalHarga)}`
+                      : "Belum ada menu yang dipilih."}
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="mt-4 space-y-3">
+                  {itemsTerpilih.length === 0 ? (
+                    <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                      Pilih menu di halaman sebelumnya untuk melihat ringkasan di sini.
+                    </p>
+                  ) : (
+                    itemsTerpilih.map((item) => (
+                      <div key={item.id} className="flex items-center gap-3">
+                        <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
+                          {item.fotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.fotoUrl}
+                              alt={item.namaMenu}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center">
+                              <ShoppingBag className="size-4 text-muted-foreground" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{item.namaMenu}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatRupiah(item.harga * item.jumlah)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="size-7"
+                            onClick={() => tambah(item, -1)}
+                            aria-label={`Kurangi ${item.namaMenu}`}
+                          >
+                            {item.jumlah === 1 ? (
+                              <Trash2 className="size-3" />
+                            ) : (
+                              <Minus className="size-3" />
+                            )}
+                          </Button>
+                          <span className="w-5 text-center text-sm font-semibold">
+                            {item.jumlah}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="size-7"
+                            disabled={item.jumlah >= (item.porsiTersedia ?? 0)}
+                            onClick={() => tambah(item, 1)}
+                            aria-label={`Tambah ${item.namaMenu}`}
+                          >
+                            <Plus className="size-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
           )}
           {step >= 3 && (
-            <div className="flex-1">
-              <p className="text-[10px] text-muted-foreground">DP {rincian.persen}%</p>
-              <p className="font-semibold text-sm text-emerald-700">
+            <div className="pointer-events-auto flex-1 rounded-full border bg-background/95 px-4 py-1.5 shadow-lg backdrop-blur">
+              <p className="text-[10px] text-muted-foreground">
+                {jumlahMenuTotal} item · DP {rincian.persen}%
+              </p>
+              <p className="text-sm font-semibold text-emerald-700">
                 {formatRupiah(rincian.dpNominal)}
               </p>
             </div>
           )}
           {step < 4 ? (
             <Button
-              className="ml-auto h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="pointer-events-auto ml-auto h-12 shrink-0 rounded-full bg-emerald-600 px-5 text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 sm:px-6"
               onClick={lanjut}
             >
-              Lanjut <ArrowRight className="size-4 ml-1" />
+              Lanjut <ArrowRight className="ml-1 size-4" />
             </Button>
           ) : (
             <Button
-              className="ml-auto h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="pointer-events-auto ml-auto h-12 shrink-0 rounded-full bg-emerald-600 px-5 text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 sm:px-6"
               disabled={submitting || isUploading || !buktiUrl}
               onClick={handleSubmit}
             >
               {submitting ? (
                 <>
-                  <Loader2 className="size-4 mr-2 animate-spin" /> Memproses...
+                  <Loader2 className="mr-2 size-4 animate-spin" /> Memproses...
                 </>
               ) : (
                 "Konfirmasi Reservasi"

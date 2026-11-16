@@ -133,7 +133,7 @@ export async function getReservasiCustomer(kodeAkses: string) {
         },
       },
       orderBy: { nomorMeja: "asc" },
-      select: { id: true, nomorMeja: true, kapasitas: true },
+      select: { id: true, nomorMeja: true, kapasitas: true, tokenMeja: true },
     }),
   ])
 
@@ -143,6 +143,7 @@ export async function getReservasiCustomer(kodeAkses: string) {
       nomorMeja: meja.nomorMeja,
       kapasitas: meja.kapasitas,
       tipeMeja: meja.nomorMeja.toUpperCase().startsWith("L") ? "lesehan" : "kursi",
+      punyaQr: Boolean(meja.tokenMeja),
     })),
     menus,
     kategoris: kategoris.map((k) => ({

@@ -188,3 +188,22 @@
 1. Optimalkan `getLaporanAll` / `getLaporanBanding` di `laporan.ts` jika ada query berat.
 2. Jalankan `npm run lint` & `npm run build`.
 3. Perbaiki error/warning yang muncul (kalau ada yang baru).
+
+## Sesi feedback /reservasi/PRINGSEWU26
+
+### Selesai
+- Unduh QRIS statis di langkah bayar DP (fetch blob -> anchor download, fallback buka tab baru).
+- Preferensi Area (chip multi-pilih) menggantikan tombol "Minta bantuan kasir"; digabung ke `catatan` reservasi dan tampil di ringkasan step 3.
+- Jam terpilih kini tampil pada chip tanggal aktif dan baris ringkasan (`tanggal . pukul jam`).
+- Keranjang pre-order jadi panel melayang kanan-tengah (sticky sidebar `lg+`); sheet bawah tetap untuk mobile.
+- Bottom action bar diubah jadi tombol mengambang (rounded-full + shadow, tanpa bar background penuh).
+
+### Verifikasi
+- `npm run lint -- --quiet`: 0 error (warning lama tetap).
+- `npx tsc --noEmit`: hanya error lama `.next/types/validator.ts` (route `dashboard/testing` basi).
+- `npm run graph:update`: selesai.
+
+### File diubah
+- `src/app/reservasi/[kodeAkses]/page.tsx`
+- `.opencode/PRD.md`
+- `.opencode/PROGRESS.md`
