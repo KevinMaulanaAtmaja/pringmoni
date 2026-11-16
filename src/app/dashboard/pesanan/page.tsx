@@ -534,65 +534,91 @@ export default function PesananPage() {
           </div>
         ) : (
           <>
-<div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {paginatedAktif.map((p) => (
-               <div key={p.id} className="bg-white rounded-xl border-2 border-l-chart-5 p-3 sm:p-5 hover:shadow-lg transition-shadow flex flex-col">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="text-xl sm:text-2xl font-bold">Meja {p.meja}</h3>
-                      <p className="text-sm text-gray-500">#{p.id} · {new Date(p.waktu).toLocaleString("id-ID", { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</p>
-                    </div>
-                    <div className="flex gap-1 items-start">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-4">
+            {paginatedAktif.map((p) => (
+              <div
+                key={p.id}
+                className="flex flex-col rounded-xl border border-dashed border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md"
+              >
+                {/* Kop struk */}
+                <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-heading text-lg font-bold leading-tight">Meja {p.meja}</h3>
+                    <p className="font-mono text-[11px] text-gray-400">#{p.id}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
                     {Date.now() - new Date(p.updatedAt).getTime() < 60000 && p.statusBayar === 'berhasil' && (
-                      <Badge className="bg-green-500 text-white text-xs px-2 py-0.5">Baru Dibayar</Badge>
+                      <Badge className="bg-green-500 text-white text-[10px] px-1.5 py-0">Baru Dibayar</Badge>
                     )}
-                    <Badge className={`${p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'bg-orange-100 text-orange-800 border-orange-300' : statusBayarColors[p.statusBayar]} text-sm px-3 py-1.5`}>
+                    <Badge className={`${p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'bg-orange-100 text-orange-800 border-orange-300' : statusBayarColors[p.statusBayar]} text-[11px] px-2 py-0.5`}>
                       {p.statusBayar === 'menunggu' ? 'Belum Bayar' : p.statusBayar === 'berhasil' && p.status === 'menunggu' ? 'Menunggu Konfirmasi' : p.statusBayar === 'berhasil' ? 'Lunas' : p.statusBayar === 'refund' ? 'Refund' : 'Dibatalkan'}
                     </Badge>
-                    </div>
                   </div>
-                  <div className="space-y-2 mb-3 bg-gray-50 rounded-lg p-3 flex-1 flex flex-col">
-                    <div className="flex-1">
-                      {p.namaPelanggan && (
-                        <p className="text-sm text-gray-600">
-                          <span className="text-gray-400">Atas nama:</span> {p.namaPelanggan}
-                        </p>
-                      )}
-                      <div className="text-sm text-gray-600">
-                        {p.itemNames.map((nama, i) => (
-                          <span key={i} className="block">• {nama}</span>
-                        ))}
-                        {p.sisaItems > 0 && (
-                          <p className="text-gray-400 mt-1">...dan {p.sisaItems} lainnya</p>
-                        )}
-                      </div>
-                    </div>
-                    {p.waiterUsername && (
-                      <p className="text-xs text-gray-400 mt-auto">Waiter: {p.waiterUsername}</p>
-                    )}
-                  </div>
-                  <div className="border-t pt-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" size="lg" onClick={() => openDetailModal(p.id)} className="text-base">
-                        <Eye className="w-5 h-5 mr-2" /> Detail
-                      </Button>
-                      {(role === 'cashier') && p.statusBayar === 'berhasil' && p.status !== 'dibatalkan' && p.status !== 'refund' && (
-                        <Button variant="outline" size="lg" onClick={() => setRefundTarget(p)} className="text-base">
-                          <Undo2 className="w-5 h-5 mr-2" /> Refund
-                        </Button>
-                      )}
-                      {userRole === 'waiter' && p.statusBayar === 'berhasil' && (
-                        <Button size="lg" onClick={() => openDetailModalForComplete(p.id)} className="text-base bg-chart-5 hover:bg-chart-5/80">
-                          <CheckCircle className="w-5 h-5 mr-2" /> Tandai Item
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-               </div>
-             ))}
+                </div>
+
+                <div className="mx-4 border-t border-dashed border-gray-200" />
+
+                {/* Waktu & waiter */}
+                <div className="flex items-center justify-between gap-2 px-4 py-1.5 text-[11px] text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {new Date(p.waktu).toLocaleString("id-ID", { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                  </span>
+                  {p.waiterUsername && (
+                    <span className="truncate">Waiter: {p.waiterUsername}</span>
+                  )}
+                </div>
+
+                <div className="mx-4 border-t border-dashed border-gray-200" />
+
+                {/* Daftar item ala struk */}
+                <div className="flex-1 px-4 py-2 font-mono text-[12px] leading-5 text-gray-700">
+                  {p.namaPelanggan && (
+                    <p className="text-gray-500">
+                      <span className="text-gray-400">a/n </span>
+                      {p.namaPelanggan}
+                    </p>
+                  )}
+                  {p.itemNames.map((nama, i) => (
+                    <p key={i} className="flex gap-1.5">
+                      <span className="text-gray-400">•</span>
+                      <span className="truncate">{nama}</span>
+                    </p>
+                  ))}
+                  {p.sisaItems > 0 && (
+                    <p className="mt-1 text-gray-400">+{p.sisaItems} item lainnya</p>
+                  )}
+                </div>
+
+                <div className="mx-4 border-t border-dashed border-gray-200" />
+
+                {/* Total */}
+                <div className="flex items-center justify-between px-4 py-2">
+                  <span className="text-xs text-gray-500">Total</span>
+                  <span className="font-mono text-sm font-bold text-gray-900">
+                    Rp {Number(p.total).toLocaleString("id-ID")}
+                  </span>
+                </div>
+
+                {/* Aksi */}
+                <div className="flex flex-wrap gap-1.5 border-t border-dashed border-gray-200 bg-gray-50/70 px-3 py-2">
+                  <Button variant="outline" size="sm" onClick={() => openDetailModal(p.id)} className="h-8 flex-1 text-xs">
+                    <Eye className="w-3.5 h-3.5 mr-1" /> Detail
+                  </Button>
+                  {(role === 'cashier') && p.statusBayar === 'berhasil' && p.status !== 'dibatalkan' && p.status !== 'refund' && (
+                    <Button variant="outline" size="sm" onClick={() => setRefundTarget(p)} className="h-8 flex-1 text-xs">
+                      <Undo2 className="w-3.5 h-3.5 mr-1" /> Refund
+                    </Button>
+                  )}
+                  {userRole === 'waiter' && p.statusBayar === 'berhasil' && (
+                    <Button size="sm" onClick={() => openDetailModalForComplete(p.id)} className="h-8 flex-1 text-xs bg-chart-5 hover:bg-chart-5/80">
+                      <CheckCircle className="w-3.5 h-3.5 mr-1" /> Tandai
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-            </div>
           <div className="flex items-center justify-center gap-4 pt-2">
             <Button
               variant="outline"
