@@ -1,3 +1,33 @@
+# PROGRESS - Sesi 2026-11-16 (Skeleton page reusable + fix enum usang)
+
+> Skeleton loading seragam untuk halaman OWNER, judul tetap teks asli, dan perbaikan data enum lama.
+
+## Selesai
+- Komponen baru `src/components/ui/page-skeleton.tsx`: `PageTitle`, `PageSkeletonHeader`, `ToolbarSkeleton`, `FilterBarSkeleton`, `StatCardsSkeleton`, `ChartCardsSkeleton`, `ChartBlockSkeleton`, `MiniCardsSkeleton`, `TableSkeleton`, `TableBodySkeleton`, `CardGridSkeleton`, `ListSkeleton`.
+- Ukuran skeleton disesuaikan dengan kotak asli: Card `rounded-2xl px-6 py-6`, chart `h-48`, Table header `h-9` / baris `h-12`, kartu pesanan aktif `h-60`, detail `h-96`.
+- Semua `loading.tsx` halaman OWNER memakai komponen reusable; judul statis dirender sebagai teks asli (tidak skeleton bar). Layout bersama (auth/customer/root) memakai teks brand `Pringmoni`.
+- Teks "Memuat..." di halaman & komponen OWNER diganti skeleton (logging, users, meja, shift, stok-bahan, pesanan, voucher, ShiftKasirPanel, notifikasi).
+- `page-loader.tsx` dihapus, diganti `skeleton.tsx` + `page-skeleton.tsx`.
+- Fix error Prisma: `getLogs()` hanya query enum `JenisAksiLog` yang valid; `getPesananForDashboard()` memfilter relasi meja ke enum `StatusMeja` yang valid.
+- Data DB usang dibersihkan: meja K003 `dipesan` → `kosong` (tidak ada pesanan aktif). Sisa log reservasi lama masih disembunyikan filter.
+- `.opencode/SKELETON_PLAN.md`: rencana, aturan judul, klasifikasi route, dan status implementasi.
+- `.gitignore`: abaikan `playwright/.auth/` dan `playwright-report/` (mengandung session/auth state).
+
+## Hasil verifikasi
+- `npx tsc --noEmit` bersih.
+- `npm run lint -- --quiet` bersih.
+- Query `getPesananForDashboard` diuji langsung: 5 baris pesanan kembali tanpa error.
+
+## Catatan
+- `npm run graph:update` gagal: executable `graphify` tidak tersedia di PATH/node_modules environment ini.
+- Belum dijalankan: build (dev server user aktif).
+
+## Berikutnya
+- Bersihkan 22 baris log reservasi usang bila disetujui user.
+- Pertimbangkan judul sticky di header dashboard agar tetap terlihat saat scroll.
+
+---
+
 # PROGRESS - Sesi 2026-11-10 (Latihan uji operasi DB di file terpisah)
 
 > Menyimpan 5 test case operasi database ke file terpisah + menjelaskan konsep dasar testing.

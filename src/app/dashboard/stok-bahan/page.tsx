@@ -21,6 +21,11 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import {
+  CardGridSkeleton,
+  TableBodySkeleton,
+  TableSkeleton,
+} from '@/components/ui/page-skeleton'
+import {
   Table,
   TableBody,
   TableCell,
@@ -1005,11 +1010,7 @@ export default function StokBahanPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    Memuat data stok bahan...
-                  </TableCell>
-                </TableRow>
+                <TableBodySkeleton columns={8} rows={6} />
               ) : paginatedItems.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
@@ -1124,9 +1125,12 @@ export default function StokBahanPage() {
       {/* 2. Mobile Transposed Cards View (visible on mobile, hidden on md and up) */}
       <div className="block md:hidden space-y-3">
         {loading ? (
-          <div className="text-center py-8 bg-white rounded-lg border text-muted-foreground text-sm">
-            Memuat data stok bahan...
-          </div>
+          <CardGridSkeleton
+            title={false}
+            cards={4}
+            cardHeight="h-40"
+            gridClassName="grid grid-cols-1 gap-3"
+          />
         ) : paginatedItems.length === 0 ? (
           <div className="text-center py-8 bg-white rounded-lg border text-muted-foreground text-sm">
             {search || filterKategori !== 'all' || filterStatus !== 'all'
@@ -1500,7 +1504,7 @@ export default function StokBahanPage() {
           </DialogHeader>
           <div className="py-2 max-h-[60vh] overflow-auto">
             {historyLoading ? (
-              <p className="text-center text-xs text-muted-foreground py-6">Memuat riwayat...</p>
+              <TableSkeleton columns={4} rows={3} />
             ) : history.length === 0 ? (
               <p className="text-center text-xs text-muted-foreground py-6">Belum ada riwayat mutasi</p>
             ) : (

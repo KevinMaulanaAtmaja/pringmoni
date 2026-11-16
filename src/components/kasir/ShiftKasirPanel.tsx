@@ -13,12 +13,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Banknote,
   CheckCircle2,
   Clock,
   HandCoins,
-  Loader2,
   LogOut,
   Timer,
   TrendingDown,
@@ -178,9 +178,10 @@ export function ShiftKasirPanel({
 
   if (!sudahMuat && loading) {
     return (
-      <div className="bg-white border-2 border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
-        <p className="text-sm text-gray-500">Memuat data shift...</p>
+      <div className="bg-white border-2 border-gray-200 rounded-xl p-6 space-y-3">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-20 w-full rounded-lg" />
+        <Skeleton className="h-10 w-full rounded-lg" />
       </div>
     )
   }
@@ -302,13 +303,13 @@ export function ShiftKasirPanel({
   return (
     <>
       {ringkasan && (
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+        <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
             <Wallet className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-blue-900">Shift Berhasil Ditutup</p>
-            <p className="text-sm text-blue-800 mt-0.5">
+            <p className="font-semibold text-emerald-900">Shift Berhasil Ditutup</p>
+            <p className="text-sm text-emerald-800 mt-0.5">
               Berikut ringkasan perhitungan uang kas shift yang baru saja ditutup.
             </p>
             <div className="bg-white rounded-lg p-3 mt-2 space-y-1 text-sm">
@@ -349,10 +350,10 @@ export function ShiftKasirPanel({
                 <span
                   className={
                     ringkasan.selisihKas === 0
-                      ? "text-green-700"
+                      ? "text-emerald-700"
                       : ringkasan.selisihKas > 0
                         ? "text-red-700"
-                        : "text-blue-700"
+                        : "text-emerald-700"
                   }
                 >
                   {ringkasan.selisihKas === 0
@@ -368,7 +369,7 @@ export function ShiftKasirPanel({
             variant="ghost"
             size="icon-sm"
             onClick={() => setRingkasan(null)}
-            className="text-blue-700 hover:bg-blue-100 hover:text-blue-900 shrink-0"
+            className="text-emerald-700 hover:bg-emerald-100 hover:text-emerald-900 shrink-0"
             aria-label="Tutup ringkasan"
           >
             <X className="w-4 h-4" />
@@ -377,38 +378,38 @@ export function ShiftKasirPanel({
       )}
 
       {shift ? (
-        <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-600 text-white flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
               <Wallet className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-semibold text-green-900">Shift Aktif</p>
-                <span className="inline-flex items-center gap-1 text-xs bg-green-600 text-white px-2 py-0.5 rounded-full">
+                <p className="font-semibold text-emerald-900">Shift Aktif</p>
+                <span className="inline-flex items-center gap-1 text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full">
                   <Clock className="w-3 h-3" />
                   Masuk {jamLabel(shift.waktuMasuk)}
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs bg-white text-green-700 border border-green-300 px-2 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs bg-white text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded-full">
                   <Timer className="w-3 h-3" />
                   {durasiLabel(shift.waktuMasuk)}
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-5 gap-y-1 mt-2 text-sm">
-                <p className="text-green-900">
-                  <span className="text-green-700">Uang awal: </span>
+                <p className="text-emerald-900">
+                  <span className="text-emerald-700">Uang awal: </span>
                   <span className="font-medium">{rupiah(shift.uangAwal)}</span>
                 </p>
-                <p className="text-green-900">
-                  <span className="text-green-700">Transaksi: </span>
+                <p className="text-emerald-900">
+                  <span className="text-emerald-700">Transaksi: </span>
                   <span className="font-medium">{shift.totalTransaksi}</span>
                 </p>
-                <p className="text-green-900">
-                  <span className="text-green-700">Tunai: </span>
+                <p className="text-emerald-900">
+                  <span className="text-emerald-700">Tunai: </span>
                   <span className="font-medium">{rupiah(shift.totalTunai)}</span>
                 </p>
-                <p className="text-green-900">
-                  <span className="text-green-700">Non-tunai: </span>
+                <p className="text-emerald-900">
+                  <span className="text-emerald-700">Non-tunai: </span>
                   <span className="font-medium">{rupiah(shift.totalNonTunai)}</span>
                 </p>
               </div>
@@ -460,12 +461,12 @@ export function ShiftKasirPanel({
           )}
 
           {saranSendiri && !saran && !shiftLainAktif && (
-            <div className="flex flex-col gap-3 rounded-lg border-2 border-green-400 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 rounded-lg border-2 border-emerald-400 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-2.5">
-                <HandCoins className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                <HandCoins className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
                 <div>
-                  <p className="text-sm font-bold text-green-900">Gunakan uang kembalian sendiri</p>
-                  <p className="text-sm text-green-800">
+                  <p className="text-sm font-bold text-emerald-900">Gunakan uang kembalian sendiri</p>
+                  <p className="text-sm text-emerald-800">
                     Sisa uang akhir shift terakhir Anda hari ini{" "}
                     <span className="font-semibold">{rupiah(saranSendiri.nominal)}</span>.
                     Uang ini akan jadi uang awal shift Anda (uang kembalian/laci sebelumnya).
@@ -474,7 +475,7 @@ export function ShiftKasirPanel({
               </div>
               <Button
                 onClick={() => bukaDialogBuka(false)}
-                className="shrink-0 bg-green-700 text-white hover:bg-green-800"
+                className="shrink-0 bg-emerald-700 text-white hover:bg-emerald-800"
               >
                 <Banknote className="mr-2 h-4 w-4" />
                 Pakai {rupiah(saranSendiri.nominal)}
@@ -616,14 +617,14 @@ export function ShiftKasirPanel({
               <div
                 className={`space-y-3 rounded-xl border-2 p-3 ${
                   modalDariSaran
-                    ? "border-green-500 bg-green-50"
+                    ? "border-emerald-500 bg-emerald-50"
                     : "border-amber-400 bg-amber-50"
                 }`}
               >
                 <div className="flex items-start gap-2.5">
                   <div
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${
-                      modalDariSaran ? "bg-green-600" : "bg-amber-500"
+                      modalDariSaran ? "bg-emerald-600" : "bg-amber-500"
                     }`}
                   >
                     <HandCoins className="h-5 w-5" />
@@ -648,7 +649,7 @@ export function ShiftKasirPanel({
                   onClick={pilihSaran}
                   className={`w-full ${
                     modalDariSaran
-                      ? "bg-green-700 hover:bg-green-800"
+                      ? "bg-emerald-700 hover:bg-emerald-800"
                       : "bg-amber-600 hover:bg-amber-700"
                   }`}
                 >
@@ -685,7 +686,7 @@ export function ShiftKasirPanel({
             <Button
               onClick={() => submitBuka()}
               disabled={submitting}
-              className="flex-1 bg-green-700 hover:bg-green-800"
+              className="flex-1 bg-emerald-700 hover:bg-emerald-800"
             >
               {submitting ? "Menyimpan..." : "Buka Shift"}
             </Button>
@@ -810,9 +811,9 @@ export function ShiftKasirPanel({
                 <div
                   className={`flex items-center gap-2 text-sm font-medium rounded-lg p-2 ${
                     selisihPreview === 0
-                      ? "bg-green-50 text-green-700 border border-green-200"
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                       : selisihPreview > 0
-                        ? "bg-blue-50 text-blue-700 border border-blue-200"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                         : "bg-red-50 text-red-700 border border-red-200"
                   }`}
                 >

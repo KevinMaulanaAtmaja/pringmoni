@@ -8,7 +8,7 @@ import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { requireShiftAktif, shiftAktifSlotSekarang } from "@/lib/shift"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
-import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
+import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar, StatusMeja } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
 import { potongStokDapur } from "@/lib/stok"
 
@@ -318,6 +318,7 @@ export async function getPesananForDashboard(filters?: {
 
   const whereClause: Prisma.PesananWhereInput = {
     deletedAt: null,
+    meja: { statusMeja: { in: Object.values(StatusMeja) } },
     ...(filters?.status && filters.status !== 'all' ? { statusPesanan: filters.status as StatusPesanan } : {}),
     ...(filters?.tanggal ? {
       createdAt: {
