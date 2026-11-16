@@ -1,5 +1,12 @@
-'use client'
-import { PageLoader } from '@/components/ui/page-loader'
+import { PageSkeleton } from "@/components/ui/page-skeleton"
+
 export default function Loading() {
-  return <PageLoader />
+  return (
+    <PageSkeleton
+      statCards={4}
+      chartCards={4}
+      titleText="Dashboard Owner"
+      titleClassName="capitalize"
+    />
+  )
 }

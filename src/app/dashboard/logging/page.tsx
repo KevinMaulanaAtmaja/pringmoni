@@ -19,6 +19,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { TableBodySkeleton } from '@/components/ui/page-skeleton'
 import { Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { getLogs, getUniqueUsers, getLogCount, type LogItem } from '@/app/actions/logs'
 import { useOrdersRealtime } from '@/hooks/use-orders-realtime'
@@ -145,7 +147,7 @@ export default function LoggingPage() {
         <h1 className="text-2xl font-bold">Logging</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-500">
-            {loading ? 'Memuat...' : `${totalCount} total log`}
+            {loading ? <Skeleton className="h-4 w-24" /> : `${totalCount} total log`}
           </span>
           <Button
             variant="outline"
@@ -211,17 +213,7 @@ export default function LoggingPage() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-gray-500">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="relative h-5 w-5">
-                      <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
-                      <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-primary" />
-                    </div>
-                    <span className="text-sm">Memuat data log...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
+              <TableBodySkeleton columns={6} rows={6} />
             ) : paginatedLogs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-12 text-gray-500">

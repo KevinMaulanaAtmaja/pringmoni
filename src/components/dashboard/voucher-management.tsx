@@ -21,7 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, Ticket, Loader2, Search, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Ticket, Search, ToggleLeft, ToggleRight } from 'lucide-react';
+import { TableSkeleton } from '@/components/ui/page-skeleton';
 
 import {
   getVoucherList,
@@ -260,10 +261,7 @@ export function VoucherManagement({ tabs }: { tabs?: ReactNode } = {}) {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          <span className="text-sm">Memuat voucher...</span>
-        </div>
+        <TableSkeleton columns={7} rows={6} />
       ) : (
         <div className="rounded-xl border overflow-hidden">
           <Table>
