@@ -384,3 +384,21 @@ export interface UpdateStokBahanInput {
   statusStok: StatusStok
   keterangan?: string
 }
+
+export interface RincianSkor {
+  cbf: number
+  cf: number
+  stok: number
+}
+
+export interface RekomendasiMenu {
+  menuId: number
+  skor: number
+  rincian: RincianSkor
+}
+
+export interface VoiceRecommendation {
+  mood: string
+  alasan: string
+  rekomendasi: RekomendasiMenu[]
+}

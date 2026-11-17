@@ -167,3 +167,23 @@
 1. Optimalkan `getLaporanAll` / `getLaporanBanding` di `laporan.ts` jika ada query berat.
 2. Jalankan `npm run lint` & `npm run build`.
 3. Perbaiki error/warning yang muncul (kalau ada yang baru).
+
+## 🎙️ Voice Order + SPK (F1-F5)
+- F1-F3 selesai: tokenizer/CBF, item-CF + `npm run seed:similarity`, endpoint `POST /api/rekomendasi` dengan Gemini NLU, fallback leksikon, rate limit `voice`, dan scoring hybrid 60/30/10.
+- F4 selesai: `src/hooks/use-voice-input.ts`, `src/components/customer/voice-order-sheet.tsx`, tombol mic di kiosk customer, tambah rekomendasi ke keranjang.
+- F5 selesai:
+  - Voice-search dashboard di `src/components/dashboard/voice-search-button.tsx`, dipasang di filter `src/app/dashboard/pesanan/page.tsx` (tanpa biaya API).
+  - Cadangan iOS: `src/hooks/use-audio-transcribe.ts` + `POST /api/transcribe` memakai Groq `whisper-large-v3-turbo`, rate limit namespace `transcribe` (5/10 menit), batas 25 MB.
+  - `.env.example` ditambah `GROQ_API_KEY` (opsional; tanpa key user diarahkan ketik manual).
+- Auto refresh CF:
+  - `src/lib/spk/build-similarity.ts`: perhitungan matriks dipakai bersama oleh script dan runtime.
+  - `src/lib/spk/refresh-similarity.ts`: refresh sekalian update memori `cf.ts`, ada lock + cooldown.
+  - `src/lib/spk/cf.ts`: `setMatriksSimilarity()` agar perubahan JSON/matriks langsung dipakai tanpa restart di proses yang sama.
+  - `src/app/actions/pesanan.ts`: `after()` memicu refresh otomatis setelah order berhasil (cooldown 60 detik).
+  - `src/app/api/cron/similarity/route.ts` + `vercel.json`: schedule tiap 15 menit, dilindungi `CRON_SECRET`.
+  - `.env.example`: `CRON_SECRET` ditambahkan.
+- Verifikasi: `npm test` 75 passed, `npx tsc --noEmit` bersih, `npm run lint -- --quiet` bersih.
+- `npm run build` sukses saat dev server mati; route `/api/cron/similarity` terbentuk; `.next` dibersihkan setelahnya agar dev server membangun ulang artefaknya.
+- `npm run graph:update` sudah dijalankan setelah perubahan cron.
+- Uji live saat dev server aktif: `GET /api/cron/similarity` → 200 (28 menu, 52 pasangan, tersimpan); `POST /api/rekomendasi` → 200 (mood `panas`, 4 rekomendasi).
+- Belum: uji manual precision@4 dengan data pesanan nyata.

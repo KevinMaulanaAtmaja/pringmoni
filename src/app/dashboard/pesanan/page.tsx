@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { VoiceSearchButton } from "@/components/dashboard/voice-search-button"
 import { useUserRole } from "@/lib/user-context"
 import { printStruk } from "@/lib/print-struk"
 import { pisahCatatanItem } from "@/lib/catatan-item"
@@ -506,9 +507,18 @@ export default function PesananPage() {
                >
                  <XCircle className="w-4 h-4" />
                </button>
-             )}
-          </div>
-          {activeTab === "riwayat" && (
+              )}
+           </div>
+           <VoiceSearchButton
+             onTranskrip={(teks) => {
+               if (activeTab === "aktif") {
+                 setFilterSearchAktif(teks)
+               } else {
+                 setFilterSearch(teks)
+               }
+             }}
+           />
+           {activeTab === "riwayat" && (
             <>
               <Button
                 variant="ghost"
