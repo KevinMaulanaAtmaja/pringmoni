@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageTitle } from "@/components/ui/page-skeleton"
 import {
   Select,
   SelectContent,
@@ -184,7 +185,7 @@ export default function PesananBaruPage() {
     return (
       <div className="h-[calc(100vh-4rem)] flex flex-col">
         <div className="flex items-center justify-between mb-4 shrink-0">
-          <Skeleton className="h-8 w-56" />
+          <PageTitle>Buat Pesanan Baru</PageTitle>
         </div>
         <div className="flex gap-2 mb-3 shrink-0">
           <Skeleton className="h-10 w-40" />

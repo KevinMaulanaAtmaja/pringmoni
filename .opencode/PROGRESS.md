@@ -1,3 +1,19 @@
+# PROGRESS - Sesi 2026-11-17 (Skeleton dashboard per role)
+
+> Menyamakan ketentuan skeleton dashboard untuk role selain OWNER (CASHIER / WAITER / KITCHEN).
+
+## Selesai
+- `src/app/dashboard/loading.tsx`: `await auth()` + preset per role — judul teks asli (`Dashboard Owner` / `Dashboard Kasir` / `Dashboard Waiter` / `Dashboard Kitchen`), stat card 4/3/3/3, chart card 4/2/2/0 sesuai konten asli tiap role. Fallback `owner` bila sesi gagal dibaca.
+- Skeleton waiter disesuaikan dengan kartu asli: 3 kartu stat berjudul teks asli + placeholder ikon, chart `Pesanan Per Jam` `h-48`, chart `Status Antar Item` pie `h-24 w-24` + legenda.
+- Loading internal kasir tidak lagi menghilangkan judul: `Kelola Kasir`, `Buat Pesanan Baru`, `Pembayaran` dirender teks asli lewat `PageTitle` (`kasir/page.tsx`, `kasir/pesanan-baru/page.tsx`, `kasir/pesanan-baru/[id]/page.tsx`).
+- `src/app/dashboard/page.tsx`: perbaikan judul role `kitchen` (sebelumnya tampil "Dashboard Waiter").
+- `.opencode/SKELETON_PLAN.md`: aturan judul diperbarui + tambah matriks preset per role (5.1).
+
+## Berikutnya
+- Verifikasi visual skeleton di tiap role saat dev server aktif.
+
+---
+
 # PROGRESS - Sesi 2026-11-16 (Skeleton page reusable + fix enum usang)
 
 > Skeleton loading seragam untuk halaman OWNER, judul tetap teks asli, dan perbaikan data enum lama.

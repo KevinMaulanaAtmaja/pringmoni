@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageTitle } from "@/components/ui/page-skeleton"
 import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight, Undo2 } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
 import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
@@ -452,7 +453,7 @@ export default function KasirPage() {
   if (loading) {
     return (
       <div className="w-full max-w-6xl mx-auto space-y-6">
-        <Skeleton className="h-8 w-56" />
+        <PageTitle>Kelola Kasir</PageTitle>
         <div className="flex flex-wrap gap-2">
           <Skeleton className="h-12 w-44 rounded-lg" />
           <Skeleton className="h-12 w-44 rounded-lg" />

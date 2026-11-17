@@ -34,7 +34,7 @@
 
 **Rule utama (berlaku untuk semua `loading.tsx`)**: judul **tidak boleh berubah menjadi skeleton bar** — teks harus tetap tampil saat skeleton page. Alasan: langsung memberi konteks dan menghindari "fake bar" yang berkedip. `PageSkeletonHeader` kini hanya dipakai jika judul benar-benar tidak diketahui.
 
-Catatan: `loading.tsx` tidak bisa membaca session/`params` tanpa `await`, jadi teks `Dashboard Owner` tampil untuk semua role selama skeleton, lalu diganti judul sesuai role saat halaman aktif render. Untuk layout bersama dengan banyak judul (`(auth)`: Welcome Back / Lupa Password / Reset Password; customer: Checkout / Status Pesanan / Pembayaran), dipakai teks brand `Pringmoni` agar selalu benar.
+Catatan: layout bersama tidak bisa membaca session/`params` tanpa `await`, jadi untuk layout bersama dengan banyak judul (`(auth)`: Welcome Back / Lupa Password / Reset Password; customer: Checkout / Status Pesanan / Pembayaran) dipakai teks brand `Pringmoni` agar selalu benar. Pengecualian: `/dashboard/loading.tsx` kini `await auth()` agar judul mengikuti role (`Dashboard Owner` / `Dashboard Kasir` / `Dashboard Waiter` / `Dashboard Kitchen`) dan jumlah kartu sesuai konten role — detail di bagian 5.1.
 
 ## 4. Komponen reusable
 
@@ -54,7 +54,7 @@ Catatan: `loading.tsx` tidak bisa membaca session/`params` tanpa `await`, jadi t
 
 | Route | Preset | Judul |
 |---|---|---|
-| `/dashboard` | `PageSkeleton` 4 stat + 4 chart | `Dashboard Owner` (teks asli) |
+| `/dashboard` | `PageSkeleton`, preset per role (lihat 5.1) | `Dashboard Owner` / `Dashboard Kasir` / `Dashboard Waiter` / `Dashboard Kitchen` (teks asli, per role) |
 | `/dashboard/laporan` | Toolbar + 4 compact + chart `h-48` + 6 mini | `Laporan & Analitik` |
 | `/dashboard/pesanan` | FilterBar + CardGrid 6 kartu `h-60` (tab Aktif) | `Kelola Pesanan` |
 | `/dashboard/menu` | Table 8 kolom | `Kelola Menu` |
@@ -76,6 +76,23 @@ Catatan: `loading.tsx` tidak bisa membaca session/`params` tanpa `await`, jadi t
 | `/dashboard/kasir/pesanan-baru` | `Buat Pesanan Baru` |
 | `/dashboard/kasir/pesanan-baru/[id]` | `Pembayaran` |
 | `/dashboard/pesanan/[id]` | 2 kartu `h-96` + Table 6 kolom | `Detail Pesanan` |
+
+### 5.1 Preset skeleton dashboard per role
+
+`src/app/dashboard/loading.tsx` membaca role lewat `await auth()` (jika gagal, fallback `owner`) lalu memakai preset yang mencerminkan konten asli halaman:
+
+| Role | Judul skeleton | Stat card | Chart card | Sumber |
+|---|---|---|---|---|
+| `owner` | Dashboard Owner | 4 | 4 | `StatGrid` 4 kartu + `getDashboardCharts` 4 chart |
+| `cashier` | Dashboard Kasir | 3 | 2 | `showMeja: false`; chart `statusPembayaran` + `perbandinganMetode` |
+| `waiter` | Dashboard Waiter | 3 (khusus) | 2 (khusus) | `showPendapatan: false` + `showPesananDiproses`; chart `pesananPerJam` + `statusAntarItem` |
+| `kitchen` | Dashboard Kitchen | 3 | 0 | `getDashboardCharts` mengembalikan `{}` → `DashboardCharts` return `null` |
+
+Waiter memakai skeleton khusus yang mengikuti kartu asli: 3 kartu stat berjudul teks asli (`Pesanan Hari Ini`, `Pesanan Menunggu`, `Sedang Diproses`) + placeholder ikon, chart `Pesanan Per Jam` ber-`h-48`, dan chart `Status Antar Item` berbentuk pie `h-24 w-24` + legenda — bukan `ChartCardsSkeleton` generik.
+
+Halaman asli (`src/app/dashboard/page.tsx`) juga memberi label `Kitchen` (sebelumnya jatuh ke `Waiter`) agar judul skeleton dan judul halaman konsisten.
+
+Ketentuan judul juga berlaku pada loading **internal** halaman kasir: `Kelola Kasir`, `Buat Pesanan Baru`, dan `Pembayaran` tetap dirender sebagai teks asli (bukan bar skeleton) saat `loading` di `useEffect` (lihat `src/app/dashboard/kasir/**/page.tsx`).
 
 ## 6. Verifikasi
 

@@ -56,7 +56,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6 capitalize">
-        Dashboard {role === 'owner' ? 'Owner' : role === 'cashier' ? 'Kasir' : 'Waiter'}
+        Dashboard {role === 'owner' ? 'Owner' : role === 'cashier' ? 'Kasir' : role === 'kitchen' ? 'Kitchen' : 'Waiter'}
       </h1>
       <StaleOrdersWarning orders={staleOrders} />
       <StatGrid stats={stats} role={role} />
