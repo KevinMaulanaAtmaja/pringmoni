@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Users, Phone, Clock, XCircle, CheckCircle, Plus, Minus, Search, Trash2, ImageIcon, ShoppingBag, ArrowLeft, ArrowRight, AlertTriangle, X } from "lucide-react"
 import { useSession } from "next-auth/react"
+import { useUserRole } from "@/lib/user-context"
 
 import {
   getReservasi,
@@ -56,6 +57,10 @@ interface ReservasiRow {
   createdAt: Date | string
   items: ReservasiItemRow[]
   totalHarga: number
+  subtotalHarga?: number
+  diskonVoucher?: number
+  voucherKode?: string | null
+  voucherNama?: string | null
   dpPersen: number
   dpNominal: number
   dpMetode: string | null
@@ -126,9 +131,11 @@ function formatKategoriNama(nama: string) {
 }
 
 export default function ReservasiPage() {
-  const { data: session } = useSession()
-  const role = (session?.user?.role as string) || "owner"
-  const canReservasi = role === "owner" || role === "cashier" || role === "waiter"
+  const userRole = useUserRole()
+  const { data: session, status } = useSession()
+  const rawRole = ((session?.user?.role as string) || userRole || "").toLowerCase()
+  const role = rawRole === "kasir" ? "cashier" : rawRole
+  const canReservasi = role === "cashier"
 
   const [reservasiList, setReservasiList] = useState<ReservasiRow[]>([])
   const [mejaReservasi, setMejaReservasi] = useState<MejaRow[]>([])
@@ -465,7 +472,7 @@ export default function ReservasiPage() {
     }).format(amount)
   }
 
-  if (loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="max-w-6xl mx-auto p-4 text-center py-20">
         <Loader2 className="w-12 h-12 animate-spin mx-auto text-gray-400" />
@@ -474,9 +481,24 @@ export default function ReservasiPage() {
     )
   }
 
+  if (!canReservasi) {
+    return (
+      <div className="max-w-6xl mx-auto p-4 text-center py-20 space-y-3">
+        <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
+        <h1 className="text-xl font-bold text-gray-800">Akses terbatas</h1>
+        <p className="text-sm text-gray-500">
+          Halaman reservasi hanya bisa diakses oleh kasir.
+        </p>
+        <Button asChild>
+          <Link href="/dashboard">Kembali ke Dashboard</Link>
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-center gap-3 text-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Kelola Reservasi</h1>
           <p className="text-sm text-gray-500">Kelola reservasi meja secara terpisah dari kasir</p>
@@ -1328,6 +1350,25 @@ export default function ReservasiPage() {
                         </div>
                       ))}
                     </div>
+                    {Number(confirmTarget.diskonVoucher ?? 0) > 0 && (
+                      <>
+                        <div className="flex items-center justify-between border-t bg-white px-4 py-2.5 text-sm">
+                          <span className="text-gray-600">Subtotal pre-order</span>
+                          <span className="text-gray-800">
+                            {formatRupiah(confirmTarget.subtotalHarga ?? confirmTarget.totalHarga)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between border-t bg-emerald-50/60 px-4 py-2.5 text-sm text-emerald-800">
+                          <span className="font-medium">
+                            Voucher {confirmTarget.voucherKode ?? ""}
+                            {confirmTarget.voucherNama ? ` · ${confirmTarget.voucherNama}` : ""}
+                          </span>
+                          <span className="font-semibold">
+                            − {formatRupiah(Number(confirmTarget.diskonVoucher ?? 0))}
+                          </span>
+                        </div>
+                      </>
+                    )}
                     <div className="flex items-center justify-between border-t bg-muted/40 px-4 py-2.5 text-sm font-semibold">
                       <span className="text-gray-700">Total Pre-order</span>
                       <span className="text-gray-900">{formatRupiah(confirmTarget.totalHarga)}</span>

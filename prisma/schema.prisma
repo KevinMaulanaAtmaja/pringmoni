@@ -264,6 +264,7 @@ model Voucher {
   updatedAt      DateTime?     @map("updated_at")
   deletedAt      DateTime?     @map("deleted_at")
   pesanan        Pesanan[]
+  reservasi      Reservasi[]
 
   @@map("voucher")
 }
@@ -494,6 +495,8 @@ model Reservasi {
   dpStatus        StatusBayar     @default(menunggu) @map("dp_status")
   dpPaidAt        DateTime?       @map("dp_paid_at")
   dpBuktiUrl      String?         @map("dp_bukti_url")
+  voucherId       Int?            @map("voucher_id")
+  diskonVoucher   Decimal         @default(0) @map("diskon_voucher") @db.Decimal(10, 2)
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime?       @map("updated_at")
 
@@ -501,11 +504,13 @@ model Reservasi {
   createdBy       Users?          @relation("ReservasiCreatedBy", fields: [createdById], references: [id])
   confirmedBy     Users?          @relation("ReservasiConfirmedBy", fields: [confirmedById], references: [id])
   pesanan         Pesanan?        @relation(fields: [pesananId], references: [id])
+  voucher         Voucher?        @relation(fields: [voucherId], references: [id])
   detailReservasi DetailReservasi[]
 
   @@index([mejaId])
   @@index([statusReservasi])
   @@index([createdById])
+  @@index([voucherId])
   @@map("reservasi")
 }
 
@@ -524,4 +529,15 @@ model DetailReservasi {
   @@index([reservasiId])
   @@index([menuId])
   @@map("detail_reservasi")
+}
+
+/// Pengaturan sistem yang bisa diubah owner (mis. batas konfirmasi reservasi).
+model Pengaturan {
+  id        Int      @id @default(autoincrement())
+  kunci     String   @unique @map("kunci")
+  nilai     String   @map("nilai")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @map("updated_at") @updatedAt
+
+  @@map("pengaturan")
 }

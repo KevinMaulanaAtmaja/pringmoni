@@ -4,7 +4,8 @@ import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
-import { TipeMeja } from "@/types"
+import { TipeMeja, MejaReservasiAktif } from "@/types"
+import { StatusReservasi } from "@prisma/client"
 
 export type MejaResult = {
   id: number
@@ -16,6 +17,7 @@ export type MejaResult = {
   createdAt: Date
   updatedAt: Date | null
   deletedAt: Date | null
+  reservasiAktif: MejaReservasiAktif | null
 }
 
 export async function getMeja() {
@@ -43,7 +45,37 @@ export async function getMeja() {
     WHERE deleted_at IS NULL
     ORDER BY nomor_meja ASC
   `
-  return meja
+
+  const mejaIds = meja.map((m) => m.id)
+  const reservasiAktifList = mejaIds.length
+    ? await prisma.reservasi.findMany({
+        where: {
+          mejaId: { in: mejaIds },
+          statusReservasi: { in: [StatusReservasi.menunggu_kedatangan, StatusReservasi.dikonfirmasi] },
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          mejaId: true,
+          kodeReservasi: true,
+          namaPelanggan: true,
+          statusReservasi: true,
+          waktuKedatangan: true,
+          jumlahOrang: true,
+        },
+      })
+    : []
+
+  const reservasiAktifMap = new Map(
+    reservasiAktifList.map((r) => [r.mejaId, r])
+  )
+
+  const data = meja.map((m) => ({
+    ...m,
+    reservasiAktif: reservasiAktifMap.get(m.id) ?? null,
+  }))
+
+  return data
 }
 
 async function generateNomorMeja(tipe: TipeMeja): Promise<string> {

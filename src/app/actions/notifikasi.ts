@@ -90,7 +90,7 @@ function awalHari(now: Date) {
   return d
 }
 
-async function sweepTengahMalam(hariIni: Date) {
+export async function sweepTengahMalam(hariIni: Date) {
   try {
     const sisa = await prisma.pesanan.findMany({
       where: {
@@ -199,7 +199,6 @@ export async function getNotifikasiDashboard(): Promise<{
         where: {
           deletedAt: null,
           statusPesanan: { in: ["menunggu", "diproses"] },
-          createdAt: { gte: hariIni },
         },
         select: {
           id: true,
@@ -218,7 +217,6 @@ export async function getNotifikasiDashboard(): Promise<{
       prisma.pesanan.findMany({
         where: {
           deletedAt: null,
-          createdAt: { gte: hariIni },
           OR: [{ statusPesanan: "refund" }, { statusPembayaran: "refund" }],
         },
         select: {

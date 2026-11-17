@@ -1,3 +1,97 @@
+# PROGRESS - Sesi 2026-11-17 (Status awal reservasi customer)
+
+## SELESAI
+
+- `/reservasi/[kodeAkses]/cek`: badge tidak lagi langsung "Terkonfirmasi" setelah reservasi dibuat. Status awal kini **Menunggu DP** (amber) dengan keterangan verifikasi DP; "Terkonfirmasi" hanya muncul bila `dpStatus === "berhasil"`.
+- `createReservasiCustomer` mengembalikan `statusReservasi` (`menunggu_kedatangan`) dan `dpStatus` (`menunggu`); keduanya disimpan ke `sessionStorage` lewat `HasilReservasi` dan dipetakan ke halaman cek, sehingga data lokal konsisten dengan data dari `cekStatusReservasi`.
+
+## VERIFIKASI
+
+- `npx tsc --noEmit` -> 0 error.
+- `npx eslint` pada 4 file yang diubah -> 0 error.
+- `npm run graph:update` -> selesai.
+
+---
+
+# PROGRESS - Sesi 2026-11-17 (Badge status meja)
+
+## SELESAI
+
+- `/dashboard/meja`: badge status di kolom QR (yang menampilkan kode reservasi + nama pelanggan) **dihapus** karena sudah ada kolom Status tersendiri; fungsi `getMejaMarker()` juga dihapus. Kolom status tetap menampilkan `Kosong` / `Dipesan` / `Terpakai`.
+
+## VERIFIKASI
+
+- `npx tsc --noEmit` -> 0 error.
+- `npx eslint "src/app/dashboard/meja/page.tsx" --quiet` -> 0 error.
+- `npm run graph:update` -> selesai.
+
+---
+
+# PROGRESS - Sesi 2026-11-17 (Akses kasir /dashboard/reservasi)
+
+## SELESAI
+
+- **Role cashier lebih tahan banting**: `src/app/dashboard/reservasi/page.tsx` kini memakai fallback `useUserRole()` (role dari session server di layout) bila `useSession()` belum memuat role, dengan normalisasi huruf kecil + alias `kasir` -> `cashier`, mengikuti pola halaman `kasir`/`pesanan`.
+- `src/proxy.ts`: `normalizeRoleValue()` menormalkan role sebelum pengecekan akses route, sehingga role legacy `kasir`/huruf besar tidak membuat cashier dilempar ke `/login`.
+- `src/app/actions/reservasi.ts`: `requireReservasiRole()` menormalkan role; pengecekan ganda `role !== "cashier"` di `verifikasiDpCustomer` dihapus (sudah dijamin oleh guard).
+- `Sidebar.tsx` & `DashboardClient.tsx`:(menu desktop/mobile + `ShiftSidebarStatus`) juga memakai role ternormalisasi.
+
+## VERIFIKASI
+
+- `npx tsc --noEmit` -> 0 error.
+- `npx eslint` pada 5 file yang diubah -> 0 error.
+- `npm run graph:update` -> selesai.
+
+## BELUM
+
+- Uji manual login sebagai user cashier lalu buka `/dashboard/reservasi`.
+
+---
+
+# PROGRESS - Sesi 2026-11-17 (Feedback halaman Reservasi Berhasil)
+
+## SELESAI
+
+- **Halaman sukses dipisah dari form**: sukses reservasi kini di halaman `/reservasi/[kodeAkses]/cek` (`src/app/reservasi/[kodeAkses]/cek/page.tsx`). Form (`[kodeAkses]/page.tsx`) menyimpan hasil ke `sessionStorage` via `src/lib/reservasi-hasil.ts` lalu `router.push` ke halaman cek; blok `if (hasil)` di form dihapus.
+- **Cek reservasi jadi popup**: halaman cek memakai `Dialog` input kode reservasi + nomor HP (`cekStatusReservasi`), bukan halaman tersendiri. `/reservasi/status` kini hanya redirect ke halaman cek.
+- **Tombol kembali ada peringatan**: dialog konfirmasi ("kode tidak akan tampil lagi") lalu mengarahkan ke form reservasi (bukan beranda). Form juga punya entry point "Cek Reservasi" di header.
+- **Proxy**: `RESERVASI_PUBLIC_PATTERN` diperluas untuk `/reservasi/[kodeAkses]/cek` (tetap tanpa login).
+- **Visibilitas entry point**: header form memakai tombol outline emerald "Cek Reservasi" (teks selalu tampil) + banner "Sudah punya reservasi?" dengan tombol Cek di atas langkah 1.
+- **Dokumen**: PRD (PBI-7.1) + ARCHITECTURE (route) diperbarui; `npm run graph:update` dijalankan.
+
+## VERIFIKASI
+
+- `npx tsc --noEmit` -> 0 error.
+- `npx eslint` pada file yang diubah -> 0 error. `npm run lint -- --quiet` penuh timeout (>180s).
+- `npm run build` belum dijalankan (dev server user mungkin aktif).
+
+## BELUM
+
+- Uji manual E2E alur form -> halaman cek -> popup cek -> dialog kembali.
+
+---
+
+# PROGRESS - Sesi 2026-11-17 (Penandaan Status Meja + QR Reservasi)
+
+## SELESAI
+
+- **Penandaan meja ber-token QR**: `src/app/dashboard/meja/page.tsx` kini menampilkan mark di kolom QR (badge `Dipesan`/`Terpakai` saat `statusMeja` bukan `kosong`) dan dialog QR menampilkan badge status + frame berwarna (hijau `kosong` → merah `terpakai` / amber `dipesan`) serta info reservasi aktif (`kodeReservasi`, nama pelanggan, jumlah orang, kedatangan).
+- **Server**: `getMeja` di `src/app/actions/meja.ts` mengembalikan `reservasiAktif` terbaru per meja (dari reservasi `menunggu_kedatangan` / `dikonfirmasi`).
+- **Header reservasi** kini tampil di tengah: `/dashboard/reservasi` (judul + tombol), `/reservasi/[kodeAkses]` ("Reservasi Meja", tombol kembali tetap kiri), dan `/reservasi/status` ("Cek Status Reservasi", tombol kembali tetap kiri).
+
+## VERIFIKASI
+
+- `npx tsc --noEmit` -> 0 error.
+- `npm run lint -- --quiet` -> 0 error (44 warning pre-existing, tidak dari file yang diubah).
+
+## BELUM
+
+- `npm run build` (menunggu dev server user dimatikan).
+- `npm run graph:update` setelah perubahan ini.
+- Uji manual E2E meja/reservasi.
+
+---
+
 # PROGRESS - Sesi 2026-11-15 (Link Reservasi Umum + Window 7 Hari)
 
 > Branch `feat/reservasi-customer-qr`; commit dibuat di akhir sesi, tanpa PR.
@@ -207,3 +301,35 @@
 - `src/app/reservasi/[kodeAkses]/page.tsx`
 - `.opencode/PRD.md`
 - `.opencode/PROGRESS.md`
+
+## Sesi feedback #2 /reservasi/PRINGSEWU26
+
+### Selesai
+- Sticky filter menu (search + kategori) jadi kartu melayang rounded dengan jarak dari header, tidak lagi menempel di atas.
+- Kotak "Preferensi Area" dihapus, diganti kotak penjelasan **Meja Bebas** (bebas pilih meja kosong, termasuk Tanpa QR).
+- Chip "Butuh kursi bayi" diganti "Butuh meja panjang"; placeholder catatan tidak lagi menyebut kursi bayi.
+- Panel keranjang desktop: tiap item kini bisa ditambah/dikurangi (ikon hapus saat qty 1), tanpa batas 4 item.
+- Paragraf "Preview singkat. Rincian lengkap..." dihapus.
+- Halaman scroll ke atas setiap ganti langkah & saat pertama dibuka.
+- `public/qris-statis.jpeg` dipulihkan dari commit `f1837eb` (aset sudah ada di `main`/`develop`, belum ikut branch ini) sehingga QRIS env tampil.
+- Callout "Resto akan menyiapkan pesanan..." di langkah bayar dibuat lebih kontras (emerald card + ikon).
+
+### Verifikasi
+- `npx eslint "src/app/reservasi/[kodeAkses]/page.tsx"`: 0 error (2 warning lama).
+- `npx tsc --noEmit`: hanya error lama `.next/types/validator.ts` (route `dashboard/testing` basi).
+
+### File diubah
+- `src/app/reservasi/[kodeAkses]/page.tsx`
+- `public/qris-statis.jpeg` (dipulihkan)
+- `.opencode/PRD.md`
+- `.opencode/PROGRESS.md`
+
+
+### Follow-up: Meja Bebas selectable
+- Opsi **Meja Bebas** kini bisa dipilih (tombol ria-pressed); sistem otomatis memilih meja kosong dengan kapasitas paling pas (termasuk Tanpa QR), lalu server memvalidasi ulang saat submit.
+- Memilih meja spesifik otomatis mematikan mode bebas; kapasitas input jumlah orang mengikuti meja terbesar saat mode bebas.
+- Header menampilkan `Meja bebas � otomatis Meja X` dan validasi memberi pesan jelas bila tak ada meja yang cukup.
+- Verifikasi: eslint 0 error (2 warning lama).
+- Panel keranjang desktop digeser lebih turun (`top-[9rem]`) dan hanya menampilkan maksimal 5 item; tombol `Lihat N menu lain` / `Sembunyikan menu lain` untuk membuka sisanya.
+- Panel keranjang desktop digeser lebih turun lagi (`top-[11rem]`, list `max-h-[calc(100vh-20rem)]`); batas 5 item + tombol lihat menu lain juga diterapkan di sheet mobile.
+- Meja Bebas tidak lagi dibatasi kapasitas satu meja: input jumlah orang bebas, sistem memilih meja terbesar yang kosong, dan server melewati cek kapasitas saat `mejaBebas` true (catatan reservasi otomatis ditandai `Meja bebas (resto pilihkan)`).

@@ -40,6 +40,12 @@ const statusLabels: Record<string, string> = {
   dipesan: "Dipesan",
 }
 
+function getQrFrameClass(statusMeja: string) {
+  if (statusMeja === "terpakai") return "bg-red-50 border-red-200"
+  if (statusMeja === "dipesan") return "bg-amber-50 border-amber-200"
+  return "bg-green-50 border-green-200"
+}
+
 const tipeMejaLabels: Record<string, string> = {
   lesehan: "Lesehan",
   kursi: "Kursi",
@@ -373,14 +379,18 @@ export default function MejaPage() {
                   </TableCell>
                   <TableCell className="py-2">{meja.kapasitas} org</TableCell>
                   <TableCell className="py-2">
-                    {meja.tokenMeja ? (
-                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => openQR(meja)}>
-                        <QrCode className="w-3 h-3 mr-1" />
-                        QR
-                      </Button>
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {meja.tokenMeja ? (
+                        <>
+                          <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => openQR(meja)}>
+                            <QrCode className="w-3 h-3 mr-1" />
+                            QR
+                          </Button>
+                        </>
+                      ) : (
+                        <span className="text-gray-400 text-xs">-</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="py-2">
                     <Badge className={`${statusColors[meja.statusMeja]} text-xs`}>
@@ -454,8 +464,12 @@ export default function MejaPage() {
             <DialogTitle>QR Code - Meja {selectedMeja?.nomorMeja}</DialogTitle>
           </DialogHeader>
 
-          <div className="py-4">
-            <div className="inline-block bg-gray-100 p-3 rounded">
+          <div className="py-4 space-y-3">
+            <Badge className={`${statusColors[selectedMeja?.statusMeja || "kosong"]} text-xs`}>
+              {statusLabels[selectedMeja?.statusMeja || "kosong"]}
+            </Badge>
+
+            <div className={`inline-block p-3 rounded border ${getQrFrameClass(selectedMeja?.statusMeja || "kosong")}`}>
               {selectedMeja?.tokenMeja && (
                 <QRCodeSVG
                   id="qr-code-svg"
@@ -474,6 +488,15 @@ export default function MejaPage() {
                 Token: {selectedMeja.tokenMeja}
               </p>
             )}
+            {selectedMeja?.reservasiAktif ? (
+              <div className="text-xs bg-amber-50 border border-amber-200 rounded px-3 py-2 text-amber-800 text-left">
+                <p className="font-semibold">Reservasi aktif: {selectedMeja.reservasiAktif.kodeReservasi}</p>
+                <p>
+                  {selectedMeja.reservasiAktif.namaPelanggan} — {selectedMeja.reservasiAktif.jumlahOrang} orang
+                </p>
+                <p>Kedatangan: {new Date(selectedMeja.reservasiAktif.waktuKedatangan).toLocaleString("id-ID")}</p>
+              </div>
+            ) : null}
           </div>
 
           <DialogFooter className="justify-center">

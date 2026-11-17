@@ -15,7 +15,7 @@ import { hitungRincianDp } from "@/lib/dp"
 import { createLogNoSession } from "@/lib/log"
 import { triggerPusher, ORDERS_CHANNEL } from "@/lib/pusher"
 import {
-  EXPIRY_JAM_DEFAULT,
+  getExpiryJam,
   expireReservasiLazy,
   generateKodeReservasi,
 } from "@/lib/reservasi"
@@ -26,6 +26,8 @@ import {
 import { kodeAksesValid } from "@/lib/reservasi-akses"
 import { getMenusForCustomer } from "@/app/actions/pesanan"
 import { getKategoriMenus } from "@/app/actions/menu"
+import { getVoucherAktif } from "@/app/actions/voucher"
+import { hitungPotonganDiskon } from "@/lib/voucher"
 
 interface ItemReservasiInput {
   menuId: number
@@ -36,6 +38,8 @@ interface ItemReservasiInput {
 interface CreateReservasiCustomerInput {
   kodeAkses: string
   mejaId: number
+  /** Customer memilih "Meja Bebas" — resto yang mengatur penempatan meja. */
+  mejaBebas?: boolean
   namaPelanggan: string
   noHp: string
   jumlahOrang: number
@@ -43,6 +47,8 @@ interface CreateReservasiCustomerInput {
   catatan?: string | null
   items: ItemReservasiInput[]
   dpBuktiUrl: string
+  /** Kode voucher opsional; divalidasi ulang di server. */
+  kodeVoucher?: string | null
   /** Honeypot — wajib kosong. */
   website?: string
 }
@@ -110,7 +116,9 @@ export async function getReservasiCustomer(kodeAkses: string) {
     return { error: "Link reservasi tidak valid atau sudah tidak berlaku" as const }
   }
 
-  const [menus, kategoris, mejas] = await Promise.all([
+  await expireReservasiLazy()
+
+  const [menus, kategoris, mejas, vouchers, totalMejaQr] = await Promise.all([
     getMenusForCustomer(),
     getKategoriMenus(),
     prisma.meja.findMany({
@@ -135,6 +143,10 @@ export async function getReservasiCustomer(kodeAkses: string) {
       orderBy: { nomorMeja: "asc" },
       select: { id: true, nomorMeja: true, kapasitas: true, tokenMeja: true },
     }),
+    getVoucherAktif(),
+    prisma.meja.count({
+      where: { deletedAt: null, tokenMeja: { not: null } },
+    }),
   ])
 
   return {
@@ -152,7 +164,9 @@ export async function getReservasiCustomer(kodeAkses: string) {
       lokasi: k.lokasi,
       pilihanSuhu: k.pilihanSuhu,
     })),
-    expiryJam: EXPIRY_JAM_DEFAULT,
+    vouchers,
+    totalMejaQr,
+    expiryJam: await getExpiryJam(),
   }
 }
 
@@ -164,6 +178,9 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
       reservasiId: 0,
       kodeReservasi: generateKodeReservasi(),
       dpNominal: 0,
+      subtotalHarga: 0,
+      diskonVoucher: 0,
+      voucherKode: null,
       totalHarga: 0,
       sisaTagihan: 0,
       batasKonfirmasi: new Date().toISOString(),
@@ -221,7 +238,7 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
   if (meja.statusMeja !== StatusMeja.kosong) {
     return { error: `Meja ${meja.nomorMeja} sedang dipakai. Silakan pilih meja lain.` }
   }
-  if (jumlahOrang > meja.kapasitas) {
+  if (!data.mejaBebas && jumlahOrang > meja.kapasitas) {
     return { error: `Kapasitas meja ${meja.nomorMeja} maksimal ${meja.kapasitas} orang` }
   }
 
@@ -254,8 +271,51 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
     totalHarga += harga * qty
   }
 
-  const rincian = hitungRincianDp(totalHarga)
-  const batasKonfirmasi = hitungBatasKonfirmasi(waktuKedatangan, EXPIRY_JAM_DEFAULT)
+  // Voucher divalidasi ulang di server — nilai diskon dari client tidak pernah dipercaya.
+  let voucherTerpakai: {
+    id: number
+    kode: string
+    namaVoucher: string
+    diskonPersen: number
+  } | null = null
+  let diskonVoucher = 0
+  const kodeVoucher = (data.kodeVoucher || "").trim().toUpperCase()
+  if (kodeVoucher) {
+    const voucher = await prisma.voucher.findFirst({
+      where: { kode: kodeVoucher, deletedAt: null },
+      select: {
+        id: true,
+        kode: true,
+        namaVoucher: true,
+        diskonPersen: true,
+        minimalBelanja: true,
+        statusVoucher: true,
+      },
+    })
+    if (!voucher) return { error: "Kode voucher tidak ditemukan" }
+    if (voucher.statusVoucher !== "aktif") {
+      return { error: "Voucher sedang tidak aktif" }
+    }
+    if (totalHarga < Number(voucher.minimalBelanja)) {
+      return {
+        error: `Minimal belanja untuk voucher ${voucher.kode} adalah Rp ${Number(
+          voucher.minimalBelanja
+        ).toLocaleString("id-ID")}`,
+      }
+    }
+    diskonVoucher = hitungPotonganDiskon(totalHarga, voucher.diskonPersen)
+    voucherTerpakai = {
+      id: voucher.id,
+      kode: voucher.kode,
+      namaVoucher: voucher.namaVoucher,
+      diskonPersen: voucher.diskonPersen,
+    }
+  }
+
+  const subtotalHarga = totalHarga
+  const totalSetelahDiskon = Math.max(0, subtotalHarga - diskonVoucher)
+  const rincian = hitungRincianDp(totalSetelahDiskon)
+  const batasKonfirmasi = hitungBatasKonfirmasi(waktuKedatangan, await getExpiryJam())
 
   let kode = generateKodeReservasi()
   let reservasiId: number | null = null
@@ -313,6 +373,8 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
             dpMetode: MetodePembayaran.qris,
             dpStatus: StatusBayar.menunggu,
             dpBuktiUrl,
+            voucherId: voucherTerpakai?.id ?? null,
+            diskonVoucher: new Prisma.Decimal(diskonVoucher),
             detailReservasi: {
               create: itemsRaw
                 .filter((item) => hargaMap.has(item.menuId))
@@ -361,7 +423,11 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
 
   await createLogNoSession(
     "CREATE_RESERVASI_CUSTOMER",
-    `Reservasi online ${kode} oleh ${nama} (${noHp}) di Meja ${meja.nomorMeja}, ${jumlahOrang} org, kedatangan ${waktuKedatangan.toLocaleString("id-ID")}, DP Rp${rincian.dpNominal.toLocaleString("id-ID")} menunggu verifikasi`,
+    `Reservasi online ${kode} oleh ${nama} (${noHp}) di Meja ${meja.nomorMeja}, ${jumlahOrang} org, kedatangan ${waktuKedatangan.toLocaleString("id-ID")}, DP Rp${rincian.dpNominal.toLocaleString("id-ID")} menunggu verifikasi${
+      voucherTerpakai
+        ? ` · Voucher ${voucherTerpakai.kode} (${voucherTerpakai.diskonPersen}% - Rp${diskonVoucher.toLocaleString("id-ID")})`
+        : ""
+    }`,
     null,
     ip
   )
@@ -379,9 +445,14 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
     reservasiId,
     kodeReservasi: kode,
     dpNominal: rincian.dpNominal,
-    totalHarga,
+    subtotalHarga,
+    diskonVoucher,
+    voucherKode: voucherTerpakai?.kode ?? null,
+    totalHarga: totalSetelahDiskon,
     sisaTagihan: rincian.sisaTagihan,
     batasKonfirmasi: batasKonfirmasi.toISOString(),
+    statusReservasi: StatusReservasi.menunggu_kedatangan,
+    dpStatus: StatusBayar.menunggu,
   }
 }
 
@@ -401,6 +472,7 @@ export async function cekStatusReservasi(kodeInput: string, noHpInput: string) {
     where: { kodeReservasi: kode, noHp },
     include: {
       meja: { select: { nomorMeja: true } },
+      voucher: { select: { kode: true } },
       detailReservasi: { include: { menu: { select: { namaMenu: true } } } },
     },
   })
@@ -408,10 +480,12 @@ export async function cekStatusReservasi(kodeInput: string, noHpInput: string) {
     return { error: "Reservasi tidak ditemukan. Periksa kode dan nomor HP." }
   }
 
-  const totalHarga = reservasi.detailReservasi.reduce(
+  const subtotalHarga = reservasi.detailReservasi.reduce(
     (sum, d) => sum + Number(d.hargaSaatPesan) * d.jumlah,
     0
   )
+  const diskonVoucher = Number(reservasi.diskonVoucher)
+  const totalHarga = Math.max(0, subtotalHarga - diskonVoucher)
   const dpNominal = Number(reservasi.dpNominal)
 
   return {
@@ -426,6 +500,9 @@ export async function cekStatusReservasi(kodeInput: string, noHpInput: string) {
       statusReservasi: reservasi.statusReservasi,
       dpStatus: reservasi.dpStatus,
       dpNominal,
+      subtotalHarga,
+      diskonVoucher,
+      voucherKode: reservasi.voucher?.kode ?? null,
       totalHarga,
       sisaTagihan: Math.max(0, totalHarga - dpNominal),
       items: reservasi.detailReservasi.map((d) => ({

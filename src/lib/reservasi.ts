@@ -1,6 +1,7 @@
 import { Prisma, StatusReservasi, StatusMeja } from "@prisma/client"
 import crypto from "crypto"
 import prisma from "@/lib/prisma"
+import { getPengaturan } from "@/app/actions/pengaturan"
 
 export type ReservasiOutcome = "selesai" | "batal"
 
@@ -14,6 +15,22 @@ export const EXPIRY_JAM_DEFAULT = (() => {
   const raw = Number(process.env.RESERVASI_EXPIRY_JAM)
   return Number.isFinite(raw) && raw > 0 && raw <= 48 ? raw : 3
 })()
+
+/** Batas konfirmasi reservasi yang berlaku saat ini.
+ *  Prioritas: pengaturan owner di DB (`reservasi_expiry_jam`) ->
+ *  env `RESERVASI_EXPIRY_JAM` -> default 3 jam.
+ *  Dapat dibaca semua role autentikasi; hanya owner yang boleh mengubah.
+ */
+export async function getExpiryJam(): Promise<number> {
+  try {
+    const nilai = await getPengaturan("reservasi_expiry_jam")
+    if (nilai) {
+      const parsed = Number(nilai)
+      if (Number.isFinite(parsed) && parsed > 0 && parsed <= 48) return parsed
+    }
+  } catch {}
+  return EXPIRY_JAM_DEFAULT
+}
 
 /** Batas hari ke depan yang boleh dipilih customer untuk waktu kedatangan. */
 export { MAKS_HARI_KE_DEPAN } from "@/lib/reservasi-jadwal"
@@ -41,7 +58,6 @@ export async function expireReservasiLazy() {
   const expired = await prisma.reservasi.findMany({
     where: {
       statusReservasi: StatusReservasi.menunggu_kedatangan,
-      sumber: "online" as const,
       batasKonfirmasi: { lt: now },
     },
     select: { id: true, mejaId: true },

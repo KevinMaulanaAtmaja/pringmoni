@@ -43,6 +43,16 @@ export interface UserResponse {
 
 export type StatusMeja = 'kosong' | 'terpakai' | 'dipesan'
 
+/** Reservasi aktif terbaru untuk satu meja (null kalau tidak ada). */
+export interface MejaReservasiAktif {
+  id: number
+  kodeReservasi: string | null
+  namaPelanggan: string | null
+  statusReservasi: string
+  waktuKedatangan: Date | string
+  jumlahOrang: number
+}
+
 export interface Meja {
   id: number
   nomorMeja: string
@@ -50,6 +60,8 @@ export interface Meja {
   kapasitas: number
   tokenMeja?: string
   statusMeja: StatusMeja
+  /** Reservasi aktif terbaru yang menahan meja (null kalau tidak ada). */
+  reservasiAktif?: MejaReservasiAktif | null
 }
 
 // ── Shift Kasir ───────────────────────────────────────────────────────────────

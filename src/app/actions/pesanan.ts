@@ -8,7 +8,7 @@ import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { requireShiftAktif, shiftAktifSlotSekarang } from "@/lib/shift"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
-import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
+import { Prisma, StatusPesanan, StatusBayar, StatusMeja, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
 import { potongStokDapur } from "@/lib/stok"
 import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
@@ -162,6 +162,9 @@ export async function createPesanan(data: CreatePesananData) {
   const meja = await getMejaByToken(tokenMeja)
   if (!meja) {
     return { error: "Token meja tidak valid" }
+  }
+  if (meja.statusMeja === StatusMeja.dipesan) {
+    return { error: "Meja ini sedang direservasi. Silakan pilih meja lain." }
   }
 
   const pesananMenungguBayar = await prisma.pesanan.findFirst({

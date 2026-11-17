@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
-import { EXPIRY_JAM_DEFAULT } from "@/lib/reservasi"
+import { expireReservasiLazy, getExpiryJam } from "@/lib/reservasi"
 import {
   hitungBatasKonfirmasi,
   validasiWaktuKedatangan,
@@ -14,7 +14,7 @@ import { Prisma, MetodePembayaran, StatusMeja, StatusPesanan, StatusBayar, Statu
 import crypto from "crypto"
 import { DP_PERSEN, hitungRincianDp } from "@/lib/dp"
 
-const ALLOWED_ROLES = ["owner", "cashier", "waiter"] as const
+const ALLOWED_ROLES = ["cashier"] as const
 const METODE_DP = [MetodePembayaran.tunai, MetodePembayaran.qris, MetodePembayaran.transfer]
 
 export interface CreateReservasiItem {
@@ -38,8 +38,10 @@ export interface CreateReservasiData {
 async function requireReservasiRole() {
   const session = await auth()
   if (!session?.user) return { error: "Unauthorized" as const }
-  if (!ALLOWED_ROLES.includes(session.user.role as typeof ALLOWED_ROLES[number])) {
-    return { error: "Hanya owner/kasir/waiter yang bisa mengelola reservasi" as const }
+  const rawRole = String(session.user.role ?? "").toLowerCase()
+  const role = rawRole === "kasir" ? "cashier" : rawRole
+  if (!ALLOWED_ROLES.includes(role as typeof ALLOWED_ROLES[number])) {
+    return { error: "Hanya kasir yang bisa mengelola reservasi" as const }
   }
   return { session }
 }
@@ -64,9 +66,11 @@ export async function createReservasi(data: CreateReservasiData) {
     waktuKedatangan,
     catatan,
     items = [],
-    batasMenit = EXPIRY_JAM_DEFAULT * 60,
     dpMetode,
   } = data
+
+  const expiryJam = data.batasMenit ?? (await getExpiryJam())
+  const batasMenit = expiryJam * 60
 
   if (!Number.isInteger(mejaId) || mejaId <= 0) {
     return { error: "Meja tidak valid" }
@@ -240,6 +244,7 @@ export async function getReservasi(filters?: { status?: string }) {
       createdBy: { select: { username: true } },
       confirmedBy: { select: { username: true } },
       pesanan: { select: { id: true } },
+      voucher: { select: { kode: true, namaVoucher: true } },
       detailReservasi: {
         include: { menu: { select: { namaMenu: true } } },
       },
@@ -275,10 +280,20 @@ export async function getReservasi(filters?: { status?: string }) {
       hargaSaatPesan: Number(d.hargaSaatPesan),
       catatanItem: d.catatanItem,
     })),
-    totalHarga: r.detailReservasi.reduce(
+    totalHarga: Math.max(
+      0,
+      r.detailReservasi.reduce(
+        (sum, d) => sum + Number(d.hargaSaatPesan) * d.jumlah,
+        0
+      ) - Number(r.diskonVoucher)
+    ),
+    subtotalHarga: r.detailReservasi.reduce(
       (sum, d) => sum + Number(d.hargaSaatPesan) * d.jumlah,
       0
     ),
+    diskonVoucher: Number(r.diskonVoucher),
+    voucherKode: r.voucher?.kode ?? null,
+    voucherNama: r.voucher?.namaVoucher ?? null,
     dpPersen: r.dpPersen,
     dpNominal: Number(r.dpNominal),
     dpMetode: r.dpMetode,
@@ -359,20 +374,24 @@ export async function confirmKedatanganReservasi(reservasiId: number) {
     }
   }
 
-  const totalHarga = reservasi.detailReservasi.reduce(
+  const subtotalHarga = reservasi.detailReservasi.reduce(
     (sum, d) => sum + Number(d.hargaSaatPesan) * d.jumlah,
     0
   )
+  const diskonVoucher = Number(reservasi.diskonVoucher)
+  const totalHarga = Math.max(0, subtotalHarga - diskonVoucher)
 
   const pesanan = await prisma.$transaction(async (tx) => {
     const created = await tx.pesanan.create({
       data: {
         mejaId: reservasi.mejaId,
-        kasirId: session.user.role === "cashier" ? userId : null,
-        waiterId: session.user.role === "waiter" ? userId : null,
+        kasirId: userId,
+        waiterId: null,
         statusPesanan: StatusPesanan.menunggu,
         totalHarga,
         dpNominal: reservasi.dpNominal,
+        voucherId: reservasi.voucherId ?? null,
+        diskonVoucher: new Prisma.Decimal(diskonVoucher),
         namaPelanggan: reservasi.namaPelanggan,
         catatan: reservasi.catatan,
         metodePembayaran: null,
@@ -507,55 +526,23 @@ export async function expireReservasi() {
   const authResult = await requireReservasiRole()
   if ("error" in authResult) return authResult
 
-  const now = new Date()
-  const expired = await prisma.reservasi.findMany({
-    where: {
-      statusReservasi: StatusReservasi.menunggu_kedatangan,
-      batasKonfirmasi: { lt: now },
-    },
-    select: { id: true, mejaId: true, namaPelanggan: true },
-    take: 100,
-  })
-
-  if (expired.length === 0) {
-    return { success: true, count: 0 }
-  }
-
-  for (const reservasi of expired) {
-    await prisma.$transaction([
-      prisma.reservasi.update({
-        where: { id: reservasi.id },
-        data: {
-          statusReservasi: StatusReservasi.expired,
-          updatedAt: now,
-        },
-      }),
-      prisma.meja.updateMany({
-        where: { id: reservasi.mejaId, statusMeja: StatusMeja.dipesan },
-        data: { statusMeja: StatusMeja.kosong },
-      }),
-    ])
-  }
+  const count = await expireReservasiLazy()
 
   await createLog(
     "EXPIRE_RESERVASI",
-    `${expired.length} reservasi otomatis expired karena melewati batas konfirmasi`
+    `${count} reservasi otomatis expired karena melewati batas konfirmasi`
   )
 
   revalidatePath("/dashboard/reservasi")
   revalidatePath("/dashboard/meja")
 
-  return { success: true, count: expired.length }
+  return { success: true, count }
 }
 
 export async function verifikasiDpCustomer(reservasiId: number) {
   const authResult = await requireReservasiRole()
   if ("error" in authResult) return authResult
   const { session } = authResult
-
-  if (session.user.role !== "owner" && session.user.role !== "cashier") {
-    return { error: "Hanya owner/kasir yang dapat memverifikasi DP" }
-  }
 
   const userId = session.user.id ? parseInt(session.user.id) : null
   if (!userId) return { error: "Sesi tidak valid" }
@@ -598,7 +585,7 @@ export async function getMejaUntukReservasi() {
   if ("error" in authResult) return authResult
 
   const meja = await prisma.meja.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, statusMeja: StatusMeja.kosong },
     orderBy: { nomorMeja: "asc" },
     select: {
       id: true,
@@ -624,12 +611,14 @@ export async function getMejaUntukReservasi() {
 
   const reservasiMap = new Map(reservasiAktif.map((r) => [r.mejaId, r]))
 
-  return meja.map((m) => ({
-    id: m.id,
-    nomorMeja: m.nomorMeja,
-    kapasitas: m.kapasitas,
-    statusMeja: m.statusMeja,
-    tokenMeja: m.tokenMeja,
-    reservasiAktif: reservasiMap.get(m.id) ?? null,
-  }))
+  return meja
+    .filter((m) => !reservasiMap.has(m.id))
+    .map((m) => ({
+      id: m.id,
+      nomorMeja: m.nomorMeja,
+      kapasitas: m.kapasitas,
+      statusMeja: m.statusMeja,
+      tokenMeja: m.tokenMeja,
+      reservasiAktif: null,
+    }))
 }

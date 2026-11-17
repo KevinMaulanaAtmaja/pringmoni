@@ -150,9 +150,9 @@
     "semantic_hash": "3bea81a4d627d82acf8db66414b66f41"
   },
   "src/app/actions/dashboard.ts": {
-    "mtime": 1794617462.7053301,
-    "seen": 1794661709.6547744,
-    "ast_hash": "fa6d05e776367a607fa25309d502854c",
+    "mtime": 1794922868.8470383,
+    "seen": 1794923010.8180025,
+    "ast_hash": "9ce5d6be8c5338cf5654afa43df8951c",
     "semantic_hash": ""
   },
   "src/app/actions/forgot-password.ts": {
@@ -192,9 +192,9 @@
     "semantic_hash": ""
   },
   "src/app/actions/meja.ts": {
-    "mtime": 1794617462.7098603,
-    "seen": 1794661709.6547744,
-    "ast_hash": "705db648a5c6f821fe5ebb8ac7ef167f",
+    "mtime": 1794921250.848777,
+    "seen": 1794921672.5331752,
+    "ast_hash": "c2fed4f6db117175e91edf57f2b16d3f",
     "semantic_hash": ""
   },
   "src/app/actions/menu-foto.ts": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "src/app/actions/pesanan.ts": {
-    "mtime": 1794617462.7138605,
-    "seen": 1794661709.6547744,
-    "ast_hash": "4e750f405171455ca9f6689101936216",
+    "mtime": 1794916470.1554503,
+    "seen": 1794916549.7139037,
+    "ast_hash": "3b6932dec68cc2f303cd88a8c2dcd0f7",
     "semantic_hash": ""
   },
   "src/app/actions/reset-password-confirm.ts": {
@@ -276,9 +276,9 @@
     "semantic_hash": "fb71f7da15a1b54413572b1467242783"
   },
   "src/app/dashboard/kasir/pesanan-baru/page.tsx": {
-    "mtime": 1792635435.4886868,
-    "seen": 1794661709.6547744,
-    "ast_hash": "c295db4d97ae4854859bf4e120c7f508",
+    "mtime": 1794916413.1073105,
+    "seen": 1794916549.7139037,
+    "ast_hash": "b9efd46a13b094012b57f0b989a87ea9",
     "semantic_hash": ""
   },
   "src/app/dashboard/laporan/page.tsx": {
@@ -300,9 +300,9 @@
     "semantic_hash": ""
   },
   "src/app/dashboard/meja/page.tsx": {
-    "mtime": 1794617462.7234933,
-    "seen": 1794661709.6547744,
-    "ast_hash": "8aeb23deac30a98858f617523a155aac",
+    "mtime": 1794934129.8834043,
+    "seen": 1794934192.3037837,
+    "ast_hash": "25ae3735a90bd5b2c589509e93099541",
     "semantic_hash": ""
   },
   "src/app/dashboard/menu/page.tsx": {
@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "src/app/dashboard/page.tsx": {
-    "mtime": 1793205664.303835,
-    "seen": 1794661709.6547744,
-    "ast_hash": "cff7045e66b98165848ae491dbf3c1b2",
+    "mtime": 1794922838.4503708,
+    "seen": 1794923010.8180025,
+    "ast_hash": "8ddba51b46cea96a1ac7dcd37bdf274e",
     "semantic_hash": ""
   },
   "src/app/dashboard/pesanan/[id]/page.tsx": {
@@ -389,12 +389,6 @@
     "ast_hash": "16c86b535f4b8d981b567d0c8f14643b",
     "semantic_hash": ""
   },
-  "src/components/dashboard/StaleOrdersWarning.tsx": {
-    "mtime": 1793205664.3288338,
-    "seen": 1794661709.6547744,
-    "ast_hash": "9ebaf34727e50d60d39d8561c5f07ba7",
-    "semantic_hash": ""
-  },
   "src/components/dashboard/StatCard.tsx": {
     "mtime": 1776218544.2084017,
     "seen": 1794661709.6547744,
@@ -456,9 +450,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/DashboardClient.tsx": {
-    "mtime": 1794665741.9951994,
-    "seen": 1794665923.4147983,
-    "ast_hash": "17f1b1cab42f01b7fc37abc18f2c0457",
+    "mtime": 1794932780.4517488,
+    "seen": 1794932837.3885942,
+    "ast_hash": "fd237e93860aa3a5377c80642ba204a3",
     "semantic_hash": ""
   },
   "src/components/layout/Footer.tsx": {
@@ -474,9 +468,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/Sidebar.tsx": {
-    "mtime": 1794665740.2782903,
-    "seen": 1794665923.4147983,
-    "ast_hash": "df8e1d43d18b1080ceeaeff7a24a18ba",
+    "mtime": 1794932754.545524,
+    "seen": 1794932837.3885942,
+    "ast_hash": "6f7b29aa107d26f644232cb0a9229b26",
     "semantic_hash": ""
   },
   "src/components/ui/BankIcon.tsx": {
@@ -636,15 +630,15 @@
     "semantic_hash": ""
   },
   "src/proxy.ts": {
-    "mtime": 1794737236.8357553,
-    "seen": 1794737980.4737659,
-    "ast_hash": "510e468c6301015a313cc2c017e439a1",
+    "mtime": 1794932698.3217857,
+    "seen": 1794932837.3885942,
+    "ast_hash": "ba57181b7e7d8a42a71ded6b1ef4fc76",
     "semantic_hash": ""
   },
   "src/types/index.ts": {
-    "mtime": 1794617462.8357322,
-    "seen": 1794661709.655777,
-    "ast_hash": "51eb8e4996e00f3432a11b761d81626b",
+    "mtime": 1794921216.7575152,
+    "seen": 1794921672.5331752,
+    "ast_hash": "1bd91d20d4500a98304fd9fd7cdbea2e",
     "semantic_hash": ""
   },
   "tsconfig.json": {
@@ -726,9 +720,9 @@
     "semantic_hash": ""
   },
   ".opencode/ARCHITECTURE.md": {
-    "mtime": 1794737891.6758795,
-    "seen": 1794737980.4737659,
-    "ast_hash": "43cc0cfe08349f749104a3364c014599",
+    "mtime": 1794931347.3401895,
+    "seen": 1794931397.1207283,
+    "ast_hash": "006e6c6152099a2da68d31ec3359651e",
     "semantic_hash": ""
   },
   ".opencode/CONVENTIONS.md": {
@@ -744,9 +738,9 @@
     "semantic_hash": ""
   },
   ".opencode/PRD.md": {
-    "mtime": 1794737869.3182936,
-    "seen": 1794737980.4737659,
-    "ast_hash": "3372f3b09b8b8c8eddec35ee67a638c0",
+    "mtime": 1794931329.6844273,
+    "seen": 1794931397.1207283,
+    "ast_hash": "9b4063a629c2d9d0cb6845d70d1915a0",
     "semantic_hash": ""
   },
   ".opencode/SECURITY.md": {
@@ -1056,9 +1050,9 @@
     "semantic_hash": ""
   },
   ".opencode/PROGRESS.md": {
-    "mtime": 1794737922.7072992,
-    "seen": 1794737980.4737659,
-    "ast_hash": "541f33ee216e8ca9295d0501853d7a96",
+    "mtime": 1794934140.5137756,
+    "seen": 1794934192.3047805,
+    "ast_hash": "1c1add2fdcbf5990a3ec1840bd016d43",
     "semantic_hash": ""
   },
   "src/app/actions/stok-bahan.ts": {
@@ -1355,12 +1349,6 @@
     "ast_hash": "0679d952ffee0c0a2b8f35414554399f",
     "semantic_hash": ""
   },
-  "docs/SRS.md": {
-    "mtime": 1792581736.6295035,
-    "seen": 1794661709.655777,
-    "ast_hash": "28175dab14508281ada1298d50f26da0",
-    "semantic_hash": ""
-  },
   "index.html": {
     "mtime": 1792581736.6340399,
     "seen": 1794661709.655777,
@@ -1482,15 +1470,15 @@
     "semantic_hash": ""
   },
   "src/app/actions/notifikasi.ts": {
-    "mtime": 1794617462.7119937,
-    "seen": 1794661709.6547744,
-    "ast_hash": "d93a29f3c79c9fe7c1cf551df18dcea6",
+    "mtime": 1794913564.8679523,
+    "seen": 1794915853.5429957,
+    "ast_hash": "8e7b22b1a847f3fd21662de1945473b2",
     "semantic_hash": ""
   },
   "src/components/layout/StaleNotificationBell.tsx": {
-    "mtime": 1794026133.130967,
-    "seen": 1794661709.6547744,
-    "ast_hash": "b7322dc97532bbf67e270308f8aafb1f",
+    "mtime": 1794922807.974782,
+    "seen": 1794923010.819002,
+    "ast_hash": "6e138aa8e994cc49f1085f68ddbb3894",
     "semantic_hash": ""
   },
   "prisma/migrations/20261022120000_add_session_takeover/migration.sql": {
@@ -1548,15 +1536,15 @@
     "semantic_hash": ""
   },
   "src/app/actions/reservasi.ts": {
-    "mtime": 1794666879.1329665,
-    "seen": 1794667263.906096,
-    "ast_hash": "6913d58d44bd573ec6fa8fa4a76cba96",
+    "mtime": 1794932722.341297,
+    "seen": 1794932837.3875945,
+    "ast_hash": "34598b411efefae9ef30ab239d07366b",
     "semantic_hash": ""
   },
   "src/app/dashboard/reservasi/page.tsx": {
-    "mtime": 1794617462.7346716,
-    "seen": 1794661709.6547744,
-    "ast_hash": "031171eec08e620163c7a92c666dc90a",
+    "mtime": 1794932660.3699615,
+    "seen": 1794932837.3875945,
+    "ast_hash": "ff2991b5679ead4b4655f75867ebb8c9",
     "semantic_hash": ""
   },
   ".opencode/RESERVASI_IMPLEMENTATION.md": {
@@ -1596,9 +1584,9 @@
     "semantic_hash": ""
   },
   "src/lib/reservasi.ts": {
-    "mtime": 1794666204.3066328,
-    "seen": 1794667263.9070964,
-    "ast_hash": "a4d87d05311dfe1746448706611b7a42",
+    "mtime": 1794913744.8164976,
+    "seen": 1794915853.5439975,
+    "ast_hash": "1aa75641e156e95795148aa8e19bbb7b",
     "semantic_hash": ""
   },
   "prisma/migrations/20261113000000_reservasi_customer/migration.sql": {
@@ -1614,15 +1602,15 @@
     "semantic_hash": ""
   },
   "src/app/actions/reservasi-customer.ts": {
-    "mtime": 1794755492.2544155,
-    "seen": 1794757209.9356863,
-    "ast_hash": "b9c15c6849b94722ffde9a86330c079c",
+    "mtime": 1794933824.952833,
+    "seen": 1794934040.3157232,
+    "ast_hash": "d6e9fb6cdcaa38c19b36534aafed45a4",
     "semantic_hash": ""
   },
   "src/app/reservasi/status/page.tsx": {
-    "mtime": 1794617462.7402573,
-    "seen": 1794661709.6547744,
-    "ast_hash": "8405ddb2e1698c4e47c70972a5280ceb",
+    "mtime": 1794931306.66219,
+    "seen": 1794931397.1197274,
+    "ast_hash": "7df9d661fa618b89ace1d0ecd64c6ef0",
     "semantic_hash": ""
   },
   ".opencode/plugins/graphify.js": {
@@ -1644,15 +1632,75 @@
     "semantic_hash": ""
   },
   "src/app/reservasi/[kodeAkses]/page.tsx": {
-    "mtime": 1794758598.5085268,
-    "seen": 1794758702.930565,
-    "ast_hash": "0941e9f64eaaf4b7839c2b4bbf37eb9d",
+    "mtime": 1794933849.810132,
+    "seen": 1794934040.3157232,
+    "ast_hash": "d9050e092359e5ddbe67cc91ac009bff",
     "semantic_hash": ""
   },
   "src/lib/reservasi-akses.ts": {
     "mtime": 1794736111.8421664,
     "seen": 1794737980.4737659,
     "ast_hash": "dca5cfb2720051cc8902e1bf2f5a9749",
+    "semantic_hash": ""
+  },
+  "public/qris-statis.jpeg": {
+    "mtime": 1794840038.5869732,
+    "seen": 1794840223.7222176,
+    "ast_hash": "35f9af756f8ce1a64ef8848e43462270",
+    "semantic_hash": ""
+  },
+  "prisma/migrations/20261117000000_add_reservasi_voucher/migration.sql": {
+    "mtime": 1794886052.8279428,
+    "seen": 1794890047.224371,
+    "ast_hash": "0c6d5a11cc493e3547fc31b0013a158c",
+    "semantic_hash": ""
+  },
+  "instrumentation.ts": {
+    "mtime": 1794913637.7027783,
+    "seen": 1794915853.5429957,
+    "ast_hash": "31b99b9db4eb722c729e2025395476e8",
+    "semantic_hash": ""
+  },
+  "prisma/migrations/20261117000001_add_pengaturan_tabel/migration.sql": {
+    "mtime": 1794913734.5295794,
+    "seen": 1794915853.5429957,
+    "ast_hash": "6b98ee0e760492388ec1b1020b3c202a",
+    "semantic_hash": ""
+  },
+  "src/app/actions/pengaturan.ts": {
+    "mtime": 1794915724.4810271,
+    "seen": 1794915853.5429957,
+    "ast_hash": "54f0fca642e57725762f3ba17b19a988",
+    "semantic_hash": ""
+  },
+  "src/app/api/cron/route.ts": {
+    "mtime": 1794913639.8000124,
+    "seen": 1794915853.5439975,
+    "ast_hash": "c257b8accdcb9f1e8366fa5a56e9abe7",
+    "semantic_hash": ""
+  },
+  "vercel.json": {
+    "mtime": 1794913637.7006168,
+    "seen": 1794915853.544998,
+    "ast_hash": "f042489a676fccb2ed792fd8f2b1a96a",
+    "semantic_hash": ""
+  },
+  "src/app/dashboard/pengaturan/page.tsx": {
+    "mtime": 1794916114.0040653,
+    "seen": 1794916549.7139037,
+    "ast_hash": "f9a7043dc0224bd6e84d121177a5bede",
+    "semantic_hash": ""
+  },
+  "src/app/reservasi/[kodeAkses]/cek/page.tsx": {
+    "mtime": 1794933965.515119,
+    "seen": 1794934040.3157232,
+    "ast_hash": "0adba1a2733c93d6f254009881b50d7d",
+    "semantic_hash": ""
+  },
+  "src/lib/reservasi-hasil.ts": {
+    "mtime": 1794933837.3536408,
+    "seen": 1794934040.3157232,
+    "ast_hash": "6b9f5ddbf2db426c9bfa01107e02da3a",
     "semantic_hash": ""
   }
 }
