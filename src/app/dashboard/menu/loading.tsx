@@ -1,5 +1,12 @@
-'use client'
-import { PageLoader } from '@/components/ui/page-loader'
+import { TableSkeleton } from "@/components/ui/page-skeleton"
+
 export default function Loading() {
-  return <PageLoader />
+  return (
+    <TableSkeleton
+      columns={8}
+      rows={6}
+      titleText="Kelola Menu"
+      titleClassName="text-lg"
+    />
+  )
 }

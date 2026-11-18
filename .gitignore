@@ -43,6 +43,10 @@ debug.log
 .env.test
 .env.test.local
 
+# playwright local artifacts (berisi session/auth state)
+/playwright/.auth/
+/playwright-report/
+
 # vercel
 .vercel
 

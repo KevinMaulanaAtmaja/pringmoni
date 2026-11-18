@@ -1,8 +1,10 @@
 "use server"
 
 import prisma from "@/lib/prisma"
-import { Prisma } from "@prisma/client"
+import { JenisAksiLog, Prisma } from "@prisma/client"
 import { auth } from "@/lib/auth"
+
+const VALID_AKSI = Object.values(JenisAksiLog)
 
 export interface LogItem {
   id: number
@@ -24,7 +26,9 @@ export async function getLogs(filters?: {
     return { error: "Unauthorized", data: [] }
   }
 
-  const where: Prisma.LogsWhereInput = {}
+  const where: Prisma.LogsWhereInput = {
+    aksi: { in: [...VALID_AKSI] },
+  }
 
   if (filters?.aksi && filters.aksi !== 'Semua') {
     const kategoriMap: Record<string, string[]> = {
@@ -83,7 +87,9 @@ export async function getLogCount() {
   const session = await auth()
   if (!session?.user || session.user.role !== 'owner') return 0
 
-  return await prisma.logs.count()
+  return await prisma.logs.count({
+    where: { aksi: { in: [...VALID_AKSI] } },
+  })
 }
 
 export async function clearLogs() {

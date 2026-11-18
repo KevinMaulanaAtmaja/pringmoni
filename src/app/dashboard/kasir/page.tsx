@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PageTitle } from "@/components/ui/page-skeleton"
 import { Loader2, Eye, Clock, CheckCircle, SearchX, XCircle, Banknote, CreditCard, Landmark, ArrowRightLeft, Printer, ChevronLeft, ChevronRight, Undo2, ImageIcon } from "lucide-react"
 import { MetodePembayaran, StatusBayar } from "@/types"
 import { getPesananBelumBayar, getPesananRiwayatKasir, prosesPembayaranTunai, batalkanPesananKasir, accPesanan, generateQRISCode, confirmQrisPayment, selesaikanPesananKasir } from "@/app/actions/kasir"
@@ -35,7 +37,7 @@ const metodeIcons: Record<MetodePembayaran, React.ReactNode> = {
 
 const statusBayarColors: Record<StatusBayar, string> = {
   menunggu: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  berhasil: "bg-green-100 text-green-800 border-green-300",
+  berhasil: "bg-emerald-100 text-emerald-800 border-emerald-300",
   dibatalkan: "bg-red-100 text-red-800 border-red-300",
   refund: "bg-purple-100 text-purple-800 border-purple-300",
 }
@@ -48,8 +50,8 @@ const statusBayarLabels: Record<StatusBayar, string> = {
 }
 
 const metodeColors: Record<MetodePembayaran, string> = {
-  qris: "bg-blue-100 text-blue-800 border-blue-300",
-  tunai: "bg-green-100 text-green-800 border-green-300",
+  qris: "bg-emerald-100 text-emerald-800 border-emerald-300",
+  tunai: "bg-emerald-100 text-emerald-800 border-emerald-300",
   transfer: "bg-purple-100 text-purple-800 border-purple-300",
 }
 
@@ -461,9 +463,25 @@ export default function KasirPage() {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto p-4 text-center py-20">
-        <Loader2 className="w-12 h-12 animate-spin mx-auto text-gray-400" />
-        <p className="mt-4 text-gray-500">Memuat data...</p>
+      <div className="w-full max-w-6xl mx-auto space-y-6">
+        <PageTitle>Kelola Kasir</PageTitle>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-12 w-44 rounded-lg" />
+          <Skeleton className="h-12 w-44 rounded-lg" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="rounded-2xl border-2 p-5 space-y-4">
+              <div className="flex items-start justify-between">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-6 w-24" />
+              </div>
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -484,7 +502,7 @@ export default function KasirPage() {
 
   return (
     <div className="w-full min-w-0 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">Kelola Kasir</h1>
+      <h1 className="text-2xl font-bold text-foreground">Kelola Kasir</h1>
 
       {!isOwner && (
         <ShiftKasirPanel onShiftChange={() => { refreshShift(); fetchData(true) }} />
@@ -557,7 +575,7 @@ export default function KasirPage() {
                     <button
                       type="button"
                       onClick={() => setFilterText("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       <XCircle className="w-4 h-4" />
                     </button>
@@ -605,11 +623,11 @@ export default function KasirPage() {
       {activeTab === "belum" ? (
         /* Tab Belum Bayar */
         pesananBelumFiltered.length === 0 ? (
-          <div className="text-center py-20 text-gray-500 bg-white rounded-lg border">
+          <div className="text-center py-20 text-muted-foreground bg-card rounded-lg border">
             {filterText ? (
               <SearchX className="w-20 h-20 mx-auto mb-4 text-orange-400" />
             ) : (
-              <CheckCircle className="w-20 h-20 mx-auto mb-4 text-green-400" />
+              <CheckCircle className="w-20 h-20 mx-auto mb-4 text-emerald-400" />
             )}
             <p className="text-xl font-medium">
               {filterText ? `Tidak ditemukan "${filterText}"` : "Belum ada pesanan menunggu pembayaran"}
@@ -620,23 +638,23 @@ export default function KasirPage() {
             <div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
              {paginatedBelum.map((p) => (
-              <div key={p.id} className="bg-white rounded-xl border-2 p-5 hover:shadow-lg transition-shadow flex flex-col">
+              <div key={p.id} className="bg-card rounded-xl border-2 p-5 hover:shadow-lg transition-shadow flex flex-col">
                 {/* Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-bold">Meja {p.nomorMeja}</h3>
-                      <p className="text-xs text-gray-500 font-mono">{nomorPesanan(p.id, p.createdAt)}</p>
-                      <p className="text-sm text-gray-500">{formatWaktu(p.createdAt)}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{nomorPesanan(p.id, p.createdAt)}</p>
+                      <p className="text-sm text-muted-foreground">{formatWaktu(p.createdAt)}</p>
                       {p.waiterUsername && (
-                        <span className="text-xs text-gray-400">Waiter: {p.waiterUsername}</span>
+                        <span className="text-xs text-muted-foreground">Waiter: {p.waiterUsername}</span>
                       )}
                     </div>
                     <div className="flex gap-1 items-start">
                     {isWithinMinutes(p.createdAt, 1) && (
-                      <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5">New</Badge>
+                      <Badge className="bg-emerald-500 text-white text-xs px-2 py-0.5">New</Badge>
                     )}
                     {p.statusPembayaran === 'berhasil' && p.statusPesanan === 'menunggu' ? (
-                    <Badge className="bg-green-100 text-green-800 border-green-300 text-sm px-3 py-1.5">
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-sm px-3 py-1.5">
                       Sudah Dibayar
                     </Badge>
                   ) : p.metodePembayaran ? (
@@ -658,15 +676,15 @@ export default function KasirPage() {
                 </div>
 
                 {/* Items */}
-                <div className="space-y-2 mb-4 bg-gray-50 rounded-lg p-3 flex-1">
+                <div className="space-y-2 mb-4 bg-muted rounded-lg p-3 flex-1">
                   {p.namaPelanggan && (
-                    <p className="text-xs text-gray-500 font-medium mb-2">Atas Nama: {p.namaPelanggan}</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-2">Atas Nama: {p.namaPelanggan}</p>
                   )}
                   {p.items.slice(0, 3).map((item) => (
-                    <p key={item.id} className="text-sm text-gray-700">• {item.jumlah}x {item.namaMenu}</p>
+                    <p key={item.id} className="text-sm text-foreground">• {item.jumlah}x {item.namaMenu}</p>
                   ))}
                   {p.items.length > 3 && (
-                    <p className="text-sm text-gray-400">...dan {p.items.length - 3} lainnya</p>
+                    <p className="text-sm text-muted-foreground">...dan {p.items.length - 3} lainnya</p>
                   )}
                 </div>
 
@@ -692,7 +710,7 @@ export default function KasirPage() {
                       <>
                         {p.statusPembayaran === 'berhasil' && p.statusPesanan === 'diproses' ? (
                           <Button
-                            className="text-base min-h-[52px] bg-green-600 hover:bg-green-700 text-white"
+                            className="text-base min-h-[52px] bg-emerald-600 hover:bg-emerald-700 text-white"
                             onClick={async () => {
                               const result = await selesaikanPesananKasir(p.id)
                               if ('error' in result) {
@@ -756,7 +774,7 @@ export default function KasirPage() {
               <ChevronLeft className="w-4 h-4" />
               Prev
             </Button>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 {belumPage} / {totalBelumPages}
               </span>
             <Button
@@ -777,32 +795,32 @@ export default function KasirPage() {
         <>
           {/* Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">Total Pesanan</p>
-                <p className="text-3xl font-bold text-gray-800">{pesananRiwayatFiltered.length}</p>
+              <div className="bg-card rounded-xl border p-4 text-center">
+                <p className="text-sm text-muted-foreground">Total Pesanan</p>
+                <p className="text-3xl font-bold text-foreground">{pesananRiwayatFiltered.length}</p>
               </div>
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">Total Pendapatan</p>
-                <p className="text-3xl font-bold text-green-700">
+              <div className="bg-card rounded-xl border p-4 text-center">
+                <p className="text-sm text-muted-foreground">Total Pendapatan</p>
+                <p className="text-3xl font-bold text-emerald-700">
                   {formatSingkat(totalPendapatan)}
                 </p>
               </div>
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">QRIS</p>
-                <p className="text-3xl font-bold text-blue-600">
+              <div className="bg-card rounded-xl border p-4 text-center">
+                <p className="text-sm text-muted-foreground">QRIS</p>
+                <p className="text-3xl font-bold text-emerald-600">
                   {jumlahQRIS}
                 </p>
               </div>
-              <div className="bg-white rounded-xl border p-4 text-center">
-                <p className="text-sm text-gray-500">Tunai</p>
-                <p className="text-3xl font-bold text-green-600">
+              <div className="bg-card rounded-xl border p-4 text-center">
+                <p className="text-sm text-muted-foreground">Tunai</p>
+                <p className="text-3xl font-bold text-emerald-600">
                   {jumlahTunai}
                 </p>
               </div>
             </div>
 
           <div>
-          <div className="bg-white rounded-xl border">
+          <div className="bg-card rounded-xl border">
             <Table>
                 <TableHeader>
                   <TableRow>
@@ -819,7 +837,7 @@ export default function KasirPage() {
               <TableBody>
                 {paginatedRiwayat.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-gray-400 text-base">
+                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-base">
                       {filterId ? "Tidak ada riwayat dengan filter tersebut" : "Belum ada riwayat pembayaran"}
                     </TableCell>
                   </TableRow>
@@ -836,7 +854,7 @@ export default function KasirPage() {
                             {metodeLabels[p.metodePembayaran as MetodePembayaran]}
                           </Badge>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">{p.kasirUsername || "-"}</TableCell>
@@ -915,7 +933,7 @@ export default function KasirPage() {
               <ChevronLeft className="w-4 h-4" />
               Prev
             </Button>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               {riwayatPage} / {totalRiwayatPages}
             </span>
             <Button
@@ -960,11 +978,11 @@ export default function KasirPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="text-center py-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-8 h-8 text-emerald-600" />
                 </div>
                 <h2 className="text-xl font-bold mb-2">Pembayaran Berhasil!</h2>
-                <p className="text-gray-500 text-sm mb-4">Pesanan #{selectedPesanan?.id} — Meja {selectedPesanan?.nomorMeja} telah dibayar</p>
+                <p className="text-muted-foreground text-sm mb-4">Pesanan #{selectedPesanan?.id} — Meja {selectedPesanan?.nomorMeja} telah dibayar</p>
                 <div className="flex flex-row gap-2 justify-center">
                   <Button
                     onClick={() => {
@@ -990,7 +1008,7 @@ export default function KasirPage() {
                         namaPelanggan: selectedPesanan.namaPelanggan,
                       })
                     }}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-emerald-600 hover:bg-emerald-700"
                   >
                     <Printer className="w-4 h-4 mr-1" />
                     Cetak Struk
@@ -1009,40 +1027,40 @@ export default function KasirPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-2">
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3 text-center">
+                <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3 text-center">
                   {selectedMetode === "qris" ? (
-                    <CreditCard className="w-8 h-8 mx-auto text-blue-600 mb-1" />
+                    <CreditCard className="w-8 h-8 mx-auto text-emerald-600 mb-1" />
                   ) : (
-                    <Landmark className="w-8 h-8 mx-auto text-blue-600 mb-1" />
+                    <Landmark className="w-8 h-8 mx-auto text-emerald-600 mb-1" />
                   )}
-                  <p className="text-xl font-bold text-blue-800">
+                  <p className="text-xl font-bold text-emerald-800">
                     {selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}
                   </p>
-                  <p className="text-blue-600 text-xs">Total Tagihan</p>
+                  <p className="text-emerald-600 text-xs">Total Tagihan</p>
                 </div>
-                <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm">
+                <div className="bg-muted rounded-xl p-3 space-y-1.5 text-sm">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-xs">Order ID</span>
+                    <span className="text-muted-foreground text-xs">Order ID</span>
                     <span className="font-mono text-xs font-bold">
                       {selectedPesanan && nomorPesanan(selectedPesanan.id, selectedPesanan.createdAt)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-xs">Gross Amount</span>
+                    <span className="text-muted-foreground text-xs">Gross Amount</span>
                     <span className="font-bold text-sm">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-xs">Payment Type</span>
+                    <span className="text-muted-foreground text-xs">Payment Type</span>
                     <Badge variant="outline" className="text-xs px-2 py-0.5">
                       {metodeLabels[selectedMetode]}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-xs">Meja</span>
+                    <span className="text-muted-foreground text-xs">Meja</span>
                     <span className="font-bold text-sm">{selectedPesanan?.nomorMeja}</span>
                   </div>
                 </div>
-                <p className="text-[10px] text-gray-400 text-center">
+                <p className="text-[10px] text-muted-foreground text-center">
                   Pelanggan mengklaim sudah membayar. Verifikasi pembayaran lalu klik Konfirmasi untuk menyelesaikan.
                 </p>
               </div>
@@ -1057,7 +1075,7 @@ export default function KasirPage() {
                 <Button
                   onClick={() => handlePaymentConfirm()}
                   disabled={submitting}
-                  className="text-sm flex-1 bg-green-600 hover:bg-green-700"
+                  className="text-sm flex-1 bg-emerald-600 hover:bg-emerald-700"
                 >
                   {submitting ? (
                     <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -1077,8 +1095,8 @@ export default function KasirPage() {
               {!(isBayarTunaiFinal && selectedMetode === "tunai") && (
               <>
               {/* Total Display */}
-              <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 text-center">
-                <p className="text-xl font-bold text-green-800">
+              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-emerald-800">
                     {selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}
                 </p>
                 <p className="text-green-600 text-xs">
@@ -1107,7 +1125,7 @@ export default function KasirPage() {
               <div className="space-y-1.5">
                 <p className="text-sm font-semibold">Pilih Metode Pembayaran</p>
                 {selectedPesanan?.metodePembayaran && (
-                  <p className="text-xs text-blue-600">
+                  <p className="text-xs text-emerald-600">
                     Customer memilih: <strong>{metodeLabels[selectedPesanan.metodePembayaran as MetodePembayaran]}</strong>
                   </p>
                 )}
@@ -1125,10 +1143,10 @@ export default function KasirPage() {
                         onClick={() => setSelectedMetode(metode)}
                         className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all ${
                           selectedMetode === metode
-                            ? "border-green-600 bg-green-50 scale-105"
+                            ? "border-emerald-600 bg-emerald-50 scale-105"
                             : isDisabled
-                              ? "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
-                              : "border-gray-200 hover:border-gray-300"
+                              ? "border-gray-100 bg-muted opacity-50 cursor-not-allowed"
+                              : "border-border hover:border-gray-300"
                         }`}
                       >
                         {metodeIcons[metode]}
@@ -1171,12 +1189,12 @@ export default function KasirPage() {
                       <span className="font-bold">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Dibayar</span>
-                      <span className="font-bold text-green-700">{formatRupiah(parseFloat(jumlahBayar) || 0)}</span>
+                      <span className="text-muted-foreground">Dibayar</span>
+                      <span className="font-bold text-emerald-700">{formatRupiah(parseFloat(jumlahBayar) || 0)}</span>
                     </div>
                     <div className="flex justify-between font-bold border-t pt-1.5">
                       <span>Kembalian</span>
-                      <span className={kembalian >= 0 ? "text-green-600" : "text-red-600"}>
+                      <span className={kembalian >= 0 ? "text-emerald-600" : "text-red-600"}>
                         {formatRupiah(kembalian)}
                       </span>
                     </div>
@@ -1184,13 +1202,13 @@ export default function KasirPage() {
                   <p className="text-xs text-yellow-700">Pastikan jumlah uang yang diterima sudah sesuai.</p>
                 </div>
               ) : selectedMetode === "tunai" && (
-                <div className="space-y-3 bg-white rounded-xl border p-4">
+                <div className="space-y-3 bg-card rounded-xl border p-4">
                   <div className="text-center">
-                    <p className="text-sm font-semibold text-gray-700">Jumlah Uang Diterima</p>
-                    <p className="text-[10px] text-gray-400">Masukkan nominal dalam ribuan (contoh: 50 = Rp 50.000)</p>
+                    <p className="text-sm font-semibold text-foreground">Jumlah Uang Diterima</p>
+                    <p className="text-[10px] text-muted-foreground">Masukkan nominal dalam ribuan (contoh: 50 = Rp 50.000)</p>
                   </div>
                   <div className="relative max-w-xs mx-auto">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg font-bold pointer-events-none">Rp</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-lg font-bold pointer-events-none">Rp</span>
                     <Input
                       type="text"
                       inputMode="numeric"
@@ -1205,7 +1223,7 @@ export default function KasirPage() {
                       className="text-2xl py-5 text-center font-bold pl-10 pr-14"
                       autoFocus
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg font-bold pointer-events-none">
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground text-lg font-bold pointer-events-none">
                       .000
                     </span>
                   </div>
@@ -1223,12 +1241,12 @@ export default function KasirPage() {
                       <span className="font-semibold">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan, selectedMetode))}</span>
                     </div>
                     <div className="flex justify-between pt-1.5">
-                      <span className="text-gray-500">Dibayar</span>
-                      <span className="font-semibold text-green-700">{inputRibuan ? formatRupiah(parseFloat(jumlahBayar) || 0) : "-"}</span>
+                      <span className="text-muted-foreground">Dibayar</span>
+                      <span className="font-semibold text-emerald-700">{inputRibuan ? formatRupiah(parseFloat(jumlahBayar) || 0) : "-"}</span>
                     </div>
                     <div className="flex justify-between pt-1.5 text-base">
                       <span className="font-medium">Kembalian</span>
-                      <span className={inputRibuan ? (kembalian >= 0 ? "font-bold text-green-600" : "font-bold text-red-600") : "text-gray-400"}>
+                      <span className={inputRibuan ? (kembalian >= 0 ? "font-bold text-emerald-600" : "font-bold text-red-600") : "text-muted-foreground"}>
                         {inputRibuan ? formatRupiah(kembalian) : "-"}
                       </span>
                     </div>
@@ -1249,7 +1267,7 @@ export default function KasirPage() {
                     <Button
                       onClick={() => handleBayar()}
                       disabled={submitting}
-                      className="text-sm flex-1 bg-green-600 hover:bg-green-700"
+                      className="text-sm flex-1 bg-emerald-600 hover:bg-emerald-700"
                     >
                       {submitting ? (
                         <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -1299,13 +1317,13 @@ export default function KasirPage() {
               {selectedPesanan && selectedPesanan.items.map((item) => {
                 const { varian, catatan } = pisahCatatanItem(item.catatanItem)
                 return (
-                  <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <div key={item.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
                     <div>
                       <p className="text-lg font-medium flex items-center gap-2">
                         {item.namaMenu}
                         {varian && <VarianBadge varian={varian} />}
                       </p>
-                      <p className="text-base text-gray-500">{item.jumlah}x @ {formatRupiah(item.hargaSaatPesan)}</p>
+                      <p className="text-base text-muted-foreground">{item.jumlah}x @ {formatRupiah(item.hargaSaatPesan)}</p>
                       {catatan && <p className="text-sm text-amber-600">Catatan: {catatan}</p>}
                     </div>
                     <span className="text-lg font-semibold">{formatRupiah(item.hargaSaatPesan * item.jumlah)}</span>
@@ -1316,11 +1334,11 @@ export default function KasirPage() {
             <div className="border-t pt-4 mt-4">
               <div className="flex justify-between text-2xl font-bold">
                 <span>Total</span>
-                <span className="text-green-700">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan))}</span>
+                <span className="text-emerald-700">{selectedPesanan && formatRupiah(getGrandTotal(selectedPesanan))}</span>
               </div>
             </div>
             {selectedPesanan?.metodePembayaran && (
-              <div className="text-base text-gray-600 space-y-2 bg-gray-50 p-4 rounded-lg mt-4">
+              <div className="text-base text-foreground space-y-2 bg-muted p-4 rounded-lg mt-4">
                 {selectedPesanan.namaPelanggan && <p>Pelanggan: <span className="font-medium">{selectedPesanan.namaPelanggan}</span></p>}
                 <p>Metode: <Badge className={`${metodeColors[selectedPesanan.metodePembayaran as MetodePembayaran]} text-base px-3 py-1`}>{metodeLabels[selectedPesanan.metodePembayaran as MetodePembayaran]}</Badge></p>
                 {selectedPesanan.kasirUsername && <p>Kasir: {selectedPesanan.kasirUsername}</p>}
@@ -1343,7 +1361,7 @@ export default function KasirPage() {
                         pollData()
                       }
                     }}
-                    className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white flex-1"
                   >
                     <CheckCircle className="w-5 h-5 mr-2" />
                     Selesai &amp; Kosongkan Meja
@@ -1431,7 +1449,7 @@ export default function KasirPage() {
           <div className="text-center py-6">
             <XCircle className="w-20 h-20 mx-auto mb-4 text-red-500" />
             <p className="text-xl font-semibold mb-2">Yakin ingin batalkan pesanan ini?</p>
-            <p className="text-gray-500">Pesanan #{cancelPesananId} akan dibatalkan dan tidak bisa dikembalikan.</p>
+            <p className="text-muted-foreground">Pesanan #{cancelPesananId} akan dibatalkan dan tidak bisa dikembalikan.</p>
           </div>
           <DialogFooter className="gap-3">
             <Button
@@ -1469,7 +1487,7 @@ export default function KasirPage() {
               <p className="text-sm text-red-600 mt-1">Tindakan ini tidak dapat dibatalkan.</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-foreground mb-2">
                 Ketik <span className="font-bold text-red-600">KONFIRMASI</span> untuk melanjutkan pembatalan:
               </p>
               <Input
@@ -1519,7 +1537,7 @@ export default function KasirPage() {
               <span className="text-2xl font-bold text-amber-600">!</span>
             </div>
             <p className="text-base font-semibold">Metode pembayaran diubah!</p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Customer memilih <strong>{selectedPesanan?.metodePembayaran ? metodeLabels[selectedPesanan.metodePembayaran as MetodePembayaran] : '-'}</strong>,
               Anda akan memproses dengan <strong>{metodeLabels[selectedMetode]}</strong>.
             </p>

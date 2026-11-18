@@ -13,6 +13,12 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  CardGridSkeleton,
+  FilterBarSkeleton,
+  PageTitle,
+} from "@/components/ui/page-skeleton"
 import { getPesananForDashboard, updateStatusPesanan, markPesananSelesai, getPesananById, markItemDiantar } from "@/app/actions/pesanan"
 import { StatusPesanan } from "@prisma/client"
 import { Eye, Printer, CheckCircle, SearchX, Inbox, XCircle, ChevronLeft, ChevronRight, Clock, ArrowRightLeft, Undo2 } from "lucide-react"
@@ -405,15 +411,21 @@ export default function PesananPage() {
     fetchData()
   }
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center py-20 gap-3">
-      <div className="relative h-10 w-10">
-        <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-        <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
+  if (loading) {
+    return (
+      <div className="w-full max-w-6xl mx-auto space-y-6">
+        <PageTitle>Kelola Pesanan</PageTitle>
+        <FilterBarSkeleton />
+        <CardGridSkeleton
+          title={false}
+          cards={6}
+          cardHeight="h-60"
+          cardClassName="rounded-xl border-2"
+          gridClassName="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+        />
       </div>
-      <p className="text-sm text-muted-foreground">Memuat...</p>
-    </div>
-  )
+    )
+  }
   if (debugError) {
     return (
       <div className="max-w-6xl mx-auto space-y-6 p-4">
@@ -848,15 +860,14 @@ export default function PesananPage() {
             <DialogHeader>
               <DialogTitle>Detail Pesanan #{selectedPesanan?.id}</DialogTitle>
             </DialogHeader>
-              {detailLoading ? (
-               <div className="py-8 flex flex-col items-center justify-center gap-3">
-                 <div className="relative h-8 w-8">
-                   <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-                   <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
-                 </div>
-                 <p className="text-sm text-muted-foreground">Memuat detail pesanan...</p>
-               </div>
-             ) : selectedPesanan ? (
+               {detailLoading ? (
+                <div className="py-8 space-y-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-20 w-full rounded-xl" />
+                  <Skeleton className="h-20 w-full rounded-xl" />
+                </div>
+              ) : selectedPesanan ? (
                <div className="flex flex-col min-h-0 overflow-hidden">
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                     <div>
@@ -1022,15 +1033,14 @@ export default function PesananPage() {
             <DialogHeader>
               <DialogTitle>Tandai Item - Pesanan #{selectedPesananForComplete?.id}</DialogTitle>
             </DialogHeader>
-             {detailLoadingComplete ? (
-              <div className="py-8 flex flex-col items-center justify-center gap-3">
-                <div className="relative h-8 w-8">
-                  <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-                  <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
-                </div>
-                <p className="text-sm text-muted-foreground">Memuat detail pesanan...</p>
-              </div>
-            ) : selectedPesananForComplete ? (
+              {detailLoadingComplete ? (
+               <div className="py-8 space-y-3">
+                 <Skeleton className="h-4 w-24" />
+                 <Skeleton className="h-4 w-40" />
+                 <Skeleton className="h-20 w-full rounded-xl" />
+                 <Skeleton className="h-20 w-full rounded-xl" />
+               </div>
+             ) : selectedPesananForComplete ? (
               <div className="flex flex-col min-h-0 overflow-hidden">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>

@@ -6,7 +6,6 @@ import {
   AlertCircle,
   Bell,
   CheckCircle2,
-  Loader2,
   PackageCheck,
   Receipt,
   RefreshCcw,
@@ -20,6 +19,7 @@ import {
 } from "@/app/actions/notifikasi"
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 import { useNotification } from "@/hooks/use-notification"
+import { ListSkeleton } from "@/components/ui/page-skeleton"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -280,9 +280,8 @@ export function StaleNotificationBell() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" />
-            Memuat...
+          <div className="p-2">
+            <ListSkeleton rows={3} itemHeight="h-12" className="space-y-2" />
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-1 py-6 px-3 text-center">

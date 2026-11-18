@@ -4,7 +4,9 @@ import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Banknote, CreditCard, ArrowLeft, Loader2, AlertTriangle } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PageTitle } from "@/components/ui/page-skeleton"
+import { Banknote, CreditCard, ArrowLeft, AlertTriangle } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
 import { getPembayaranInfo, confirmQrisPayment } from "@/app/actions/kasir"
 import { useState, useEffect } from "react"
@@ -70,8 +72,13 @@ export default function PesananSelesaiPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="size-8 animate-spin text-gray-400" />
+      <div className="max-w-lg mx-auto pt-8 space-y-6">
+        <Skeleton className="h-4 w-24" />
+        <div className="text-center space-y-3">
+          <PageTitle className="text-center text-2xl">Pembayaran</PageTitle>
+          <Skeleton className="h-4 w-48 mx-auto" />
+        </div>
+        <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
     )
   }

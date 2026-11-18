@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { CardGridSkeleton, TableBodySkeleton } from "@/components/ui/page-skeleton"
 import { History, Calendar, Edit, Trash2, Plus, Save, X } from "lucide-react"
 import { getJadwalShift, simpanJadwalShift, updateJadwalShift, hapusJadwalShift, getRiwayatShift, getDaftarKasir, getDaftarKasirLengkap, bukaShift, tutupShift } from "@/app/actions/shift"
 import { formatJam, jamDariTeks } from "@/lib/jadwal"
@@ -336,13 +337,13 @@ export default function ShiftPage() {
 
   if (status === "loading") {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <div className="relative h-10 w-10">
-          <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-          <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
-        </div>
-        <p className="text-sm text-muted-foreground">Memuat...</p>
-      </div>
+      <CardGridSkeleton
+        cards={2}
+        cardHeight="h-64"
+        gridClassName="grid grid-cols-1 gap-4 md:grid-cols-2"
+        className="max-w-6xl mx-auto"
+        titleText="Shift"
+      />
     )
   }
 
@@ -726,11 +727,7 @@ export default function ShiftPage() {
                   </TableHeader>
                   <TableBody>
                       {loadingJadwal ? (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8">
-                            Memuat...
-                          </TableCell>
-                        </TableRow>
+                        <TableBodySkeleton columns={5} rows={4} />
                       ) : jadwalList.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center py-8 text-gray-500">
@@ -823,9 +820,12 @@ export default function ShiftPage() {
             </div>
 
             {loadingRiwayat ? (
-              <div className="text-center py-8">
-                Memuat riwayat shift...
-              </div>
+              <CardGridSkeleton
+                title={false}
+                cards={2}
+                cardHeight="h-64"
+                gridClassName="grid gap-4 md:grid-cols-2"
+              />
             ) : shifts.length === 0 ? (
               <div className="text-center py-20 text-gray-500 bg-white rounded-lg border">
                 <History className="w-16 h-16 mx-auto mb-4 text-gray-300" />

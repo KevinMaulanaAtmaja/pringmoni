@@ -100,22 +100,22 @@ export function KasirOrderNotifications() {
     <div className="fixed top-24 right-4 z-[60] pointer-events-none">
       <div
         className={`bg-white border-2 rounded-2xl px-6 py-4 shadow-2xl animate-in fade-in slide-in-from-top duration-200 max-w-sm ${
-          toast.type === "order_paid" ? "border-blue-400" : "border-green-400"
+          toast.type === "order_paid" ? "border-emerald-600" : "border-emerald-400"
         }`}
       >
         <div className="flex items-center gap-3">
           <div
             className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
-              toast.type === "order_paid" ? "bg-blue-100" : "bg-green-100"
+              toast.type === "order_paid" ? "bg-emerald-200" : "bg-emerald-100"
             }`}
           >
-            <Bell className={`size-6 ${toast.type === "order_paid" ? "text-blue-600" : "text-green-600"}`} />
+            <Bell className={`size-6 ${toast.type === "order_paid" ? "text-emerald-700" : "text-emerald-600"}`} />
           </div>
           <div>
-            <p className={`font-bold ${toast.type === "order_paid" ? "text-blue-800" : "text-green-800"}`}>
+            <p className={`font-bold ${toast.type === "order_paid" ? "text-emerald-900" : "text-emerald-800"}`}>
               {toast.type === "order_paid" ? "Pembayaran Berhasil!" : "Pesanan Baru Masuk!"}
             </p>
-            <p className={`text-sm ${toast.type === "order_paid" ? "text-blue-700" : "text-green-700"}`}>
+            <p className={`text-sm ${toast.type === "order_paid" ? "text-emerald-800" : "text-emerald-700"}`}>
               Meja {toast.meja}
               {toast.nama && <span> - {toast.nama}</span>}
             </p>

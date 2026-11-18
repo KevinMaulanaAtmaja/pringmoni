@@ -342,6 +342,7 @@ export async function getPesananForDashboard(filters?: {
 
   const whereClause: Prisma.PesananWhereInput = {
     deletedAt: null,
+    meja: { statusMeja: { in: Object.values(StatusMeja) } },
     ...(filters?.status && filters.status !== 'all' ? { statusPesanan: filters.status as StatusPesanan } : {}),
     ...(filters?.tanggal ? {
       createdAt: {
