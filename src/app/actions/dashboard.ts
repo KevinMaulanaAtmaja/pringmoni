@@ -3,8 +3,8 @@
 import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
+import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
-import { getNotifikasiTerlambat } from "@/app/actions/notifikasi"
 import type { RoleUser } from "@/types"
 
 const AUTO_CANCEL_THROTTLE_MS = 60_000
@@ -246,33 +246,6 @@ export async function getDashboardCharts() {
   }
 }
 
-export interface StaleOrder {
-  id: number
-  nomorMeja: string
-  statusPesanan: string
-  lamaMenit: number
-  createdAt: Date
-}
-
-/**
- * Pesanan terlambat (>30 menit & belum ditangani).
- *
- * Sumber data tunggal: `getNotifikasiTerlambat` — dipakai juga oleh lonceng
- * notifikasi di header dashboard, sehingga banner dan badge lonceng selalu
- * konsisten. Bisa diakses semua role (owner, cashier, waiter) dan otomatis
- * ter-reset saat lewat tengah malam.
- */
-export async function getStaleOrders(): Promise<StaleOrder[]> {
-  const { orders } = await getNotifikasiTerlambat()
-  return orders.map((o) => ({
-    id: o.id,
-    nomorMeja: o.nomorMeja,
-    statusPesanan: o.statusPesanan,
-    lamaMenit: o.lamaMenit,
-    createdAt: new Date(o.createdAt),
-  }))
-}
-
 export async function autoCancelStaleUnpaid() {
   const cutoff = new Date(Date.now() - 60 * 60 * 1000)
 
@@ -306,6 +279,10 @@ export async function autoCancelStaleUnpaid() {
         data: { statusMeja: 'kosong' },
       }),
     ])
+
+    for (const mejaId of mejaIds) {
+      await finalizeReservasiUntukMeja(mejaId, "batal")
+    }
 
     const byMethod = stale.reduce<Record<string, number>>((acc, p) => {
       const key = p.metodePembayaran || 'tanpa_metode'

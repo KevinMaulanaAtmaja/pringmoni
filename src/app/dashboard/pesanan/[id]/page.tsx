@@ -43,6 +43,7 @@ export default function PesananDetailPage() {
     statusPesanan: "menunggu" | "diproses" | "selesai" | "dibatalkan" | "refund"
     statusPembayaran: "menunggu" | "berhasil" | "dibatalkan" | "refund"
     totalHarga: number
+    dpNominal: number
     diskonVoucher: number
     voucherKode: string | null
     voucherNama: string | null
@@ -95,6 +96,7 @@ export default function PesananDetailPage() {
           statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "selesai" | "dibatalkan" | "refund",
           statusPembayaran: result.status_pembayaran as "menunggu" | "berhasil" | "dibatalkan" | "refund",
           totalHarga: Number(result.total_harga),
+          dpNominal: Number(result.dp_nominal || 0),
           diskonVoucher: Number(result.diskon_voucher ?? 0),
           voucherKode: result.voucher_kode ?? null,
           voucherNama: result.voucher_nama ?? null,
@@ -285,6 +287,20 @@ export default function PesananDetailPage() {
               Rp {pesanan.totalHarga.toLocaleString("id-ID")}
             </span>
           </div>
+          {pesanan.dpNominal > 0 && (
+            <>
+              <div className="flex justify-between text-emerald-700 font-medium text-sm">
+                <span>DP Reservasi (Telah Lunas)</span>
+                <span>-Rp {pesanan.dpNominal.toLocaleString("id-ID")}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2">
+                <span className="font-bold">Sisa Tagihan Pelunasan</span>
+                <span className="font-bold text-lg text-emerald-800">
+                  Rp {Math.max(0, pesanan.totalHarga - pesanan.dpNominal).toLocaleString("id-ID")}
+                </span>
+              </div>
+            </>
+          )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Metode</span>
               <span className="font-medium">
@@ -429,6 +445,7 @@ export default function PesananDetailPage() {
                  harga: Number(i.hargaSaatPesan),
                })),
                totalHarga: Number(pesanan.totalHarga),
+               dpNominal: pesanan.dpNominal,
                adminFee: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : undefined,
                ppn: pesanan.ppn ? Number(pesanan.ppn) : undefined,
                metodePembayaran: pesanan.metodePembayaran,

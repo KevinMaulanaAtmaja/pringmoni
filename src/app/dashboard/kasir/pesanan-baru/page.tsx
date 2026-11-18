@@ -52,7 +52,11 @@ export default function PesananBaruPage() {
     ]).then(([menusData, kategorisData, mejaData]) => {
       setMenus(menusData)
       setKategoris(kategorisData)
-      setMejas(Array.isArray(mejaData) ? mejaData : [])
+      setMejas(
+        Array.isArray(mejaData)
+          ? mejaData.filter((m) => m.statusMeja === "kosong")
+          : []
+      )
     }).finally(() => setLoading(false))
   }, [])
 
@@ -226,26 +230,11 @@ export default function PesananBaruPage() {
               <SelectValue placeholder="Pilih Meja" />
             </SelectTrigger>
             <SelectContent position="popper" align="center">
-              {mejas.map((m) => {
-                const kosong = m.statusMeja === "kosong"
-                return (
-                  <SelectItem
-                    key={m.id}
-                    value={String(m.id)}
-                    disabled={!kosong}
-                    className={!kosong ? "opacity-50" : ""}
-                  >
-                    <span className="flex items-center gap-2">
-                      Meja {m.nomorMeja} ({m.kapasitas} kursi)
-                      {!kosong && (
-                        <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
-                          Terpakai
-                        </span>
-                      )}
-                    </span>
-                  </SelectItem>
-                )
-              })}
+              {mejas.map((m) => (
+                <SelectItem key={m.id} value={String(m.id)}>
+                  Meja {m.nomorMeja} ({m.kapasitas} kursi)
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

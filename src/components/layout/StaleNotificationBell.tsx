@@ -301,10 +301,13 @@ export function StaleNotificationBell() {
         )}
 
         <div className="border-t p-1">
-          <DropdownMenuItem asChild>
+          <DropdownMenuItem
+            asChild
+            className="cursor-pointer rounded-lg p-0 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 data-[highlighted]:bg-neutral-100 dark:data-[highlighted]:bg-neutral-800 focus:text-inherit! hover:text-inherit!"
+          >
             <Link
               href="/dashboard/pesanan"
-              className="justify-center text-xs font-medium"
+              className="flex w-full justify-center px-2.5 py-2 text-xs font-medium text-foreground transition-colors hover:text-inherit!"
             >
               Lihat semua pesanan
             </Link>

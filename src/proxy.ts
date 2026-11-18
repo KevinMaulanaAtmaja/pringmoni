@@ -14,6 +14,7 @@ const roleRouteAccess: Record<string, RoleUser[]> = {
   "/dashboard/menu": ["owner", "kitchen"],
   "/dashboard/stok-bahan": ["owner"],
   "/dashboard/meja": ["owner", "cashier", "waiter"],
+  "/dashboard/reservasi": ["cashier"],
   "/dashboard/users": ["owner"],
   "/dashboard/laporan": ["owner"],
   "/dashboard/logging": ["owner"],
@@ -32,6 +33,10 @@ const RESERVED_ROOT_SEGMENTS = new Set([
 // Public pages that never need a session
 const PUBLIC_ROUTES = ["/", "/login", "/reset-password"]
 
+// Customer reservation routes (tanpa login): /reservasi/[kodeAkses],
+// /reservasi/[kodeAkses]/cek (halaman cek reservasi), /reservasi/status (legacy redirect)
+const RESERVASI_PUBLIC_PATTERN = /^\/reservasi(\/[^/]+(\/cek)?)?$/
+
 // Customer kiosk routes: /[tokenMeja], /[tokenMeja]/pesanan, /[tokenMeja]/checkout, ...
 const CUSTOMER_TOKEN_PATTERN = /^[a-zA-Z0-9-]+$/
 const CUSTOMER_SUBPATH_PATTERN =
@@ -42,6 +47,13 @@ function isRoleUser(value: unknown): value is RoleUser {
     typeof value === "string" &&
     (ALL_ROLES as readonly string[]).includes(value)
   )
+}
+
+function normalizeRoleValue(value: unknown): RoleUser | undefined {
+  if (typeof value !== "string") return undefined
+  const lowered = value.toLowerCase()
+  const canonical = lowered === "kasir" ? "cashier" : lowered
+  return isRoleUser(canonical) ? canonical : undefined
 }
 
 function getRouteRole(pathname: string): RoleUser[] | null {
@@ -64,6 +76,7 @@ function getRouteRole(pathname: string): RoleUser[] | null {
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.includes(pathname)) return true
   if (/^\/reset-password\/[^/]+$/.test(pathname)) return true
+  if (RESERVASI_PUBLIC_PATTERN.test(pathname)) return true
 
   const segments = pathname.split("/").filter(Boolean)
   if (segments.length === 0) return false
@@ -80,7 +93,7 @@ export async function proxy(request: NextRequest) {
   const session = await auth()
   const isLoggedIn = !!session?.user
   const rawRole = session?.user?.role
-  const userRole: RoleUser | undefined = isRoleUser(rawRole) ? rawRole : undefined
+  const userRole: RoleUser | undefined = normalizeRoleValue(rawRole)
   const hasValidRole = userRole !== undefined
   const takenOver = session?.user?.takenOver === true
 

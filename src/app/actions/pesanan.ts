@@ -8,9 +8,10 @@ import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { requireShiftAktif, shiftAktifSlotSekarang } from "@/lib/shift"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
-import { Prisma, StatusPesanan, StatusBayar, MetodePembayaran, StatusAntar } from "@prisma/client"
+import { Prisma, StatusPesanan, StatusBayar, StatusMeja, MetodePembayaran, StatusAntar } from "@prisma/client"
 import { getKategoriMenus } from "./menu"
 import { potongStokDapur } from "@/lib/stok"
+import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
 
 import { hitungPotonganDiskon } from "@/lib/voucher"
 
@@ -45,6 +46,16 @@ export async function updateStatusPesanan(id: number, status: StatusPesanan) {
     where: { id },
     data: { statusPesanan: status },
   })
+
+  const finalizeOutcome =
+    status === StatusPesanan.selesai
+      ? ("selesai" as const)
+      : status === StatusPesanan.dibatalkan
+        ? ("batal" as const)
+        : null
+  if (finalizeOutcome && pesanan.mejaId) {
+    await finalizeReservasiUntukMeja(pesanan.mejaId, finalizeOutcome, { client: prisma })
+  }
 
   await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})
 
@@ -151,6 +162,9 @@ export async function createPesanan(data: CreatePesananData) {
   const meja = await getMejaByToken(tokenMeja)
   if (!meja) {
     return { error: "Token meja tidak valid" }
+  }
+  if (meja.statusMeja === StatusMeja.dipesan) {
+    return { error: "Meja ini sedang direservasi. Silakan pilih meja lain." }
   }
 
   const pesananMenungguBayar = await prisma.pesanan.findFirst({
@@ -351,6 +365,7 @@ export async function getPesananForDashboard(filters?: {
     statusBayar: p.statusPembayaran,
     metodePembayaran: p.metodePembayaran,
     total: Number(p.totalHarga),
+    dpNominal: Number(p.dpNominal || 0),
     waktu: p.createdAt.toISOString(),
     updatedAt: p.updatedAt?.toISOString() || p.createdAt.toISOString(),
     items: p.detailPesanan.length,
@@ -442,6 +457,7 @@ export async function getPesananById(id: number) {
     status_pesanan: pesanan.statusPesanan,
     status_pembayaran: pesanan.statusPembayaran,
     total_harga: Number(pesanan.totalHarga),
+    dp_nominal: Number(pesanan.dpNominal || 0),
     diskon_voucher: Number(pesanan.diskonVoucher || 0),
     voucher_kode: pesanan.voucher?.kode || null,
     voucher_nama: pesanan.voucher?.namaVoucher || null,
@@ -568,6 +584,8 @@ export async function markPesananSelesai(id: number) {
       data: { statusMeja: 'kosong' },
     })
 
+    await finalizeReservasiUntukMeja(pesanan.mejaId, "selesai", { client: tx })
+
     await potongStokDapur(tx, id, parseInt(session.user.id))
   })
 
@@ -602,18 +620,23 @@ export async function cancelPesanan(id: number) {
     return { error: "Tidak bisa membatalkan pesanan yang sudah dibayar" }
   }
 
-  await prisma.pesanan.update({
-    where: { id },
-    data: {
-      statusPesanan: StatusPesanan.dibatalkan,
-      statusPembayaran: StatusBayar.dibatalkan,
-      deletedAt: new Date(),
-    },
-  })
+  await prisma.$transaction(async (tx) => {
+    await tx.pesanan.update({
+      where: { id },
+      data: {
+        statusPesanan: StatusPesanan.dibatalkan,
+        statusPembayaran: StatusBayar.dibatalkan,
+        deletedAt: new Date(),
+      },
+    })
 
-  await prisma.meja.update({
-    where: { id: pesanan.mejaId },
-    data: { statusMeja: 'kosong' },
+    if (pesanan.mejaId) {
+      await finalizeReservasiUntukMeja(pesanan.mejaId, "batal", { client: tx })
+      await tx.meja.update({
+        where: { id: pesanan.mejaId },
+        data: { statusMeja: 'kosong' },
+      })
+    }
   })
 
   await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderUpdated, {})

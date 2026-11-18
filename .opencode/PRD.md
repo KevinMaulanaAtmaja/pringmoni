@@ -122,12 +122,24 @@
 
 | PBI | Deskripsi | Status |
 |-----|----------|--------|
-| PBI-7.1 | Reservasi pesanan (offline) | Todo |
+| PBI-7.1 | Reservasi pesanan (offline) | Done |
 | PBI-7.2 | Ganti meja (pindah pesanan antar meja) | Todo |
 | PBI-7.3 | Pergantian shift kasir | Done |
 | PBI-7.4 | Auto-kosongkan meja + pesanan (pesanan selesai / pesanan lama dibayar) | Done |
 | PBI-7.5 | Refund + bukti foto | Done |
 
+> Catatan PBI-7.1: Reservasi offline dikelola dari `/dashboard/reservasi` **hanya oleh CASHIER** (owner/waiter tidak punya akses). Meja di-hold dengan status `dipesan` tanpa memotong stok. Konfirmasi kedatangan membuat pesanan dan memotong `menu.stokManual` dalam satu transaksi. Reservasi yang melewati `batasKonfirmasi` otomatis menjadi `expired` dan meja dikembalikan ke `kosong`. Detail teknis: `.opencode/RESERVASI_PLAN.md` dan `.opencode/RESERVASI_IMPLEMENTATION.md`.
+>
+> Catatan penandaan meja: `/dashboard/meja` menampilkan tanda/status pada meja ber-token QR — badge mark di kolom QR (`Dipesan`/`Terpakai`) saat status bukan `kosong`, serta dialog QR menampilkan badge status dan frame berwarna (hijau `kosong` → merah `terpakai` / amber `dipesan`). Server action `getMeja` kini mengembalikan `reservasiAktif` terbaru per meja.
+>
+> Jadwal reservasi saat ini **tetap** (belum dapat diatur owner): jam buka 13:00, kedatangan terakhir 20:30, jam tutup 21:00, slot tiap 30 menit, maksimal 7 hari ke depan. `batasKonfirmasi` DP dihitung dari waktu kedatangan + expiry (default 3 jam) tetapi **di-cap pada jam tutup 21:00** hari yang sama. Rencana pengaturan jam oleh owner ada di `.opencode/RESERVASI_PLAN.md` §8 (status: rencana, belum diimplementasi).
+>
+> Reservasi customer memakai **link umum** `/reservasi/PRINGSEWU26` (kode akses publik di `src/lib/reservasi-akses.ts`, bukan token meja). Customer memilih sendiri meja yang masih kosong — termasuk meja yang belum punya QR — lalu server memvalidasi ulang status meja secara transaksional. Rentang tanggal = hari ini s/d H+7 (**8 tanggal**, dihitung ulang saat melewati tengah malam). Pemilih bulan/tahun manual dihapus; cukup chip tanggal. Link lama per meja (`/reservasi/<tokenMeja>`) tidak dipakai lagi.
+>
+> Tampilan **Reservasi Berhasil** dipisah dari form ke halaman `/reservasi/<kodeAkses>/cek`. Setelah reservasi dibuat, customer diarahkan ke halaman ini dan detailnya diambil dari `sessionStorage` (`src/lib/reservasi-hasil.ts`). Untuk melihat reservasi lagi (mis. di perangkat lain), halaman ini memakai **popup** "Cek Reservasi" — input kode reservasi + nomor HP via `cekStatusReservasi` — bukan halaman cek status tersendiri. Tombol kembali memunculkan dialog peringatan ("kode tidak akan tampil lagi") lalu mengarahkan ke form reservasi. Route lama `/reservasi/status` kini hanya **redirect** ke halaman cek.
+>
+> Halaman reservasi customer juga menyediakan: tombol **Unduh QRIS** pada langkah bayar DP (menyimpan gambar QRIS statis ke perangkat), opsi **Meja Bebas** yang bisa dipilih (sistem otomatis memilih meja kosong paling pas, termasuk meja Tanpa QR; grup yang lebih besar dari kapasitas satu meja tetap bisa — resto menggabungkan meja, dan server melewati cek kapasitas untuk mode ini), serta pratinjau keranjang pre-order berupa **panel melayang di kanan** pada desktop (maks 5 item + tombol lihat menu lain, tiap item bisa ditambah/dikurangi langsung) dan sheet bawah pada mobile (maks 5 item + tombol lihat menu lain).
+>
 > Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan). Ditambah lagi, saat lewat tengah malam (00:00) sisa pesanan aktif yang belum dibayar ikut dibatalkan otomatis oleh `getNotifikasiTerlambat()` — lihat PBI-8.4.
 >
 > Catatan PBI-7.3 (pembagian hak akses shift):
@@ -156,8 +168,9 @@
 > otomatis dibatalkan + mejanya dikosongkan (`CANCEL_ORDER_EXPIRED`), sehingga tidak
 > menggantung selamanya seperti sebelumnya. Pesanan yang **sudah dibayar** tidak
 > dibatalkan otomatis (perlu refund manual) — hanya dikeluarkan dari daftar notifikasi.
-> Sumber data tunggal: `src/app/actions/notifikasi.ts` → `getNotifikasiTerlambat()`
-> (dipakai bersama oleh lonceng header dan banner `StaleOrdersWarning` di `/dashboard`).
+> Sumber data tunggal: `src/app/actions/notifikasi.ts` → `getNotifikasiDashboard()`,
+> ditampilkan lewat lonceng header (`StaleNotificationBell`). Banner terpisah di
+> `/dashboard` sudah dihapus agar tidak duplikat.
 
 ### Modul 9: Non-Fungsional & Pengujian
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*

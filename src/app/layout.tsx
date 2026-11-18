@@ -38,7 +38,7 @@ export default function RootLayout({
       <body suppressHydrationWarning className="min-h-full flex flex-col pb-10">
         <Providers>{children}</Providers>
         <Footer />
-        <AgentationToolbar />
+        {process.env.NODE_ENV === "development" && <AgentationToolbar />}
       </body>
     </html>
   );

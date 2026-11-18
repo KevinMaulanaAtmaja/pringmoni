@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { getQrisStaticUrl } from "@/lib/qris-static"
 import { requireShiftAktif } from "@/lib/shift"
+import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 import { MetodePembayaran } from "@/types"
 import { StatusPesanan, Prisma } from "@prisma/client"
@@ -75,6 +76,7 @@ export async function getPesananBelumBayar() {
     statusPesanan: p.statusPesanan,
     statusPembayaran: p.statusPembayaran,
     totalHarga: Number(p.totalHarga),
+    dpNominal: Number(p.dpNominal),
     biayaAdmin: p.biayaAdmin ? Number(p.biayaAdmin) : null,
     ppn: p.ppn ? Number(p.ppn) : null,
     metodePembayaran: p.metodePembayaran,
@@ -191,6 +193,7 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
       statusPesanan: p.statusPesanan,
       statusPembayaran: p.statusPembayaran,
       totalHarga: Number(p.totalHarga),
+      dpNominal: Number(p.dpNominal),
       biayaAdmin: p.biayaAdmin ? Number(p.biayaAdmin) : null,
       ppn: p.ppn ? Number(p.ppn) : null,
       metodePembayaran: p.metodePembayaran as MetodePembayaran,
@@ -242,17 +245,19 @@ export async function prosesPembayaranTunai(
     }
 
     const totalHarga = Number(pesanan.totalHarga)
-    const kembalian = jumlahBayar - totalHarga
+    const dpNominal = Number(pesanan.dpNominal)
+    const sisaTagihan = Math.max(0, totalHarga - dpNominal)
+    const kembalian = jumlahBayar - sisaTagihan
 
     if (kembalian < 0) {
-      return { error: "Jumlah bayar kurang dari total harga" }
+      return { error: "Jumlah bayar kurang dari sisa tagihan" }
     }
 
     await prisma.pesanan.update({
       where: { id: pesananId },
       data: {
         metodePembayaran: 'tunai',
-        jumlahBayar: jumlahBayar,
+        jumlahBayar: jumlahBayar + dpNominal,
         kembalian: kembalian,
         biayaAdmin: 0,
         ppn: 0,
@@ -265,7 +270,7 @@ export async function prosesPembayaranTunai(
       },
     })
 
-    await createLog('PROCESS_PAYMENT', `Pembayaran tunai pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')}, kembalian Rp${kembalian.toLocaleString('id-ID')} (shift #${shift.shiftId})`)
+    await createLog('PROCESS_PAYMENT', `Pembayaran tunai pesanan #${pesananId}: Rp${sisaTagihan.toLocaleString('id-ID')}${dpNominal > 0 ? ` (DP Rp${dpNominal.toLocaleString('id-ID')})` : ''}, kembalian Rp${kembalian.toLocaleString('id-ID')} (shift #${shift.shiftId})`)
 
     await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderPaid, {})
 
@@ -303,8 +308,9 @@ export async function prosesPembayaranQRIS(pesananId: number) {
   }
 
   const totalHarga = Number(pesanan.totalHarga)
+  const dpNominal = Number(pesanan.dpNominal)
   const adminFee = 0
-  const grandTotal = totalHarga + adminFee
+  const grandTotal = Math.max(0, totalHarga - dpNominal) + adminFee
 
   // QRIS statis — kasir verifikasi pembayaran secara manual, langsung berhasil
   await prisma.pesanan.update({
@@ -323,7 +329,7 @@ export async function prosesPembayaranQRIS(pesananId: number) {
     },
   })
 
-  await createLog('PROCESS_PAYMENT', `Pembayaran QRIS pesanan #${pesananId}: Rp${totalHarga.toLocaleString('id-ID')} (shift #${shift.shiftId})`)
+  await createLog('PROCESS_PAYMENT', `Pembayaran QRIS pesanan #${pesananId}: Rp${grandTotal.toLocaleString('id-ID')}${dpNominal > 0 ? ` (DP Rp${dpNominal.toLocaleString('id-ID')})` : ''} (shift #${shift.shiftId})`)
 
   await triggerPusher(ORDERS_CHANNEL, PESANAN_EVENTS.orderPaid, {})
 
@@ -350,6 +356,7 @@ export async function getPembayaranInfo(pesananId: number) {
     nomorMeja: pesanan.meja.nomorMeja,
     namaPelanggan: pesanan.namaPelanggan,
     totalHarga: Number(pesanan.totalHarga),
+    dpNominal: Number(pesanan.dpNominal),
     biayaAdmin: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : 0,
     ppn: pesanan.ppn ? Number(pesanan.ppn) : 0,
     metodePembayaran: pesanan.metodePembayaran,
@@ -394,6 +401,8 @@ export async function selesaikanPesananKasir(pesananId: number) {
       where: { id: pesanan.mejaId },
       data: { statusMeja: 'kosong' },
     })
+
+    await finalizeReservasiUntukMeja(pesanan.mejaId, "selesai", { client: tx })
   })
 
   await createLog('UPDATE_ORDER_STATUS', `Pesanan #${pesananId} ditandai selesai oleh kasir — meja dikosongkan`)
@@ -488,6 +497,8 @@ export async function konfirmasiPembayaran(pesananId: number) {
       data: {
         statusPembayaran: 'berhasil',
         statusPesanan: 'diproses' as StatusPesanan,
+        jumlahBayar: Math.max(0, Number(pesanan.totalHarga) - Number(pesanan.dpNominal)),
+        kembalian: 0,
         kasirId: parseInt(session.user.id),
         shiftId: shift.shiftId,
         updatedAt: new Date(),
@@ -526,22 +537,25 @@ export async function batalkanPesananKasir(pesananId: number) {
     return { error: "Tidak bisa membatalkan pesanan yang sudah dibayar" }
   }
 
-  await prisma.pesanan.update({
-    where: { id: pesananId },
-    data: {
-      statusPembayaran: 'dibatalkan',
-      statusPesanan: 'dibatalkan',
-      kasirId: parseInt(session.user.id),
-      catatan: 'Dibatalkan kasir',
-    },
-  })
-
-  if (pesanan.mejaId) {
-    await prisma.meja.update({
-      where: { id: pesanan.mejaId },
-      data: { statusMeja: 'kosong' },
+  await prisma.$transaction(async (tx) => {
+    await tx.pesanan.update({
+      where: { id: pesananId },
+      data: {
+        statusPembayaran: 'dibatalkan',
+        statusPesanan: 'dibatalkan',
+        kasirId: parseInt(session.user.id),
+        catatan: 'Dibatalkan kasir',
+      },
     })
-  }
+
+    if (pesanan.mejaId) {
+      await finalizeReservasiUntukMeja(pesanan.mejaId, "batal", { client: tx })
+      await tx.meja.update({
+        where: { id: pesanan.mejaId },
+        data: { statusMeja: 'kosong' },
+      })
+    }
+  })
 
   await createLog('CANCEL_ORDER_KASIR', `Pesanan #${pesananId} dibatalkan oleh kasir (via halaman kasir)`)
 
@@ -617,7 +631,7 @@ export async function generateQRISCode(pesananId: number) {
   return {
     success: true,
     qrUrl: getQrisStaticUrl(),
-    totalBayar: totalHarga,
+    totalBayar: Math.max(0, totalHarga - Number(pesanan.dpNominal)),
     adminFee: 0,
     expiryMenit: 60,
   }
@@ -645,7 +659,7 @@ export async function confirmQrisPayment(pesananId: number) {
   await prisma.pesanan.update({
     where: { id: pesananId },
     data: {
-      jumlahBayar: Number(pesanan.totalHarga),
+      jumlahBayar: Math.max(0, Number(pesanan.totalHarga) - Number(pesanan.dpNominal)),
       kembalian: 0,
       statusPembayaran: 'berhasil',
       statusPesanan: 'diproses',

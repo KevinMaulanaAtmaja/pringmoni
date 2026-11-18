@@ -74,6 +74,7 @@ interface PesananDetail {
   status_pesanan: string
   status_pembayaran: string
   total_harga: number
+  dp_nominal?: number
   biaya_admin: number | null
   ppn: number | null
   metode_pembayaran?: string | null
@@ -896,6 +897,12 @@ export default function PesananPage() {
                       <span className="text-gray-500">Subtotal</span>
                       <span>Rp {Number(selectedPesanan.total_harga).toLocaleString("id-ID")}</span>
                     </div>
+                    {(Number(selectedPesanan.dp_nominal) || 0) > 0 && (
+                      <div className="flex justify-between text-emerald-700">
+                        <span>DP Reservasi (Lunas)</span>
+                        <span>- Rp {Number(selectedPesanan.dp_nominal).toLocaleString("id-ID")}</span>
+                      </div>
+                    )}
                     {(Number(selectedPesanan.biaya_admin) || 0) > 0 && (
                       <div className="flex justify-between">
                         <span className="text-gray-500">Biaya Admin</span>
@@ -909,8 +916,10 @@ export default function PesananPage() {
                       </div>
                     )}
                     <div className="flex justify-between font-semibold border-t pt-1">
-                      <span>Total</span>
-                      <span>Rp {(Number(selectedPesanan.total_harga) + (Number(selectedPesanan.biaya_admin) || 0) + (Number(selectedPesanan.ppn) || 0)).toLocaleString("id-ID")}</span>
+                      <span>{(Number(selectedPesanan.dp_nominal) || 0) > 0 ? "Sisa Tagihan Pelunasan" : "Total"}</span>
+                      <span className={(Number(selectedPesanan.dp_nominal) || 0) > 0 ? "text-emerald-700 font-bold" : ""}>
+                        Rp {(Math.max(0, Number(selectedPesanan.total_harga) - (Number(selectedPesanan.dp_nominal) || 0)) + (Number(selectedPesanan.biaya_admin) || 0) + (Number(selectedPesanan.ppn) || 0)).toLocaleString("id-ID")}
+                      </span>
                     </div>
                   </div>
                </div>
@@ -927,6 +936,7 @@ export default function PesananPage() {
                     catatan: i.catatan_item,
                   })),
                   totalHarga: Number(selectedPesanan.total_harga),
+                  dpNominal: Number(selectedPesanan.dp_nominal || 0),
                   adminFee: selectedPesanan.biaya_admin ? Number(selectedPesanan.biaya_admin) : undefined,
                   ppn: selectedPesanan.ppn ? Number(selectedPesanan.ppn) : undefined,
                   metodePembayaran: selectedPesanan.metode_pembayaran,

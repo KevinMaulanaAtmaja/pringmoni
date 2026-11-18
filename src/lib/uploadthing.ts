@@ -22,6 +22,15 @@ export const ourFileRouter = {
         key: file.key
       };
     }),
+  dpBukti: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+    .onUploadComplete(({ file }) => {
+      console.log("Upload complete:", file.url, "key:", file.key);
+      return {
+        success: true,
+        url: file.url,
+        key: file.key
+      };
+    }),
 } as FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;

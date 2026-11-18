@@ -28,9 +28,11 @@
     }
   },
   "mcp": {
+    // NOTE: di Windows, spawn("npx") tanpa shell gagal (ENOENT) -> MCP "server unavailable".
+    // Wajib dibungkus `cmd /c` (atau pakai node + path absolut ke dist/cli.js).
     "agentation": {
       "type": "local",
-      "command": ["npx", "-y", "agentation-mcp", "server", "--host", "0.0.0.0"],
+      "command": ["cmd", "/c", "npx", "-y", "agentation-mcp", "server", "--host", "0.0.0.0"],
       "enabled": true
     }
   }
