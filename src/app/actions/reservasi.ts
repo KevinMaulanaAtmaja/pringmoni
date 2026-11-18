@@ -46,7 +46,6 @@ async function requireReservasiRole() {
   if (!ALLOWED_ROLES.includes(role as typeof ALLOWED_ROLES[number])) {
     return { error: "Hanya owner/kasir/waiter yang bisa mengelola reservasi" as const }
   }
-  }
   return { session }
 }
 

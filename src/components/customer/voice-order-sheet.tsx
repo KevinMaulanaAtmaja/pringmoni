@@ -38,7 +38,7 @@ export function VoiceOrderSheet({
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const pernahMendengar = useRef(false)
-    const { transkrip, listening, didukung, error: errorVoice, mulaiDengar, berhentiDengar, reset } = useVoiceInput()
+    const { transkrip, listening, menyiapkan, didukung, error: errorVoice, mulaiDengar, berhentiDengar, reset } = useVoiceInput()
 
     const ambilRekomendasi = useCallback(async (teks: string) => {
         const bersih = teks.trim()
@@ -167,28 +167,32 @@ export function VoiceOrderSheet({
                         <button
                             type="button"
                             onClick={listening ? handleBerhentiDengar : handleMulaiDengar}
-                            disabled={!didukung || loading}
-                            aria-label={listening ? "Hentikan perekaman suara" : "Mulai bicara"}
+                            disabled={!didukung || loading || menyiapkan}
+                            aria-label={menyiapkan ? "Menyiapkan model suara" : listening ? "Hentikan perekaman suara" : "Mulai bicara"}
                             className={`flex size-16 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
                                 listening
                                     ? "bg-destructive text-destructive-foreground animate-pulse"
                                     : "bg-primary text-primary-foreground"
                             }`}
                         >
-                            {listening ? <MicOff className="size-7" /> : <Mic className="size-7" />}
+                            {menyiapkan ? <Loader2 className="size-7 animate-spin" /> : listening ? <MicOff className="size-7" /> : <Mic className="size-7" />}
                         </button>
                         <p className="text-sm font-medium">
-                            {listening ? "Mendengarkan... Tekan untuk menghentikan" : "Tekan dan ceritakan yang Anda inginkan"}
+                            {menyiapkan
+                                ? "Menyiapkan model suara..."
+                                : listening
+                                    ? "Mendengarkan... Tekan untuk menghentikan"
+                                    : "Tekan dan ceritakan yang Anda inginkan"}
                         </p>
                         <p className="text-center text-xs text-muted-foreground">
                             Contoh: &ldquo;Aduh panas, enaknya yang seger&rdquo;
                         </p>
                     </div>
 
-                    {!didukung && audio.didukung && (
+                    {(!didukung || Boolean(errorVoice)) && audio.didukung && (
                         <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-dashed px-3 py-3">
                             <p className="text-center text-xs text-muted-foreground">
-                                Rekam audio lalu unggah (cadangan untuk iOS)
+                                Rekam audio lalu unggah (cadangan untuk Firefox, Zen, dan iOS)
                             </p>
                             <Button
                                 type="button"

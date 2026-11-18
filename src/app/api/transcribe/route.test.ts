@@ -5,6 +5,7 @@ import { POST } from "./route"
 vi.mock("@/lib/rate-limiter", () => ({ consumeRateLimit: vi.fn() }))
 
 const apiKeyAwal = process.env.GROQ_API_KEY
+const apiKeyGeminiAwal = process.env.GEMINI_API_KEY
 
 function buatRequest(tokenMeja: string | null = "meja-abc", audio: Blob | null = new Blob(["audio"], { type: "audio/webm" })): Request {
   const form = new FormData()
@@ -21,10 +22,19 @@ function responsGroq(teks: string, ok = true, status = 200): Response {
   } as unknown as Response
 }
 
+function responsGemini(teks: string, ok = true, status = 200): Response {
+  return {
+    ok,
+    status,
+    json: async () => ({ candidates: [{ content: { parts: [{ text: teks }] } }] }),
+  } as unknown as Response
+}
+
 describe("POST /api/transcribe", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.GROQ_API_KEY = "groq-test-key"
+    delete process.env.GEMINI_API_KEY
     vi.mocked(consumeRateLimit).mockReturnValue({
       allowed: true,
       remainingAttempts: 4,
@@ -39,6 +49,11 @@ describe("POST /api/transcribe", () => {
       delete process.env.GROQ_API_KEY
     } else {
       process.env.GROQ_API_KEY = apiKeyAwal
+    }
+    if (apiKeyGeminiAwal === undefined) {
+      delete process.env.GEMINI_API_KEY
+    } else {
+      process.env.GEMINI_API_KEY = apiKeyGeminiAwal
     }
   })
 
@@ -80,12 +95,56 @@ describe("POST /api/transcribe", () => {
     expect(response.headers.get("Retry-After")).toBe("30")
   })
 
-  it("mengembalikan 503 bila GROQ_API_KEY tidak ada", async () => {
+  it("mengembalikan 503 bila GROQ_API_KEY dan GEMINI_API_KEY tidak ada", async () => {
     delete process.env.GROQ_API_KEY
+    delete process.env.GEMINI_API_KEY
 
     const response = await POST(buatRequest())
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({ error: "Transkripsi audio belum tersedia. Silakan ketik manual." })
+  })
+
+  it("memakai Gemini bila GROQ_API_KEY tidak ada", async () => {
+    delete process.env.GROQ_API_KEY
+    process.env.GEMINI_API_KEY = "gemini-test-key"
+    const fetchMock = vi.fn().mockResolvedValue(responsGemini("Aduh gerah, mau yang dingin"))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const response = await POST(buatRequest())
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ transkrip: "Aduh gerah, mau yang dingin" })
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain("generativelanguage.googleapis.com")
+    expect(url).toContain("gemini-3.5-flash-lite")
+    expect((init.headers as Record<string, string>)["x-goog-api-key"]).toBe("gemini-test-key")
+    const body = JSON.parse(String(init.body)) as {
+      contents: Array<{ parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> }>
+    }
+    const parts = body.contents[0].parts
+    expect(parts.some((part) => part.inlineData?.mimeType === "audio/webm")).toBe(true)
+  })
+
+  it("jatuh ke Gemini saat Groq gagal", async () => {
+    process.env.GEMINI_API_KEY = "gemini-test-key"
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(responsGroq("", false, 429))
+      .mockResolvedValueOnce(responsGemini("Pesan dari Gemini"))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const response = await POST(buatRequest())
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ transkrip: "Pesan dari Gemini" })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("mengembalikan 502 saat Gemini gagal", async () => {
+    delete process.env.GROQ_API_KEY
+    process.env.GEMINI_API_KEY = "gemini-test-key"
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(responsGemini("", false, 500)))
+
+    const response = await POST(buatRequest())
+    expect(response.status).toBe(502)
   })
 
   it("mengembalikan 502 saat Groq gagal", async () => {
