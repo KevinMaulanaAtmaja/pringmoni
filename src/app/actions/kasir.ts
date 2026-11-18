@@ -176,7 +176,7 @@ export async function getPesananRiwayatKasir(filter?: { period?: 'today' | 'week
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: 300,
     }),
     prisma.users.findMany({
       where: { role: 'cashier', status: true },

@@ -3,6 +3,7 @@
 import crypto from "crypto"
 import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 import { cache } from "react"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
@@ -12,6 +13,7 @@ import { Prisma, StatusPesanan, StatusBayar, StatusMeja, MetodePembayaran, Statu
 import { getKategoriMenus } from "./menu"
 import { potongStokDapur } from "@/lib/stok"
 import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
+import { refreshMatriksSimilarity } from "@/lib/spk/refresh-similarity"
 
 import { hitungPotonganDiskon } from "@/lib/voucher"
 
@@ -316,6 +318,14 @@ export async function createPesanan(data: CreatePesananData) {
 
   revalidatePath("/dashboard/pesanan")
   revalidatePath(`/${tokenMeja}`)
+
+  after(async () => {
+    try {
+      await refreshMatriksSimilarity({ cooldownMs: 60_000 })
+    } catch (error) {
+      console.error("Auto refresh matriks CF gagal:", error)
+    }
+  })
 
   return { success: true, orderId: pesanan.midtransOrderId, id: pesanan.id }
 }

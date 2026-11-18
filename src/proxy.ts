@@ -42,6 +42,12 @@ const CUSTOMER_TOKEN_PATTERN = /^[a-zA-Z0-9-]+$/
 const CUSTOMER_SUBPATH_PATTERN =
   /^(pesanan|checkout|pembayaran|pembayaran-langkah)(\/.*)?$/
 
+// Server Actions are POST requests to the page route. Redirecting one to an
+// HTML page makes the client throw "An unexpected response was received from
+// the server." Bypass only routes whose Server Actions already enforce auth
+// themselves, so unauthorised calls still get a normal action error.
+const SERVER_ACTION_BYPASS = new Set(["/dashboard/reservasi"])
+
 function isRoleUser(value: unknown): value is RoleUser {
   return (
     typeof value === "string" &&
@@ -96,6 +102,24 @@ export async function proxy(request: NextRequest) {
   const userRole: RoleUser | undefined = normalizeRoleValue(rawRole)
   const hasValidRole = userRole !== undefined
   const takenOver = session?.user?.takenOver === true
+  const isServerAction =
+    request.method === "POST" && request.headers.has("next-action")
+  const bypassServerAction =
+    isServerAction && SERVER_ACTION_BYPASS.has(pathname)
+
+  // Server Action: beri kesempatan action sendiri mengembalikan error auth
+  // (bukan redirect HTML yang membuat client melempar E394).
+  if (bypassServerAction) {
+    const res = NextResponse.next()
+    if (takenOver) {
+      for (const cookie of request.cookies.getAll()) {
+        if (cookie.name.startsWith("authjs.") || cookie.name.startsWith("__Secure-authjs.")) {
+          res.cookies.delete(cookie.name)
+        }
+      }
+    }
+    return res
+  }
 
   // Sesi ini sudah digantikan login dari perangkat lain -> hapus cookie sesi
   // lalu arahkan ke login. Dikecualikan untuk halaman login itu sendiri supaya

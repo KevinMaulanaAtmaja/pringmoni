@@ -301,6 +301,29 @@
 - Uji manual E2E: slot customer 13:00–20:30, tolak slot di luar jam, cap DP 21:00, reservasi offline di luar jam ditolak.
 - Commit/PR (belum diminta user).
 
+# PROGRESS - Sesi 2026-11-15 (Refund & Polish Reservasi)
+
+> Branch `feature/refund-reservasi-polish`, di atas `feat/reservasi-customer-qr` (`0aa78f9`).
+
+## SELESAI
+
+- Refund: batas 3 hari (`src/lib/refund.ts`), validasi server di `ajukanRefund`, tombol refund tetap tampil di Riwayat Pesanan (disabled jika lewat 3 hari), dihapus dari tabel Riwayat Kasir, refund kasir hanya dari detail pesanan aktif.
+- Pesanan Aktif hanya menampilkan pesanan 24 jam terakhir; riwayat kasir mengambil 300 baris agar bukti refund lama tetap terjangkau.
+- Reservasi: form staf 3 langkah (detail -> menu -> DP), chip acara + catatan terstruktur (`src/lib/reservasi-catatan.ts`), penekanan sisa pelunasan; halaman customer menyesuaikan alur dan catatan.
+- Auth/proxy: bypass server action `/dashboard/reservasi` + guard `takenOver` agar tidak memicu E394.
+- Hidrasi: sanitizer atribut `bis_skin_checked` via `next/script` `beforeInteractive` di root layout.
+
+## VERIFIKASI
+
+- `npm run lint` 0 error (warning pre-existing).
+- `npx tsc --noEmit` 0 error.
+- `npm test` 24/24 passed.
+- `npm run graph:update` dijalankan.
+
+## BELUM
+
+- Uji manual end-to-end refund & reservasi.
+
 ---
 
 # PROGRESS - Sesi 2026-11-04 (Reservasi PBI-7.1)
@@ -498,3 +521,23 @@
 - Panel keranjang desktop digeser lebih turun (`top-[9rem]`) dan hanya menampilkan maksimal 5 item; tombol `Lihat N menu lain` / `Sembunyikan menu lain` untuk membuka sisanya.
 - Panel keranjang desktop digeser lebih turun lagi (`top-[11rem]`, list `max-h-[calc(100vh-20rem)]`); batas 5 item + tombol lihat menu lain juga diterapkan di sheet mobile.
 - Meja Bebas tidak lagi dibatasi kapasitas satu meja: input jumlah orang bebas, sistem memilih meja terbesar yang kosong, dan server melewati cek kapasitas saat `mejaBebas` true (catatan reservasi otomatis ditandai `Meja bebas (resto pilihkan)`).
+
+## 🎙️ Voice Order + SPK (F1-F5)
+- F1-F3 selesai: tokenizer/CBF, item-CF + `npm run seed:similarity`, endpoint `POST /api/rekomendasi` dengan Gemini NLU, fallback leksikon, rate limit `voice`, dan scoring hybrid 60/30/10.
+- F4 selesai: `src/hooks/use-voice-input.ts`, `src/components/customer/voice-order-sheet.tsx`, tombol mic di kiosk customer, tambah rekomendasi ke keranjang.
+- F5 selesai:
+  - Voice-search dashboard di `src/components/dashboard/voice-search-button.tsx`, dipasang di filter `src/app/dashboard/pesanan/page.tsx` (tanpa biaya API).
+  - Cadangan iOS: `src/hooks/use-audio-transcribe.ts` + `POST /api/transcribe` memakai Groq `whisper-large-v3-turbo`, rate limit namespace `transcribe` (5/10 menit), batas 25 MB.
+  - `.env.example` ditambah `GROQ_API_KEY` (opsional; tanpa key user diarahkan ketik manual).
+- Auto refresh CF:
+  - `src/lib/spk/build-similarity.ts`: perhitungan matriks dipakai bersama oleh script dan runtime.
+  - `src/lib/spk/refresh-similarity.ts`: refresh sekalian update memori `cf.ts`, ada lock + cooldown.
+  - `src/lib/spk/cf.ts`: `setMatriksSimilarity()` agar perubahan JSON/matriks langsung dipakai tanpa restart di proses yang sama.
+  - `src/app/actions/pesanan.ts`: `after()` memicu refresh otomatis setelah order berhasil (cooldown 60 detik).
+  - `src/app/api/cron/similarity/route.ts` + `vercel.json`: schedule tiap 15 menit, dilindungi `CRON_SECRET`.
+  - `.env.example`: `CRON_SECRET` ditambahkan.
+- Verifikasi: `npm test` 75 passed, `npx tsc --noEmit` bersih, `npm run lint -- --quiet` bersih.
+- `npm run build` sukses saat dev server mati; route `/api/cron/similarity` terbentuk; `.next` dibersihkan setelahnya agar dev server membangun ulang artefaknya.
+- `npm run graph:update` sudah dijalankan setelah perubahan cron.
+- Uji live saat dev server aktif: `GET /api/cron/similarity` → 200 (28 menu, 52 pasangan, tersimpan); `POST /api/rekomendasi` → 200 (mood `panas`, 4 rekomendasi).
+- Belum: uji manual precision@4 dengan data pesanan nyata.

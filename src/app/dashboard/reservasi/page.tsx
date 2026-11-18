@@ -24,6 +24,11 @@ import {
 import { getMenusForCustomer } from "@/app/actions/pesanan"
 import { getKategoriMenus } from "@/app/actions/menu"
 import { hitungRincianDp, DP_PERSEN } from "@/lib/dp"
+import {
+  ACARA_RESERVASI,
+  gabungCatatanReservasi,
+  pisahCatatanReservasi,
+} from "@/lib/reservasi-catatan"
 
 type StatusFilter = "all" | "menunggu_kedatangan" | "dikonfirmasi" | "batal" | "expired"
 
@@ -154,9 +159,10 @@ export default function ReservasiPage() {
     dpMetode: "tunai",
   })
   const [reservasiItems, setReservasiItems] = useState<ReservasiItemDraft[]>([])
+  const [acaraReservasi, setAcaraReservasi] = useState("")
   const [menuSearch, setMenuSearch] = useState("")
   const [activeKategori, setActiveKategori] = useState("Semua")
-  const [reservasiStep, setReservasiStep] = useState<1 | 2>(1)
+  const [reservasiStep, setReservasiStep] = useState<1 | 2 | 3>(1)
   const [submittingReservasi, setSubmittingReservasi] = useState(false)
   const [filterText, setFilterText] = useState("")
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("all")
@@ -329,6 +335,7 @@ export default function ReservasiPage() {
   function resetFormReservasi() {
     setReservasiForm({ mejaId: "", namaPelanggan: "", noHp: "", jumlahOrang: "2", waktuKedatangan: "", catatan: "", dpMetode: "tunai" })
     setReservasiItems([])
+    setAcaraReservasi("")
     setMenuSearch("")
     setActiveKategori("Semua")
     setReservasiStep(1)
@@ -344,6 +351,14 @@ export default function ReservasiPage() {
       return
     }
     setReservasiStep(2)
+  }
+
+  function handleLanjutTampilanDp() {
+    if (reservasiItems.length === 0) {
+      showNotice("error", "Pilih minimal 1 menu pre-order")
+      return
+    }
+    setReservasiStep(3)
   }
 
   async function handleCreateReservasi() {
@@ -366,7 +381,7 @@ export default function ReservasiPage() {
         noHp: reservasiForm.noHp || null,
         jumlahOrang: parseInt(reservasiForm.jumlahOrang) || 2,
         waktuKedatangan: new Date(reservasiForm.waktuKedatangan).toISOString(),
-        catatan: reservasiForm.catatan || null,
+        catatan: gabungCatatanReservasi(acaraReservasi, reservasiForm.catatan),
         items,
         dpMetode: reservasiForm.dpMetode as "tunai" | "qris" | "transfer",
       })
@@ -577,6 +592,11 @@ export default function ReservasiPage() {
                         Online
                       </Badge>
                     )}
+                    {pisahCatatanReservasi(r.catatan).acara && (
+                      <Badge variant="outline" className="border-violet-300 bg-violet-50 text-violet-700">
+                        {pisahCatatanReservasi(r.catatan).acara}
+                      </Badge>
+                    )}
                   </div>
                   {r.kodeReservasi && (
                     <p className="text-xs text-gray-500 font-mono mt-0.5">{r.kodeReservasi}</p>
@@ -743,11 +763,28 @@ export default function ReservasiPage() {
                 </span>
                 Pilih Menu
               </span>
+              <span className="h-px w-6 bg-gray-200" />
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                  reservasiStep === 3 ? "text-green-700" : "text-gray-400"
+                }`}
+              >
+                <span
+                  className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    reservasiStep === 3
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  3
+                </span>
+                DP &amp; Pelunasan
+              </span>
             </div>
           </DialogHeader>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
-            {reservasiStep === 1 ? (
+            {reservasiStep === 1 && (
             <div className="max-w-3xl mx-auto">
               {/* Kotak 1: Detail Reservasi */}
               <section className="rounded-xl border bg-white p-4 space-y-3">
@@ -812,10 +849,32 @@ export default function ReservasiPage() {
                       onChange={(e) => setReservasiForm({ ...reservasiForm, waktuKedatangan: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-1 col-span-2">
+                  <div className="space-y-1.5 col-span-2">
                     <Label>Catatan</Label>
+                    <p className="text-[11px] text-gray-500">
+                      Opsional. Pilih jenis acara jika ada, lalu tambahkan detail kebutuhan.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ACARA_RESERVASI.map((acara) => (
+                        <button
+                          key={acara}
+                          type="button"
+                          onClick={() =>
+                            setAcaraReservasi((prev) => (prev === acara ? "" : acara))
+                          }
+                          className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                            acaraReservasi === acara
+                              ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 text-gray-600 hover:border-gray-300"
+                          }`}
+                        >
+                          {acara}
+                        </button>
+                      ))}
+                    </div>
                     <textarea
                       className="border rounded-lg p-2 text-sm w-full min-h-16 outline-none focus:border-green-400"
+                      placeholder="Detail kebutuhan, mis. dekat jendela, butuh kursi bayi..."
                       value={reservasiForm.catatan}
                       onChange={(e) => setReservasiForm({ ...reservasiForm, catatan: e.target.value })}
                     />
@@ -823,7 +882,9 @@ export default function ReservasiPage() {
                 </div>
               </section>
             </div>
-            ) : (
+            )}
+
+            {reservasiStep === 2 && (
             <div className="space-y-4">
               {/* Kotak 2: Pilih Menu Pre-order */}
               <section className="rounded-xl border bg-white flex flex-col min-h-0 overflow-hidden">
@@ -1030,12 +1091,16 @@ export default function ReservasiPage() {
                 </div>
               )}
             </section>
+            </div>
+            )}
 
+            {reservasiStep === 3 && (
+            <div className="space-y-4">
             {/* Kotak 4: DP 20% */}
             <section className="rounded-xl border bg-white overflow-hidden shadow-xs">
               <div className="flex items-center justify-between px-4 py-3 border-b bg-emerald-50/50">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-heading text-sm font-semibold text-gray-900">Uang Muka (DP 20%)</h3>
+                  <h3 className="font-heading text-sm font-semibold text-gray-900">DP &amp; Pelunasan</h3>
                   <Badge className="bg-emerald-600 text-white text-[11px]">Wajib 20%</Badge>
                 </div>
                 <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px]">
@@ -1077,9 +1142,29 @@ export default function ReservasiPage() {
                   </div>
                 </div>
 
+                <div className="rounded-xl border-2 border-amber-500/50 bg-amber-50/80 p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                        Sisa Pelunasan Saat Kedatangan
+                      </p>
+                      <p className="text-[11px] text-amber-700">
+                        Dibayar saat pelanggan tiba di resto
+                      </p>
+                    </div>
+                    <span className="text-2xl font-extrabold text-amber-800">
+                      {formatRupiah(sisaTagihan)}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between text-sm pt-1 border-t">
-                  <span className="text-gray-600">Sisa Pelunasan Saat Kedatangan</span>
-                  <span className="font-semibold text-gray-900">{formatRupiah(sisaTagihan)}</span>
+                  <span className="text-gray-600">
+                    Total Bayar <span className="text-gray-400">(DP + pelunasan)</span>
+                  </span>
+                  <span className="font-semibold text-gray-900">
+                    {formatRupiah(dpNominal + sisaTagihan)}
+                  </span>
                 </div>
 
                 <div className="pt-1">
@@ -1113,7 +1198,7 @@ export default function ReservasiPage() {
               reservasiStep === 1 ? "sm:justify-end" : "sm:justify-between"
             }`}
           >
-            {reservasiStep === 1 ? (
+            {reservasiStep === 1 && (
               <>
                 <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Batal
@@ -1122,16 +1207,41 @@ export default function ReservasiPage() {
                   Lanjut Pilih Menu <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </>
-            ) : (
+            )}
+            {reservasiStep === 2 && (
               <>
                 <div className="text-sm text-gray-600 sm:self-center">
-                  DP 20%: <span className="font-bold text-emerald-700">{formatRupiah(dpNominal)}</span>
-                  {rincianDp.pembulatan > 0 && <span className="text-[11px] text-emerald-600"> (dibulatkan)</span>}
+                  Total Pre-order:{" "}
+                  <span className="font-bold text-green-700">{formatRupiah(totalPreorder)}</span>
                   <span className="text-gray-400"> · </span>
-                  Sisa: <span className="font-medium">{formatRupiah(sisaTagihan)}</span>
+                  {reservasiItems.reduce((sum, i) => sum + i.jumlah, 0)} item
                 </div>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row">
                   <Button variant="outline" onClick={() => setReservasiStep(1)}>
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Kembali
+                  </Button>
+                  <Button onClick={handleLanjutTampilanDp} disabled={reservasiItems.length === 0}>
+                    Lanjut ke DP &amp; Pelunasan <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </>
+            )}
+            {reservasiStep === 3 && (
+              <>
+                <div className="text-sm text-gray-600 sm:self-center">
+                  <div>
+                    Sisa Pelunasan:{" "}
+                    <span className="font-bold text-amber-700">
+                      {formatRupiah(sisaTagihan)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    DP {formatRupiah(dpNominal)} · Total Bayar{" "}
+                    {formatRupiah(dpNominal + sisaTagihan)}
+                  </p>
+                </div>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                  <Button variant="outline" onClick={() => setReservasiStep(2)}>
                     <ArrowLeft className="w-4 h-4 mr-1" /> Kembali
                   </Button>
                   <Button onClick={handleCreateReservasi} disabled={submittingReservasi}>

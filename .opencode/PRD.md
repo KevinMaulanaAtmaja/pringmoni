@@ -140,6 +140,8 @@
 >
 > Halaman reservasi customer juga menyediakan: tombol **Unduh QRIS** pada langkah bayar DP (menyimpan gambar QRIS statis ke perangkat), opsi **Meja Bebas** yang bisa dipilih (sistem otomatis memilih meja kosong paling pas, termasuk meja Tanpa QR; grup yang lebih besar dari kapasitas satu meja tetap bisa — resto menggabungkan meja, dan server melewati cek kapasitas untuk mode ini), serta pratinjau keranjang pre-order berupa **panel melayang di kanan** pada desktop (maks 5 item + tombol lihat menu lain, tiap item bisa ditambah/dikurangi langsung) dan sheet bawah pada mobile (maks 5 item + tombol lihat menu lain).
 >
+> Catatan PBI-7.5: Refund hanya untuk CASHIER, wajib minimal 1 bukti foto, dan dibatasi maksimal **3 hari sejak pesanan dibuat** (`createdAt`). Tombol refund tersedia di halaman Pesanan (Pesanan Aktif & Riwayat); untuk pesanan yang lewat 3 hari tombol tetap tampil tetapi disabled. Di halaman Kasir, refund hanya dapat diakses dari detail pesanan aktif, bukan dari tabel Riwayat. Tab Pesanan Aktif hanya menampilkan pesanan 24 jam terakhir.
+>
 > Catatan PBI-7.4: Meja otomatis dikosongkan saat pesanan selesai, dibatalkan, atau pesanan kedaluwarsa (tidak dibayar 60 menit). Selain itu tersedia tombol "Kosongkan Meja" manual untuk OWNER, CASHIER, dan WAITER (pesanan yang belum dibayar ikut dibatalkan). Ditambah lagi, saat lewat tengah malam (00:00) sisa pesanan aktif yang belum dibayar ikut dibatalkan otomatis oleh `getNotifikasiTerlambat()` — lihat PBI-8.4.
 >
 > Catatan PBI-7.3 (pembagian hak akses shift):

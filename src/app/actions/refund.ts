@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
+import { REFUND_LIMIT_DAYS, isRefundWithinLimit } from "@/lib/refund"
 import { StatusPesanan } from "@prisma/client"
 
 export interface RefundBuktiInput {
@@ -112,6 +113,10 @@ export async function ajukanRefund(
 
     if (pesanan.statusPesanan === 'dibatalkan') {
       return { error: "Pesanan sudah dibatalkan" }
+    }
+
+    if (!isRefundWithinLimit(pesanan.createdAt)) {
+      return { error: `Refund hanya dapat dilakukan maksimal ${REFUND_LIMIT_DAYS} hari setelah pemesanan` }
     }
 
     await prisma.$transaction(async (tx) => {

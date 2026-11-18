@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
 import { PindahMejaSheet } from "@/components/customer/pindah-meja-sheet";
-import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, ChevronDown, ArrowLeft, ArrowRightLeft, Ticket, Tag } from "lucide-react";
+import { VoiceOrderSheet } from "@/components/customer/voice-order-sheet";
+import { Search, ShoppingCart, Camera, X, AlertTriangle, Coffee, Utensils, ChevronDown, ArrowLeft, ArrowRightLeft, Ticket, Tag, Mic } from "lucide-react";
 import { getKategoriIcon } from "@/lib/kategori-icon";
 import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "@/app/actions/pesanan";
 import { getVoucherAktif } from "@/app/actions/voucher";
@@ -623,18 +624,35 @@ return (
                             </Card>
                         )}
                         {/* Search */}
-                        <div className="relative mb-4">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
-                            <Input
-                                type="search"
-                                placeholder="Cari menu..."
-                                className="pl-10 rounded-full bg-muted/50"
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value);
-                                    setItemsToShow(12);
-                                }}
-                            />
+                        <div className="mb-4 flex gap-2">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Cari menu..."
+                                    className="pl-10 rounded-full bg-muted/50"
+                                    value={searchQuery}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setItemsToShow(12);
+                                    }}
+                                />
+                            </div>
+                            <VoiceOrderSheet
+                                tokenMeja={tokenMeja}
+                                menus={menus}
+                                onTambah={(menu) => tambahKeranjang(menu, 1)}
+                            >
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="size-11 shrink-0 rounded-full"
+                                    aria-label="Pesan pakai suara"
+                                >
+                                    <Mic className="size-5" />
+                                </Button>
+                            </VoiceOrderSheet>
                         </div>
 
                         {/* Voucher (PBI-10.4) */}
