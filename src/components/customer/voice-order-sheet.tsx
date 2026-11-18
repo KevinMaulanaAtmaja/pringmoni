@@ -10,6 +10,14 @@ import {
     SheetTrigger,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { useVoiceInput } from "@/hooks/use-voice-input"
 import { useAudioTranscribe } from "@/hooks/use-audio-transcribe"
 import type { RekomendasiMenu, VoiceRecommendation } from "@/types"
@@ -26,6 +34,34 @@ function persen(nilai: number): string {
     return `${Math.round(nilai * 100)}%`
 }
 
+const KUNCI_IZIN_MIC = "pringmoni:izin-mikrofon"
+
+async function izinMikrofonDiberikan(): Promise<boolean> {
+    if (typeof navigator === "undefined" || !navigator.permissions?.query) return false
+    try {
+        const status = await navigator.permissions.query({ name: "microphone" as PermissionName })
+        return status.state === "granted"
+    } catch {
+        return false
+    }
+}
+
+function sudahKonfirmasiMic(): boolean {
+    try {
+        return sessionStorage.getItem(KUNCI_IZIN_MIC) === "1"
+    } catch {
+        return false
+    }
+}
+
+function tandaiKonfirmasiMic(): void {
+    try {
+        sessionStorage.setItem(KUNCI_IZIN_MIC, "1")
+    } catch {
+        return
+    }
+}
+
 export function VoiceOrderSheet({
     tokenMeja,
     menus,
@@ -37,8 +73,32 @@ export function VoiceOrderSheet({
     const [hasil, setHasil] = useState<VoiceRecommendation | null>(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [dialogIzinMic, setDialogIzinMic] = useState(false)
+    const aksiMicRef = useRef<(() => void) | null>(null)
     const pernahMendengar = useRef(false)
     const { transkrip, listening, menyiapkan, didukung, error: errorVoice, mulaiDengar, berhentiDengar, reset } = useVoiceInput()
+
+    const mintaIzinMic = useCallback(async (aksi: () => void) => {
+        if (sudahKonfirmasiMic() || await izinMikrofonDiberikan()) {
+            aksi()
+            return
+        }
+        aksiMicRef.current = aksi
+        setDialogIzinMic(true)
+    }, [])
+
+    function lanjutkanIzinMic() {
+        tandaiKonfirmasiMic()
+        setDialogIzinMic(false)
+        const aksi = aksiMicRef.current
+        aksiMicRef.current = null
+        aksi?.()
+    }
+
+    function batalkanIzinMic() {
+        aksiMicRef.current = null
+        setDialogIzinMic(false)
+    }
 
     const ambilRekomendasi = useCallback(async (teks: string) => {
         const bersih = teks.trim()
@@ -166,7 +226,7 @@ export function VoiceOrderSheet({
                     <div className="flex flex-col items-center gap-3 rounded-2xl border bg-muted/40 px-4 py-5">
                         <button
                             type="button"
-                            onClick={listening ? handleBerhentiDengar : handleMulaiDengar}
+                            onClick={listening ? handleBerhentiDengar : () => void mintaIzinMic(handleMulaiDengar)}
                             disabled={!didukung || loading || menyiapkan}
                             aria-label={menyiapkan ? "Menyiapkan model suara" : listening ? "Hentikan perekaman suara" : "Mulai bicara"}
                             className={`flex size-16 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
@@ -200,7 +260,7 @@ export function VoiceOrderSheet({
                                 variant="outline"
                                 className="rounded-full"
                                 disabled={audio.loading || loading}
-                                onClick={() => audio.recording ? audio.berhentiRekam() : void audio.mulaiRekam()}
+                                onClick={() => audio.recording ? audio.berhentiRekam() : void mintaIzinMic(() => void audio.mulaiRekam())}
                             >
                                 {audio.loading ? <Loader2 className="size-4 animate-spin" /> : audio.recording ? <MicOff className="size-4" /> : <Mic className="size-4" />}
                                 <span className="ml-1.5">
@@ -313,6 +373,21 @@ export function VoiceOrderSheet({
                     )}
                 </div>
             </SheetContent>
+
+            <Dialog open={dialogIzinMic} onOpenChange={(buka) => { if (!buka) batalkanIzinMic() }}>
+                <DialogContent className="max-w-xs rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Aktifkan mikrofon?</DialogTitle>
+                        <DialogDescription>
+                            Mikrofon hanya dipakai untuk mengenali pesanan suaramu.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex-row justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={batalkanIzinMic}>Batal</Button>
+                        <Button type="button" onClick={lanjutkanIzinMic}>Izinkan</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Sheet>
     )
 }
