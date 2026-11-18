@@ -65,27 +65,30 @@ describe('TC-02 meja (unit)', () => {
   })
 
   describe('createMeja', () => {
+    //1. menguji pembuatan meja dengan mock
     it('membuat meja kursi dengan nomor urut, token, dan status kosong', async () => {
+      //db punya no meja k009 lalu cek duplikat dan token kosong
       queueQueryRaw([{ nomor_meja: 'K009' }], [], [])
 
       const hasil = await createMeja(null, formDataMeja({ kapasitas: '4', tipeMeja: 'kursi' }))
 
       expect(hasil).toEqual({ success: true })
+      //memastikan nomor otomatis naik k009 - k010 dan token sesuai mock
       expect(randomUuidMock).toHaveBeenCalledTimes(1)
       expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1)
-      expect(nilaiExecuteRaw()).toEqual(['K010', 4, 'ABCD1234'])
+      expect(nilaiExecuteRaw()).toEqual(['K010', 4, 'ABCD1234'])  //memastikan data yang di insert adalah k010
       expect(revalidatePathMock).toHaveBeenCalledWith('/dashboard/meja')
     })
-
+    //2. menguji kapasitas 1 dan 20 harus berhasil
     it('memakai prefix L untuk meja lesehan', async () => {
       queueQueryRaw([{ nomor_meja: 'L002' }], [], [])
-
+      //memanggil fungsi create meja
       const hasil = await createMeja(null, formDataMeja({ kapasitas: '6', tipeMeja: 'lesehan' }))
 
       expect(hasil).toEqual({ success: true })
-      expect(nilaiExecuteRaw()).toEqual(['L003', 6, 'ABCD1234'])
+      expect(nilaiExecuteRaw()).toEqual(['L003', 6, 'ABCD1234']) //memastikan input lesehan hasilnya l003
     })
-
+//Menguji batas bawah 1 dan atas 20 harus sukses
     it.each(['1', '20'])('menerima kapasitas batas %s', async (kapasitas) => {
       const hasil = await createMeja(
         null,
@@ -95,7 +98,7 @@ describe('TC-02 meja (unit)', () => {
       expect(hasil).toEqual({ success: true })
       expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1)
     })
-
+  //menguji 0, 21, abc, kosong. Harus error dan $executeRaw tidak boleh dipanggil
     it.each(['0', '21', 'abc', ''])('menolak kapasitas %s tanpa menulis', async (kapasitas) => {
       const hasil = await createMeja(
         null,
@@ -105,7 +108,7 @@ describe('TC-02 meja (unit)', () => {
       expect(hasil).toEqual({ error: 'Kapasitas harus antara 1-20 orang' })
       expect(prismaMock.$executeRaw).not.toHaveBeenCalled()
     })
-
+//menguji tipe kosong atau bar
     it.each(['', 'bar'])('menolak tipe meja "%s"', async (tipeMeja) => {
       const hasil = await createMeja(null, formDataMeja({ kapasitas: '4', tipeMeja }))
 
@@ -121,6 +124,7 @@ describe('TC-02 meja (unit)', () => {
     })
 
     it('menolak nomor meja yang sudah ada', async () => {
+      //Cek nomor kosong, tapi saat cek duplikat ternyata ada isinya
       queueQueryRaw([], [{ id: 1 }])
 
       const hasil = await createMeja(null, formDataMeja({ kapasitas: '4', tipeMeja: 'kursi' }))
@@ -129,19 +133,23 @@ describe('TC-02 meja (unit)', () => {
       expect(prismaMock.$executeRaw).not.toHaveBeenCalled()
     })
 
+    //menguji apakah sistem looping generate ulang saat token sudah dipakai.
     it('mengulang generate token saat token sudah dipakai', async () => {
+      // Antrean mock ke-3 mengembalikan [{ id: 1 }] -> artinya token pertama BENTROK
       queueQueryRaw([], [], [{ id: 1 }], [])
+
+      //mock UUID diset agar percobaan pertama menghasilkan AAAAAAAA, dan percobaan kedua BBBBBBBB
       randomUuidMock
         .mockReturnValueOnce('aaaaaaaa-0000-0000-0000-000000000000')
         .mockReturnValueOnce('bbbbbbbb-0000-0000-0000-000000000000')
 
       const hasil = await createMeja(null, formDataMeja({ kapasitas: '4', tipeMeja: 'kursi' }))
-
+      //memastikan token yang tersimpan ke database adalah token kedua BBBBBBBB, membuktikan loop berjalan
       expect(hasil).toEqual({ success: true })
       expect(randomUuidMock).toHaveBeenCalledTimes(2)
       expect(nilaiExecuteRaw()).toEqual(['K001', 4, 'BBBBBBBB'])
     })
-
+//menolak role null, cashier, waiter, kitchen
     it.each([null, ...ROLE_NON_OWNER])('menolak session %s', async (role) => {
       authMock.mockResolvedValue(role ? sessionUntuk(role) : null)
 

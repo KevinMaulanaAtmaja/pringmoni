@@ -25,16 +25,16 @@ export async function getMeja() {
   }
 
   const meja = await prisma.$queryRaw<MejaResult[]>`
-    SELECT 
-      id, 
-      nomor_meja as "nomorMeja", 
-      kapasitas, 
-      token_meja as "tokenMeja", 
-      status_meja as "statusMeja", 
-      created_at as "createdAt", 
-      updated_at as "updatedAt", 
+    SELECT
+      id,
+      nomor_meja as "nomorMeja",
+      kapasitas,
+      token_meja as "tokenMeja",
+      status_meja as "statusMeja",
+      created_at as "createdAt",
+      updated_at as "updatedAt",
       deleted_at as "deletedAt",
-      CASE 
+      CASE
         WHEN nomor_meja LIKE 'L%' THEN 'lesehan'::text
         WHEN nomor_meja LIKE 'K%' THEN 'kursi'::text
         ELSE 'kursi'::text
@@ -52,7 +52,7 @@ async function generateNomorMeja(tipe: TipeMeja): Promise<string> {
 
   // Get meja with the same prefix, extract numbers, find max
   const allMeja = await prisma.$queryRaw<Array<{ nomor_meja: string }>>`
-    SELECT nomor_meja FROM meja 
+    SELECT nomor_meja FROM meja
     WHERE deleted_at IS NULL
     AND nomor_meja LIKE ${prefix + '%'}
     ORDER BY nomor_meja ASC
@@ -68,7 +68,7 @@ async function generateNomorMeja(tipe: TipeMeja): Promise<string> {
   }
 
   const newNumber = (maxNumber + 1).toString().padStart(3, '0')
-  
+
   return `${prefix}${newNumber}`
 }
 
@@ -79,30 +79,29 @@ export async function getNextNomorMeja(tipe: TipeMeja): Promise<string> {
   }
   return await generateNomorMeja(tipe)
 }
-
+//memangggil auth jika bukan owner langsung dikembalikan erorr unauthorized
 export async function createMeja(prevState: { error?: string; success?: boolean } | null, formData: FormData) {
   const session = await auth()
   if (!session?.user || session.user.role !== 'owner') {
     return { error: "Unauthorized" }
   }
-
+//mengambil input kapasitas dan tipe dari formdata
   const kapasitas = parseInt(formData.get("kapasitas") as string)
   const tipe = formData.get("tipeMeja") as TipeMeja
-
+  //jika kosong, kurang dari 1 dan lebih dari 20 tolak
   if (!kapasitas || kapasitas < 1 || kapasitas > 20) {
     return { error: "Kapasitas harus antara 1-20 orang" }
   }
-
+  //kalau tipenya bukan lesehan/kursi tolak
   if (!tipe || (tipe !== 'lesehan' && tipe !== 'kursi')) {
     return { error: "Tipe meja wajib dipilih" }
   }
-
+  //memanggil fungsi generateNomorMeja
   const nomorMeja = await generateNomorMeja(tipe)
-
   const existingMeja = await prisma.$queryRaw<Array<{ id: number }>>`
     SELECT id FROM meja WHERE nomor_meja = ${nomorMeja}
   `
-
+//ngecek duplikat untuk memastikan nomor tersebut belum ada di db
   if (existingMeja.length > 0) {
     return { error: "Nomor meja sudah ada" }
   }
@@ -111,18 +110,20 @@ export async function createMeja(prevState: { error?: string; success?: boolean 
   let token: string
   let tokenExists: boolean
   do {
-    token = crypto.randomUUID().substring(0, 8).toUpperCase()
+    token = crypto.randomUUID().substring(0, 8).toUpperCase() //membuat token acak 8 karakter
+//Cek apakah token ini sudah ada di database
     const existing = await prisma.$queryRaw<Array<{ id: number }>>`
       SELECT id FROM meja WHERE token_meja = ${token}
     `
+    //Jika lebih dari 0, berarti token sudah dipakai. Loop akan berulang.
     tokenExists = existing.length > 0
-  } while (tokenExists)
-
+  } while (tokenExists) //loop terus berjalann selama tokenExists bernilai true
+//simpan dengan menggunakan insert ke database dengan status awal kosong
   await prisma.$executeRaw`
     INSERT INTO meja (nomor_meja, kapasitas, token_meja, status_meja)
     VALUES (${nomorMeja}, ${kapasitas}, ${token}, 'kosong')
   `
-
+//membersihkan next.js dan return sukses
   revalidatePath("/dashboard/meja")
   return { success: true }
 }
@@ -140,7 +141,7 @@ export async function updateMeja(id: number, formData: FormData) {
   }
 
   await prisma.$executeRaw`
-    UPDATE meja 
+    UPDATE meja
     SET kapasitas = ${kapasitas}
     WHERE id = ${id}
   `
