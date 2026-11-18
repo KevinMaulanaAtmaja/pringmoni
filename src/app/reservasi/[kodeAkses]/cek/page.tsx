@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog"
 import { cekStatusReservasi } from "@/app/actions/reservasi-customer"
 import { LINK_RESERVASI_PUBLIK } from "@/lib/reservasi-akses"
-import { HASIL_STORAGE_KEY, type HasilReservasi } from "@/lib/reservasi-hasil"
+import { ambilHasilReservasi } from "@/lib/reservasi-hasil"
 
 interface ReservasiTampilan {
   sumber: "lokal" | "cek"
@@ -133,35 +133,27 @@ export default function CekReservasiPage() {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    try {
-      const tersimpan = sessionStorage.getItem(HASIL_STORAGE_KEY)
-      if (tersimpan) {
-        const parsed = JSON.parse(tersimpan) as HasilReservasi
-        if (parsed?.kodeReservasi) {
-          setData({
-            sumber: "lokal",
-            kodeReservasi: parsed.kodeReservasi,
-            namaPelanggan: parsed.namaPelanggan ?? "-",
-            jumlahOrang: parsed.jumlahOrang ?? 0,
-            nomorMeja: parsed.nomorMeja ?? "-",
-            waktuKedatangan: parsed.waktuKedatangan ?? "",
-            batasKonfirmasi: parsed.batasKonfirmasi,
-            dpNominal: parsed.dpNominal,
-            subtotalHarga: parsed.subtotalHarga,
-            diskonVoucher: parsed.diskonVoucher,
-            voucherKode: parsed.voucherKode,
-            totalHarga: parsed.totalHarga,
-            sisaTagihan: parsed.sisaTagihan,
-            statusReservasi: parsed.statusReservasi,
-            dpStatus: parsed.dpStatus,
-          })
-        }
-      }
-    } catch {
-      /* data tersimpan tidak valid */
-    } finally {
-      setMenyiapkan(false)
+    const parsed = ambilHasilReservasi()
+    if (parsed?.kodeReservasi) {
+      setData({
+        sumber: "lokal",
+        kodeReservasi: parsed.kodeReservasi,
+        namaPelanggan: parsed.namaPelanggan ?? "-",
+        jumlahOrang: parsed.jumlahOrang ?? 0,
+        nomorMeja: parsed.nomorMeja ?? "-",
+        waktuKedatangan: parsed.waktuKedatangan ?? "",
+        batasKonfirmasi: parsed.batasKonfirmasi,
+        dpNominal: parsed.dpNominal,
+        subtotalHarga: parsed.subtotalHarga,
+        diskonVoucher: parsed.diskonVoucher,
+        voucherKode: parsed.voucherKode,
+        totalHarga: parsed.totalHarga,
+        sisaTagihan: parsed.sisaTagihan,
+        statusReservasi: parsed.statusReservasi,
+        dpStatus: parsed.dpStatus,
+      })
     }
+    setMenyiapkan(false)
   }, [])
 
   function bukaCek() {

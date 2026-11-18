@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/sheet"
 import { getQrisStaticUrl } from "@/lib/qris-static"
 import { LINK_RESERVASI_PUBLIK } from "@/lib/reservasi-akses"
-import { HASIL_STORAGE_KEY, type HasilReservasi } from "@/lib/reservasi-hasil"
+import { simpanHasilReservasi, type HasilReservasi } from "@/lib/reservasi-hasil"
 import { hitungRincianDp } from "@/lib/dp"
 import { hitungPotonganDiskon } from "@/lib/voucher"
 import {
@@ -625,11 +625,7 @@ export default function ReservasiCustomerPage() {
         statusReservasi: res.statusReservasi,
         dpStatus: res.dpStatus,
       }
-      try {
-        sessionStorage.setItem(HASIL_STORAGE_KEY, JSON.stringify(hasilBaru))
-      } catch {
-        /* sessionStorage tidak tersedia */
-      }
+      simpanHasilReservasi(hasilBaru)
       router.push(`${LINK_RESERVASI_PUBLIK}/cek`)
     } catch {
       setFormError("Gagal membuat reservasi. Silakan coba lagi.")
