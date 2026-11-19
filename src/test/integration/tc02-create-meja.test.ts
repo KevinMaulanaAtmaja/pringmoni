@@ -182,7 +182,6 @@ describeIntegration('Integrasi TC-02: meja', () => {
     }
   })
 
-  //memastikan nomor yang ditebak oleh form (getNextNomorMeja)
   it('getNextNomorMeja cocok dengan nomor yang akan dibuat createMeja', async () => {
     const prisma = (await import('@/lib/prisma')).default
     const { createMeja, getNextNomorMeja } = await import('@/app/actions/meja')

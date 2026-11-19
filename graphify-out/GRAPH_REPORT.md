@@ -1,7 +1,7 @@
-# Graph Report - pringmoni-deck  (2026-11-18)
+# Graph Report - pringmoni-deck  (2026-11-19)
 
 ## Corpus Check
-- 297 files · ~191,902 words
+- 297 files · ~191,998 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 13 file(s) not represented in the graph (top: .toml 4, (none) 2, .css 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ee5dd1ea`
+- Built from commit: `e9bbf9f8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -190,16 +190,16 @@
 10. `KasirPage()` - 23 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Penjelasan Assertion Integration` --references--> `validateVoucher()`  [INFERRED]
-  docs/test-cases/medium/tc04-voucher.md → src/app/actions/voucher.ts
 - `3. Delay navigasi halaman (loading.tsx)` --references--> `PageLoader()`  [INFERRED]
   .opencode/PROGRESS.md → src/components/ui/page-loader.tsx
+- `Selesai` --references--> `pindahMeja()`  [INFERRED]
+  .opencode/PROGRESS.md → src/app/actions/pesanan.ts
 - `2. Status Saat Ini` --references--> `confirmQrisPayment()`  [INFERRED]
   .opencode/INTEGRATION_TESTING_PLAN.md → src/app/actions/kasir.ts
 - `Penjelasan Assertion Unit` --references--> `createLog()`  [INFERRED]
   docs/test-cases/medium/tc04-voucher.md → src/lib/log.ts
-- `Selesai` --references--> `pindahMeja()`  [INFERRED]
-  .opencode/PROGRESS.md → src/app/actions/pesanan.ts
+- `✅ SELESAI (verifikasi & pembersihan)` --references--> `resetAllStokBahan()`  [INFERRED]
+  .opencode/PROGRESS.md → src/app/actions/stok-bahan.ts
 
 ## Import Cycles
 - None detected.
@@ -759,7 +759,7 @@ Nodes (10): cloudinary@^2.10.0, @uploadthing/react@^7.3.3, xlsx@^0.18.5, overrid
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `cn()` connect `reservasi/page.tsx` to `DashboardClient.tsx`, `page-loader.tsx`, `kasir/page.tsx`, `card.tsx`, `ShiftKasirPanel.tsx`, `shift/page.tsx`, `stok-bahan/page.tsx`, `pindah-meja-sheet.tsx`, `app/layout.tsx`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+  _High betweenness centrality (0.021) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `createLog()` (e.g. with `Integration Test` and `Penjelasan Assertion Unit`) actually correct?**
   _`createLog()` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `{ GET, POST }`, `@opencode-ai/plugin`, `dom` to the rest of the system?**
@@ -767,7 +767,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `actions/shift.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.1076923076923077 - nodes in this community are weakly interconnected._
 - **Why does `react` connect `react` to `kasir/page.tsx`, `card.tsx`, `ShiftKasirPanel.tsx`, `proxy.ts`, `reservasi/page.tsx`, `shift/page.tsx`, `devDependencies`, `stok-bahan/page.tsx`, `pindah-meja-sheet.tsx`, `dependencies`, `app/layout.tsx`?**
-  _High betweenness centrality (0.019) - this node is a cross-community bridge._
+  _High betweenness centrality (0.021) - this node is a cross-community bridge._
 - **Should `compilerOptions` be split into smaller, more focused modules?**
   _Cohesion score 0.09523809523809523 - nodes in this community are weakly interconnected._
 - **Should `src/types/index.ts` be split into smaller, more focused modules?**

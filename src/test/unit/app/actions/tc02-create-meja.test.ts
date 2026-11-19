@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+//menjalannkan kode ini palingg atas sebelum semua mock di import
 const { authMock, revalidatePathMock, randomUuidMock, createLogMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
   revalidatePathMock: vi.fn(),
@@ -7,6 +8,7 @@ const { authMock, revalidatePathMock, randomUuidMock, createLogMock } = vi.hoist
   createLogMock: vi.fn(),
 }))
 
+//mengubah modul ke objek tiruan
 vi.mock('@/lib/auth', () => ({ auth: authMock }))
 vi.mock('next/cache', () => ({ revalidatePath: revalidatePathMock }))
 vi.mock('@/lib/log', () => ({ createLog: createLogMock }))
@@ -14,7 +16,7 @@ vi.mock('@/lib/prisma', async () => {
   const { prismaMock } = await import('@/test/helpers/prisma-mock')
   return { default: prismaMock }
 })
-
+//import setelah mock
 import { prismaMock } from '@/test/helpers/prisma-mock'
 import { sessionUntuk } from '@/test/helpers/auth-mock'
 import {
@@ -26,12 +28,14 @@ import {
   updateMeja,
 } from '@/app/actions/meja'
 
+//Membuat FormData dari objek biasa lebih ringkas daripada berulang ulang
 function formDataMeja(nilai: Record<string, string>): FormData {
   const data = new FormData()
   Object.entries(nilai).forEach(([kunci, isi]) => data.set(kunci, isi))
   return data
 }
 
+//Memalsukan (mock) $queryRaw agar bisa mengembalikan nilai berbeda secara berurutan dalam satu kali eksekusi fungsi (seperti createMeja yang melakukan beberapa kali SELECT)
 function queueQueryRaw(...results: unknown[][]) {
   let index = 0
   prismaMock.$queryRaw.mockImplementation(async () => {
@@ -41,15 +45,16 @@ function queueQueryRaw(...results: unknown[][]) {
   })
 }
 
+//Mengambil nilai sisipan dari pemanggilan $executeRaw
 function nilaiExecuteRaw(): unknown[] {
   return prismaMock.$executeRaw.mock.calls[0]?.slice(1) ?? []
 }
 
-const ROLE_NON_OWNER = ['cashier', 'waiter', 'kitchen'] as const
+const ROLE_NON_OWNER = ['cashier', 'waiter', 'kitchen'] as const //Array berisi role selain owner
 
 describe('TC-02 meja (unit)', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+    vi.resetAllMocks() //Membersihkan semua mock dari test sebelumnya
 
     authMock.mockResolvedValue(sessionUntuk('owner', { id: '1', username: 'owner' }))
     randomUuidMock.mockReturnValue('abcd1234-0000-0000-0000-000000000000')
@@ -57,9 +62,11 @@ describe('TC-02 meja (unit)', () => {
     prismaMock.$queryRaw.mockResolvedValue([])
     prismaMock.$executeRaw.mockResolvedValue(1)
 
-    vi.stubGlobal('crypto', { randomUUID: randomUuidMock })
+    vi.stubGlobal('crypto', { randomUUID: randomUuidMock }) //Mengganti global crypto dengan tiruan agar pembuatan UUID bisa dikontrol (karena kode asli memanggil global crypto, bukan import)
   })
 
+
+  //Mengembalikan globalThis.crypto ke aslinya. Tanpa ini, stub bisa "bocor" ke test lain
   afterEach(() => {
     vi.unstubAllGlobals()
   })
@@ -79,7 +86,8 @@ describe('TC-02 meja (unit)', () => {
       expect(nilaiExecuteRaw()).toEqual(['K010', 4, 'ABCD1234'])  //memastikan data yang di insert adalah k010
       expect(revalidatePathMock).toHaveBeenCalledWith('/dashboard/meja')
     })
-    //2. menguji kapasitas 1 dan 20 harus berhasil
+
+    //memalsukan di db sudah ada meja l002
     it('memakai prefix L untuk meja lesehan', async () => {
       queueQueryRaw([{ nomor_meja: 'L002' }], [], [])
       //memanggil fungsi create meja
@@ -88,6 +96,7 @@ describe('TC-02 meja (unit)', () => {
       expect(hasil).toEqual({ success: true })
       expect(nilaiExecuteRaw()).toEqual(['L003', 6, 'ABCD1234']) //memastikan input lesehan hasilnya l003
     })
+
 //Menguji batas bawah 1 dan atas 20 harus sukses
     it.each(['1', '20'])('menerima kapasitas batas %s', async (kapasitas) => {
       const hasil = await createMeja(
