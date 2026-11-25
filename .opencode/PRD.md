@@ -116,6 +116,8 @@
 | PBI-6.7 | Tampilkan sisa stok harian / "Stok Habis" di menu customer | Done |
 
 > Catatan Modul 6: ketersediaan menu untuk customer sepenuhnya mengacu pada **stok harian (`menu.stokManual`)** di Menu Management. Stok bahan (Gudang/Dapur) adalah monitoring internal dan tidak memengaruhi tampilan customer. UI "Rakit Resep" dihapus bersama route `/dashboard/resep`.
+>
+> Catatan akses stok bahan: halaman `/dashboard/stok-bahan` dan seluruh action `stok-bahan.ts` hanya untuk role **GUDANG**. **OWNER tidak punya akses** (menu sidebar disembunyikan, route diblokir proxy, action menolak). Role GUDANG hanya melihat Dashboard + Stok Bahan; notifikasi "stok menipis/habis" hanya untuk GUDANG.
 
 ### Modul 7: Reservasi & Operasional Meja
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*
@@ -132,11 +134,21 @@
 >
 > Catatan penandaan meja: `/dashboard/meja` menampilkan tanda/status pada meja ber-token QR — badge mark di kolom QR (`Dipesan`/`Terpakai`) saat status bukan `kosong`, serta dialog QR menampilkan badge status dan frame berwarna (hijau `kosong` → merah `terpakai` / amber `dipesan`). Server action `getMeja` kini mengembalikan `reservasiAktif` terbaru per meja.
 >
+> Catatan UI tipe meja: istilah "kriteria" di UI `/dashboard/meja` disederhanakan menjadi **Tipe Meja**. Pengelolaan tipe cukup nama (mis. Kursi, Lesehan, Camping) + dua checkbox mutual eksklusif: **"1 meja 1 customer"** (otomatis tercentang untuk tipe baru) atau **"Bebas"** (pool Meja Bebas, hanya 1 tipe aktif — validasi tetap di server). Token & prefix nomor tetap dibuat otomatis oleh server tanpa ditampilkan sebagai penjelasan panjang di UI. Filter & kolom tabel digabung jadi satu "Tipe" (dengan opsi "Tanpa tipe").
+>
+> Catatan tampilan meja/reservasi: label mode tipe ("1 customer", "Bebas", "Meja QR", "Bersamaan") sengaja **tidak ditampilkan** di tabel `/dashboard/meja` maupun pilihan meja form reservasi customer — cukup nama tipe. Mode tetap diatur di dialog Kelola Tipe dan dipakai server; tombol pilih meja otomatis diberi label "Resto pilihkan meja".
+>
+> Catatan rename schema: model **`KriteriaMeja` → `TipeMeja`** (tabel `kriteria_meja` → `tipe_meja`, kolom `nama_kriteria`/`token_kriteria` → `nama_tipe`/`token_tipe`, FK `meja.kriteria_meja_id` → `meja.tipe_meja_id`, enum log `MANAGE_KRITERIA_MEJA` → `MANAGE_TIPE_MEJA`) lewat migration `20261124000000_ganti_kriteria_ke_tipe`. Migration yang sama men-seed tipe bawaan **Kursi (K), Lesehan (L), Camping (C)** — semua `khususSatuCustomer = true` — di samping tipe **"Meja Bebas"** (pool, `modeBebas`). Tipe bawaan lama **"Meja Khusus 1 Customer"** (seed migration `20261120000001`) dihapus kembali oleh migration `20261124000001_hapus_tipe_meja_khusus_1_customer` karena digantikan tipe Kursi/Lesehan/Camping. Server action pindah ke `src/app/actions/tipe-meja.ts` (dulu `kriteria-meja.ts`).
+>
+> Catatan alias token tipe: **hanya tipe Bebas** yang boleh punya alias token (`tokenTipeAlias`, migration `20261124000002_alias_token_tipe_bebas`, unik, nullable). Token asli (`tokenTipe`) dibuat otomatis saat pertama buat dan **tidak pernah berubah/terhapus** — alias hanya pengganti tampilan & matching (mis. `BEBAS12`). Alur: UI edit tipe → input "Alias token" muncul saat checkbox Bebas dicentang → server memvalidasi format (2–24 karakter, `A-Z0-9-_`), unik antar tipe, dan tidak sama dengan token asli mana pun. Reservasi customer mencocokkan pool Bebas dengan `OR: [tokenTipe, tokenTipeAlias]`, lalu menampilkan/mengirim token efektif (alias jika ada, kalau tidak token asli). Form tipe baru default nama "Kursi"; tidak ada tipe yang dihapus saat perubahan ini.
+>
 > Jadwal reservasi saat ini **tetap** (belum dapat diatur owner): jam buka 13:00, kedatangan terakhir 20:30, jam tutup 21:00, slot tiap 30 menit, maksimal 7 hari ke depan. `batasKonfirmasi` DP dihitung dari waktu kedatangan + expiry (default 3 jam) tetapi **di-cap pada jam tutup 21:00** hari yang sama. Rencana pengaturan jam oleh owner ada di `.opencode/RESERVASI_PLAN.md` §8 (status: rencana, belum diimplementasi).
 >
 > Reservasi customer memakai **link umum** `/reservasi/PRINGSEWU26` (kode akses publik di `src/lib/reservasi-akses.ts`, bukan token meja). Customer memilih sendiri meja yang masih kosong — termasuk meja yang belum punya QR — lalu server memvalidasi ulang status meja secara transaksional. Rentang tanggal = hari ini s/d H+7 (**8 tanggal**, dihitung ulang saat melewati tengah malam). Pemilih bulan/tahun manual dihapus; cukup chip tanggal. Link lama per meja (`/reservasi/<tokenMeja>`) tidak dipakai lagi.
 >
 > Tampilan **Reservasi Berhasil** dipisah dari form ke halaman `/reservasi/<kodeAkses>/cek`. Setelah reservasi dibuat, customer diarahkan ke halaman ini dan detailnya diambil dari `sessionStorage` (`src/lib/reservasi-hasil.ts`). Untuk melihat reservasi lagi (mis. di perangkat lain), halaman ini memakai **popup** "Cek Reservasi" — input kode reservasi + nomor HP via `cekStatusReservasi` — bukan halaman cek status tersendiri. Tombol kembali memunculkan dialog peringatan ("kode tidak akan tampil lagi") lalu mengarahkan ke form reservasi. Route lama `/reservasi/status` kini hanya **redirect** ke halaman cek.
+>
+> Semua meja dengan status `kosong` ditampilkan di form customer, baik yang punya QR maupun **Tanpa QR**; ringkasan jumlah keduanya ditampilkan di atas pilihan meja. Reservasi yang sudah lewat `batasKonfirmasi` tidak lagi mengunci meja: yang masih `menunggu_kedatangan` menjadi `expired`, yang sudah `dikonfirmasi` tetapi tidak datang menjadi `no_show` (kecuali sudah memiliki pesanan). Filter aktif di customer/owner/dashboard reservasi juga memakai `batasKonfirmasi >= sekarang`, sehingga meja kosong tidak tersembunyi oleh reservasi lama.
 >
 > Halaman reservasi customer juga menyediakan: tombol **Unduh QRIS** pada langkah bayar DP (menyimpan gambar QRIS statis ke perangkat), opsi **Meja Bebas** yang bisa dipilih (sistem otomatis memilih meja kosong paling pas, termasuk meja Tanpa QR; grup yang lebih besar dari kapasitas satu meja tetap bisa — resto menggabungkan meja, dan server melewati cek kapasitas untuk mode ini), serta pratinjau keranjang pre-order berupa **panel melayang di kanan** pada desktop (maks 5 item + tombol lihat menu lain, tiap item bisa ditambah/dikurangi langsung) dan sheet bawah pada mobile (maks 5 item + tombol lihat menu lain).
 >
@@ -155,13 +167,15 @@
 
 | PBI | Deskripsi | Status |
 |-----|----------|--------|
-| PBI-8.1 | Download QR meja | Todo |
+| PBI-8.1 | Download & cetak QR meja | Done |
 | PBI-8.2 | Notifikasi perubahan status pesanan ke customer | Todo |
 | PBI-8.3 | Backup data | Todo |
 | PBI-8.4 | Notifikasi pesanan terlambat di dashboard (lonceng + badge) | Done |
 
+> Catatan PBI-8.1: Dialog QR di `/dashboard/meja` kini berupa **kartu meja** (brand Pringmoni, nomor meja, QR besar, instruksi scan, tipe & kapasitas). Tombol **Cetak QR** memakai `@media print` sehingga hanya kartu yang tercetak (chrome dialog, status, token, tombol, dan info reservasi disembunyikan); tombol **Unduh PNG** menyimpan QR berikut label nomor meja. Sumber: `src/app/dashboard/meja/page.tsx`, `src/app/globals.css`.
+>
 > Catatan PBI-8.4: Lonceng notifikasi **selalu tampil** di header dashboard untuk
-> **OWNER, CASHIER, dan WAITER** (semua halaman dashboard). Badge menampilkan jumlah
+> **OWNER, CASHIER, WAITER, KITCHEN, dan GUDANG** (semua halaman dashboard). Badge menampilkan jumlah
 > pesanan yang **sudah >30 menit belum ditangani** — status `menunggu` (belum di-acknowledge)
 > maupun `diproses` (sudah bayar, belum diantar). Klik lonceng untuk melihat daftar
 > pesanan terlambat + tautan ke detail pesanan; bunyi/voice alert baru saat ada pesanan
@@ -173,6 +187,8 @@
 > Sumber data tunggal: `src/app/actions/notifikasi.ts` → `getNotifikasiDashboard()`,
 > ditampilkan lewat lonceng header (`StaleNotificationBell`). Banner terpisah di
 > `/dashboard` sudah dihapus agar tidak duplikat.
+>
+> Catatan scope notifikasi: daftar pesanan (aktif maupun refund) hanya untuk yang dibuat **hari ini** (`createdAt >= awal hari`); pesanan lebih dari 1 hari tidak muncul di dropdown lonceng. Notifikasi stok menipis/habis hanya untuk **GUDANG**, bukan OWNER.
 
 ### Modul 9: Non-Fungsional & Pengujian
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*
@@ -183,6 +199,9 @@
 | PBI-9.2 | Realtime | Todo |
 | PBI-9.3 | Pengujian Ramadhan (50 orang) | Todo |
 | PBI-9.4 | Data uji menu (contoh: Abi Coffee) | Todo |
+| PBI-9.5 | Peringatan koneksi terputus via popup global (semua role & customer) | Done |
+
+> Catatan PBI-9.5: popup **Koneksi Terputus** tampil otomatis di semua halaman saat browser offline (`online`/`offline`) maupun saat server action gagal karena jaringan. Berlaku untuk seluruh role dashboard (OWNER/CASHIER/WAITER/KITCHEN/GUDANG), customer dine-in, dan reservasi. Tombol **Coba Lagi** memuat ulang halaman; **Tutup Sementara** menyembunyikan popup (muncul lagi saat berpindah halaman selagi offline). Error tak tertangani kini memakai fallback ramah pengguna (`error.tsx` root + dashboard, `global-error.tsx`) bukan halaman error Next.js. Token meja tidak valid dan gagal memuat reservasi ditampilkan sebagai dialog, bukan kartu inline. Sumber: `src/components/layout/ConnectionGuard.tsx`, `src/lib/koneksi.ts`, `src/components/layout/KoneksiErrorFallback.tsx`.
 
 ### Modul 10: Voucher & Diskon
 *Fitur prioritas. Detail user story & spesifikasi menyusul.*

@@ -1,3 +1,92 @@
+# PROGRESS - Sesi 2026-11-25 (Kartu QR meja siap cetak + hide label mode tipe)
+
+## Selesai
+- `src/app/dashboard/meja/page.tsx`: dialog QR didesain ulang sebagai kartu meja (brand, nomor besar, QR 196px, instruksi singkat, tipe + kapasitas) dengan tombol **Cetak QR** (`window.print()`) dan **Unduh PNG**. Status/token/info reservasi jadi info layar saja.
+- `src/app/globals.css`: `@media print` scoped via `body:has(.qr-print-dialog)` — hanya `.qr-print-card` yang tampil di kertas; tidak memengaruhi print halaman lain.
+- Label mode tipe ("1 customer", "Bebas", duplikat nama tipe) dihapus dari tabel `/dashboard/meja` dan pilihan meja form reservasi customer (`src/app/reservasi/[kodeAkses]/page.tsx`); tombol auto jadi "Resto pilihkan meja".
+- PRD: PBI-8.1 done + catatan kartu cetak & label mode tipe.
+- Banner "Sudah punya reservasi?" di step 1 form reservasi dihapus (duplikat tombol sticky "Cek Reservasi" di header).
+
+## Verifikasi
+- `npm run lint -- --quiet`: 0 error (45 warning baseline di luar file yang diubah).
+- `npx tsc --noEmit`: hanya 1 error baseline `dashboard.test.ts:38` (`getStaleOrders`), tidak ada error baru.
+- Test tidak dijalankan sesuai rule. `npm run graph:update` dijalankan setelah perubahan.
+
+---
+
+# PROGRESS - Sesi 2026-11-23 (Meja QR kosong di reservasi + rule test)
+
+## Selesai
+- Investigasi feedback `/reservasi/PRINGSEWU26`: dari 8 meja, 5 berstatus `kosong` dan punya QR, tapi 3 di antaramya (K002, K004, A1) terblokir reservasi `dikonfirmasi` lama (Nov 4/6/19) yang tidak pernah di-expire — `expireReservasiLazy()` hanya memproses `menunggu_kedatangan`.
+- `src/lib/reservasi.ts`: expiry lazy kini juga menutup reservasi `dikonfirmasi` lewat `batasKonfirmasi` (tanpa `pesananId`) menjadi `no_show` + `noShowAt`, selain `expired` untuk `menunggu_kedatangan`.
+- Filter reservasi aktif di `reservasi-customer.ts` (list + submit), `meja.ts` (`getMeja`), dan `reservasi.ts` (create + daftar meja tersedia) kini menyertakan `batasKonfirmasi >= sekarang`.
+- UI form reservasi: ringkasan "X meja QR kosong · Y meja Tanpa QR kosong" ditampilkan di atas pilihan meja, sehingga semua meja kosong terlihat jelas.
+- Cek menu owner `/dashboard/meja`: fitur Kriteria/tipe meja (token acak, `khususSatuCustomer`, `modeBebas`, prefix K001/KA001 otomatis) sudah terpasang. Data existing: 8 meja belum diberi kriteria (tampil "Umum"), 2 kriteria sudah ada di DB.
+- Rule baru: `AGENTS.md` → dilarang menjalankan/membuat kode test kecuali diminta eksplisit; `CONVENTIONS.md` §3 diselaraskan (verifikasi wajib lint + tsc, bukan npm test).
+- Dokumen PRD/ARCHITECTURE diperbarui; graphify di-refresh.
+
+## Follow-up: error halaman /dashboard/meja owner
+- Penyebab: migrasi `20261123000000_kriteria_meja_dynamic_tipe` belum terpasang di DB (kolom `prefix_kode` tidak ada), jadi `getMeja()` (raw SQL) dan `getKriteriaMejas()` (Prisma) error saat halaman dibuka.
+- File migrasi memiliki BOM UTF-8 di awal → `migrate deploy` gagal dengan `P3018` / syntax error `\ufeff`. BOM dihapus, failed migration di-`resolve --rolled-back`, lalu `npx prisma migrate deploy` sukses (35 migrasi terpasang).
+- Prefix kriteria yang dihasilkan migrasi: `Meja Bebas` → `ME`, `Meja Khusus 1 Customer` → `M` (keduanya unik).
+- Perbaikan TS baseline di `src/app/actions/meja.ts`: `kriteriaMejaId` yang `null` kini ditolak sebelum `generateNomorMeja()`.
+
+## Verifikasi
+- `npx tsc --noEmit`: tersisa 1 error baseline di file test lama (`dashboard.test.ts:38` — `getStaleOrders`), tidak ada error baru di kode aplikasi.
+- `npm run lint -- --quiet`: 0 error pada file aplikasi yang diubah; 2 error lama di `meja.test.ts:129` & `pesanan.test.ts:1` (`no-explicit-any`) sengaja tidak disentuh sesuai rule test.
+- Query DB read-only setelah perbaikan: 5 meja QR kosong tampil (A1, K002, K003, K004, K005), sebelumnya hanya 2.
+- Query ORM + raw SQL untuk kriteria/meja.owner sukses setelah migrasi.
+- Test sengaja **tidak dijalankan/dibuat** sesuai rule baru.
+
+---
+
+# PROGRESS - Sesi 2026-11-20 (Role GUDANG + scope notifikasi + agentation dev-only)
+
+## Selesai
+- `agentation`: toolbar kini muncul otomatis saat `NODE_ENV=development` (tanpa env flag) dan tetap tersembunyi di production/preview Vercel (`next build` → `NODE_ENV=production`).
+- Role baru **GUDANG**: `prisma/schema.prisma` + migrasi `20261120000000_add_role_gudang`, `prisma generate`, `prisma migrate deploy` berhasil.
+- Akses stok bahan: `/dashboard/stok-bahan` + seluruh action `stok-bahan.ts` hanya untuk GUDANG (`requireGudang`). OWNER tidak lagi melihat menu sidebar (desktop & mobile), diblokir proxy, dan action menolak.
+- Sidebar GUDANG hanya Dashboard + Stok Bahan; halaman Users punya label/filter/opsi role Gudang; skeleton & judul dashboard mendukung GUDANG; stat GUDANG menyembunyikan pendapatan/meja.
+- Notifikasi: pesanan aktif & refund difilter `createdAt >= awal hari` (pesanan >1 hari tidak muncul di dropdown lonceng). Notifikasi `stok_menipis` hanya untuk GUDANG, bukan OWNER.
+- Test diperbarui sesuai spek baru: `notifikasi.test.ts`, `stok-bahan.test.ts`, `proxy.test.ts`, helper `auth-mock`/`prisma-mock` (tambah model `reservasi`).
+- Dokumen: PRD (Modul 6 & 8), ARCHITECTURE (roles, route, action, notifikasi). Graphify diperbarui.
+
+## Hasil verifikasi
+- `npx vitest run` pada 3 file yang diubah: 57/57 passed; `proxy.test.ts`: 13/13 passed.
+- `npm test` (full): 650 passed, 26 failed, 1 skipped — 25 kegagalan **pribadi** (fixture usang: dpNominal/kembalian, getStaleOrders, log filter, meja reservasi, refund 3 hari); 1 kegagalan owner→stok-bahan sudah diperbaiki di test proxy.
+- `npx eslint` pada 16 file yang diubah: bersih.
+- `npx tsc --noEmit`: hanya 1 error pribadi (`dashboard.test.ts:38` — `getStaleOrders` tidak diekspor), sudah ada sebelum sesi ini.
+- `npm run graph:update`: sukses (percobaan pertama gagal karena file lock, retry berhasil).
+- Belum dijalankan: build (perlu konfirmasi; dev server sudah dimatikan user).
+
+## Berikutnya
+- Verifikasi manual: login sebagai GUDANG → Stok Bahan; login OWNER → menu/route Stok Bahan tidak ada; lonceng tidak menampilkan pesanan kemarin.
+- Putuskan apakah 25 test pribadi ingin dibersihkan/diperbaiki dalam sesi terpisah.
+
+---
+
+# PROGRESS - Sesi 2026-11-19 (Popup koneksi terputus global)
+
+> Mengganti halaman error Next.js dengan popup peringatan koneksi di semua role & halaman publik.
+
+## Selesai
+- `src/lib/koneksi.ts`: deteksi error jaringan + event `pringmoni:koneksi-putus`.
+- `src/components/layout/ConnectionGuard.tsx`: dialog global "Koneksi Terputus" (online/offline, error tak tertangani, laporan manual). Dipasang di `src/app/layout.tsx` → berlaku untuk OWNER/CASHIER/WAITER/KITCHEN/GUDANG, customer, reservasi, login.
+- `src/components/layout/KoneksiErrorFallback.tsx` + `src/app/error.tsx` + `src/app/dashboard/error.tsx` + `src/app/global-error.tsx`: fallback ramah pengguna menggantikan error default Next.js.
+- Customer dine-in: token tidak valid kini dialog; catch jaringan (muat menu, checkout, scan QR, input manual) memicu popup koneksi.
+- Reservasi: catch jaringan saat muat data, submit reservasi, upload bukti DP, dan cek status memicu popup; error muat jadi dialog.
+- Dokumen: PRD PBI-9.5 + catatan, ARCHITECTURE §9. Graphify diperbarui.
+
+## Hasil verifikasi
+- `npx eslint --quiet` pada 10 file yang diubah: bersih.
+- `npx tsc --noEmit`: hanya 1 error pribadi (`src/test/unit/app/actions/dashboard.test.ts:38` — `getStaleOrders` tidak diekspor), sudah ada sebelum perubahan ini.
+- Belum dijalankan: build (dev server user kemungkinan aktif).
+
+## Berikutnya
+- Verifikasi manual di browser: matikan Wi-Fi → popup muncul di dashboard tiap role, customer, dan reservasi.
+
+---
+
 # PROGRESS - Sesi 2026-11-17 (Skeleton dashboard per role)
 
 > Menyamakan ketentuan skeleton dashboard untuk role selain OWNER (CASHIER / WAITER / KITCHEN).

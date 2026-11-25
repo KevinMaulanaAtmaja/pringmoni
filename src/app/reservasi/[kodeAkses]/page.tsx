@@ -35,6 +35,14 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -47,6 +55,7 @@ import { LINK_RESERVASI_PUBLIK } from "@/lib/reservasi-akses"
 import { simpanHasilReservasi, type HasilReservasi } from "@/lib/reservasi-hasil"
 import { hitungRincianDp } from "@/lib/dp"
 import { hitungPotonganDiskon } from "@/lib/voucher"
+import { apakahErrorJaringan, laporkanKoneksiPutus } from "@/lib/koneksi"
 import {
   BATAS_KEDATANGAN_RESERVASI_MENIT,
   INTERVAL_SLOT_RESERVASI_MENIT,
@@ -87,12 +96,26 @@ interface VoucherItem {
   minimalBelanja: number
 }
 
+interface TipeInfo {
+  id: number
+  namaTipe: string
+  tokenTipe: string
+  tokenTipeAlias: string | null
+  khususSatuCustomer: boolean
+  modeBebas: boolean
+}
+
 interface MejaInfo {
   id: number
   nomorMeja: string
   kapasitas: number
   tipeMeja: string
   punyaQr: boolean
+  tipeMejaId: number | null
+  namaTipe: string | null
+  tokenTipe: string | null
+  khususSatuCustomer: boolean
+  modeBebas: boolean
 }
 
 function formatRupiah(n: number) {
@@ -167,6 +190,7 @@ export default function ReservasiCustomerPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [mejas, setMejas] = useState<MejaInfo[]>([])
+  const [tipeMejas, setTipeMejas] = useState<TipeInfo[]>([])
   const [totalMejaQr, setTotalMejaQr] = useState(0)
   const [mejaId, setMejaId] = useState<number | null>(null)
   const [autoMeja, setAutoMeja] = useState(false)
@@ -207,16 +231,31 @@ export default function ReservasiCustomerPage() {
   const [qrisError, setQrisError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  const tipeBebas = useMemo(
+    () => tipeMejas.find((k) => k.modeBebas) ?? null,
+    [tipeMejas]
+  )
+
+  /** Token yang ditampilkan/dikirim: alias (bila diatur) atau token asli. */
+  const tokenBebas = tipeBebas ? tipeBebas.tokenTipeAlias ?? tipeBebas.tokenTipe : null
+
   const meja = useMemo(() => {
     if (autoMeja) {
-      const cukup = mejas
+      const pool = tipeBebas
+        ? mejas.filter((m) => m.tipeMejaId === tipeBebas.id)
+        : mejas
+      const calon = pool.length > 0 ? pool : mejas
+      const layak = calon.filter(
+        (m) => !m.khususSatuCustomer || m.kapasitas >= (Number(jumlahOrang) || 1)
+      )
+      const cukup = layak
         .filter((m) => m.kapasitas >= (Number(jumlahOrang) || 1))
         .sort((a, b) => a.kapasitas - b.kapasitas)
-      if (cukup.length) return cukup[0]
-      return [...mejas].sort((a, b) => b.kapasitas - a.kapasitas)[0] ?? null
+      if (cukup.length > 0) return cukup[0]
+      return [...layak].sort((a, b) => b.kapasitas - a.kapasitas)[0] ?? calon[0] ?? null
     }
     return mejas.find((m) => m.id === mejaId) ?? null
-  }, [mejas, mejaId, autoMeja, jumlahOrang])
+  }, [mejas, mejaId, autoMeja, jumlahOrang, tipeBebas])
 
   const kapasitasMaks = autoMeja ? undefined : meja?.kapasitas
 
@@ -232,7 +271,13 @@ export default function ReservasiCustomerPage() {
     onClientUploadComplete: (res: { url: string; key: string }[]) => {
       if (res?.length) setBuktiUrl(res[0].url)
     },
-    onUploadError: () => setFormError("Gagal mengunggah bukti pembayaran"),
+    onUploadError: () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        laporkanKoneksiPutus("Gagal mengunggah bukti DP. Periksa koneksi lalu coba lagi.")
+      } else {
+        setFormError("Gagal mengunggah bukti pembayaran")
+      }
+    },
   })
 
   useEffect(() => {
@@ -250,13 +295,19 @@ export default function ReservasiCustomerPage() {
           setLoadError(data.error ?? "Gagal memuat data reservasi")
         } else {
           setMejas(data.mejas)
+          setTipeMejas(data.tipeMejas)
           setTotalMejaQr(data.totalMejaQr)
           setMenus(data.menus as MenuItem[])
           setVouchers(data.vouchers)
           if (data.expiryJam) setExpiryJam(data.expiryJam)
         }
-      } catch {
-        if (aktif) setLoadError("Gagal memuat data reservasi. Coba muat ulang halaman.")
+      } catch (err) {
+        if (!aktif) return
+        if (apakahErrorJaringan(err)) {
+          laporkanKoneksiPutus("Gagal memuat data reservasi. Periksa koneksi lalu coba lagi.")
+        } else {
+          setLoadError("Gagal memuat data reservasi. Coba muat ulang halaman.")
+        }
       } finally {
         if (aktif) setLoading(false)
       }
@@ -538,8 +589,12 @@ export default function ReservasiCustomerPage() {
     setBuktiUrl("")
     try {
       await startUpload([file])
-    } catch {
-      setFormError("Gagal mengunggah bukti pembayaran")
+    } catch (err) {
+      if (apakahErrorJaringan(err)) {
+        laporkanKoneksiPutus("Gagal mengunggah bukti DP. Periksa koneksi lalu coba lagi.")
+      } else {
+        setFormError("Gagal mengunggah bukti pembayaran")
+      }
     } finally {
       e.target.value = ""
     }
@@ -580,13 +635,16 @@ export default function ReservasiCustomerPage() {
         kodeAkses,
         mejaId: meja.id,
         mejaBebas: autoMeja,
+        tipeMejaToken: autoMeja ? tokenBebas : null,
         namaPelanggan: nama.trim(),
         noHp,
         jumlahOrang: Number(jumlahOrang),
         waktuKedatangan: new Date(waktuKedatangan).toISOString(),
         catatan:
           [
-            autoMeja ? "Meja bebas (resto pilihkan)" : "",
+            autoMeja
+              ? `Resto memilihkan meja (${tokenBebas ?? "BEBAS"})`
+              : "",
             catatan.trim(),
           ]
             .filter(Boolean)
@@ -602,6 +660,7 @@ export default function ReservasiCustomerPage() {
           void getReservasiCustomer(kodeAkses).then((data) => {
             if (!("error" in data)) {
               setMejas(data.mejas)
+              setTipeMejas(data.tipeMejas)
               setTotalMejaQr(data.totalMejaQr)
             }
           })
@@ -627,8 +686,12 @@ export default function ReservasiCustomerPage() {
       }
       simpanHasilReservasi(hasilBaru)
       router.push(`${LINK_RESERVASI_PUBLIK}/cek`)
-    } catch {
-      setFormError("Gagal membuat reservasi. Silakan coba lagi.")
+    } catch (err) {
+      if (apakahErrorJaringan(err)) {
+        laporkanKoneksiPutus("Gagal mengirim reservasi. Periksa koneksi lalu coba lagi.")
+      } else {
+        setFormError("Gagal membuat reservasi. Silakan coba lagi.")
+      }
     } finally {
       setSubmitting(false)
     }
@@ -646,15 +709,23 @@ export default function ReservasiCustomerPage() {
   if (loadError) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="max-w-md w-full border-destructive">
-          <CardContent className="p-6 text-center space-y-4">
-            <AlertTriangle className="size-10 text-destructive mx-auto" />
-            <p className="font-semibold">{loadError}</p>
-            <Button variant="outline" onClick={() => router.push("/")}>
-              <ArrowLeft className="size-4 mr-2" /> Kembali ke Beranda
-            </Button>
-          </CardContent>
-        </Card>
+        <Dialog open onOpenChange={() => {}}>
+          <DialogContent className="max-w-sm text-center">
+            <DialogHeader className="items-center text-center">
+              <AlertTriangle className="size-10 text-destructive" />
+              <DialogTitle>Tidak dapat memuat reservasi</DialogTitle>
+              <DialogDescription>{loadError}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => router.push("/")}>
+                <ArrowLeft className="size-4 mr-2" /> Kembali ke Beranda
+              </Button>
+              <Button onClick={() => window.location.reload()}>
+                Coba Lagi
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     )
   }
@@ -676,7 +747,7 @@ export default function ReservasiCustomerPage() {
               <h1 className="font-heading font-semibold text-sm">Reservasi Meja</h1>
               <p className="text-xs text-muted-foreground">
                 {autoMeja
-                  ? "Meja bebas · resto pilihkan"
+                  ? "Resto yang pilihkan meja"
                   : meja
                     ? `Meja ${meja.nomorMeja} · maks ${meja.kapasitas} orang`
                     : "Pilih meja, tanggal, dan jam kedatangan"}
@@ -723,26 +794,6 @@ export default function ReservasiCustomerPage() {
         <div className="min-w-0 space-y-3">
         {step === 1 && (
           <>
-            <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-                <Ticket className="size-4 text-emerald-700" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-emerald-900 sm:text-sm">
-                  Sudah punya reservasi?
-                </p>
-                <p className="text-[11px] leading-snug text-emerald-800/80 sm:text-xs">
-                  Lihat kode & status reservasi Anda di sini.
-                </p>
-              </div>
-              <Button
-                asChild
-                size="sm"
-                className="h-8 shrink-0 rounded-full bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-700"
-              >
-                <Link href={`${LINK_RESERVASI_PUBLIK}/cek`}>Cek</Link>
-              </Button>
-            </div>
             <Card className="gap-0 py-0">
               <CardContent className="p-3 space-y-3 sm:p-4">
               <div className="space-y-1.5">
@@ -819,7 +870,7 @@ export default function ReservasiCustomerPage() {
                 <p className="text-[11px] text-foreground/70 sm:text-xs">
                   {autoMeja
                     ? meja
-                      ? "Meja bebas: resto mengatur meja sesuai jumlah orang (meja digabung bila perlu)."
+                      ? "Resto mengatur meja sesuai jumlah orang (meja digabung bila perlu)."
                       : "Tidak ada meja kosong saat ini."
                     : meja
                       ? `Maksimal ${meja.kapasitas} orang sesuai kapasitas Meja ${meja.nomorMeja}.`
@@ -831,6 +882,11 @@ export default function ReservasiCustomerPage() {
                   <Armchair className="size-3.5" /> Pilih Meja{" "}
                   <span className="text-destructive">*</span>
                 </Label>
+                <p className="text-[11px] text-foreground/70">
+                  {mejas.filter((m) => m.punyaQr).length} meja QR kosong ·{" "}
+                  {mejas.filter((m) => !m.punyaQr).length} meja Tanpa QR kosong. Semua meja
+                  kosong ditampilkan — pilih salah satu atau biarkan resto yang memilihkan.
+                </p>
                 {mejas.length === 0 ? (
                   <div className="rounded-lg border border-dashed bg-muted/40 p-3 text-center text-[11px] text-foreground/70">
                     Tidak ada meja kosong saat ini. Silakan hubungi staf restoran.
@@ -868,10 +924,9 @@ export default function ReservasiCustomerPage() {
                             </span>
                             {aktifMeja && <Check className="size-3.5 text-emerald-600" />}
                           </span>
-                          <span className="mt-0.5 flex flex-wrap items-center gap-1">
-                            <span className="text-[10px] text-foreground/70">
-                              {m.tipeMeja === "lesehan" ? "Lesehan" : "Kursi"} ·{" "}
-                              {m.kapasitas} org
+                            <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                              <span className="text-[10px] text-foreground/70">
+                              {m.namaTipe || m.tipeMeja} · {m.kapasitas} org
                             </span>
                             {m.punyaQr ? (
                               <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-medium text-emerald-800">
@@ -911,12 +966,12 @@ export default function ReservasiCustomerPage() {
                             autoMeja ? "text-emerald-800" : ""
                           }`}
                         >
-                          Meja Bebas
+                          Resto pilihkan meja
                         </span>
                         {autoMeja && <Check className="size-3.5 text-emerald-600" />}
                       </span>
                       <span className="mt-0.5 block text-[10px] text-foreground/70">
-                        Resto pilihkan meja
+                        Kami carikan meja kosong
                       </span>
                     </button>
                   </div>
@@ -925,14 +980,13 @@ export default function ReservasiCustomerPage() {
                   <p className="flex items-start gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2 text-[11px] leading-snug text-destructive">
                     <QrCode className="mt-0.5 size-3.5 shrink-0" />
                     QR meja tidak tersedia — semua meja dengan QR sedang penuh.
-                    Silakan pilih meja Tanpa QR atau Meja Bebas — staf akan
-                    menyiapkan meja untuk Anda.
+                    Silakan pilih meja yang tersedia — staf akan menyiapkan meja
+                    untuk Anda.
                   </p>
                 )}
                 <p className="text-[11px] leading-snug text-foreground/75 sm:text-xs">
-                  <b>Meja Bebas</b> — resto memilihkan meja kosong yang paling pas
-                  untuk jumlah orang Anda, termasuk meja <b>Tanpa QR</b>. Ingin pilih
-                  sendiri? Ketuk salah satu meja di atas.
+                  Resto akan memilihkan meja kosong yang paling pas untuk jumlah
+                  orang Anda. Ingin memilih sendiri? Ketuk salah satu meja di atas.
                 </p>
               </div>
               <div className="space-y-2">
