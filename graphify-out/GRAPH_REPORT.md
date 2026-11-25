@@ -1,7 +1,7 @@
-# Graph Report - pringmoni-deck  (2026-11-19)
+# Graph Report - pringmoni-deck  (2026-11-26)
 
 ## Corpus Check
-- 297 files · ~191,998 words
+- 297 files · ~191,790 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 13 file(s) not represented in the graph (top: .toml 4, (none) 2, .css 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e9bbf9f8`
+- Built from commit: `5f024ac3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -758,16 +758,16 @@ Nodes (10): cloudinary@^2.10.0, @uploadthing/react@^7.3.3, xlsx@^0.18.5, overrid
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `reservasi/page.tsx` to `DashboardClient.tsx`, `page-loader.tsx`, `kasir/page.tsx`, `card.tsx`, `ShiftKasirPanel.tsx`, `shift/page.tsx`, `stok-bahan/page.tsx`, `pindah-meja-sheet.tsx`, `app/layout.tsx`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `react` connect `react` to `kasir/page.tsx`, `card.tsx`, `ShiftKasirPanel.tsx`, `proxy.ts`, `reservasi/page.tsx`, `shift/page.tsx`, `devDependencies`, `stok-bahan/page.tsx`, `pindah-meja-sheet.tsx`, `dependencies`, `app/layout.tsx`?**
+  _High betweenness centrality (0.022) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `createLog()` (e.g. with `Integration Test` and `Penjelasan Assertion Unit`) actually correct?**
   _`createLog()` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `{ GET, POST }`, `@opencode-ai/plugin`, `dom` to the rest of the system?**
   _12 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `actions/shift.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.1076923076923077 - nodes in this community are weakly interconnected._
-- **Why does `react` connect `react` to `kasir/page.tsx`, `card.tsx`, `ShiftKasirPanel.tsx`, `proxy.ts`, `reservasi/page.tsx`, `shift/page.tsx`, `devDependencies`, `stok-bahan/page.tsx`, `pindah-meja-sheet.tsx`, `dependencies`, `app/layout.tsx`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `cn()` connect `reservasi/page.tsx` to `DashboardClient.tsx`, `page-loader.tsx`, `kasir/page.tsx`, `card.tsx`, `ShiftKasirPanel.tsx`, `shift/page.tsx`, `stok-bahan/page.tsx`, `pindah-meja-sheet.tsx`, `app/layout.tsx`?**
+  _High betweenness centrality (0.018) - this node is a cross-community bridge._
 - **Should `compilerOptions` be split into smaller, more focused modules?**
   _Cohesion score 0.09523809523809523 - nodes in this community are weakly interconnected._
 - **Should `src/types/index.ts` be split into smaller, more focused modules?**

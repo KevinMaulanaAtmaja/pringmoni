@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-//menjalannkan kode ini palingg atas sebelum semua mock di import
+//menjalannkan palingg atas sebelum semua mock di import
 const { authMock, revalidatePathMock, randomUuidMock, createLogMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
   revalidatePathMock: vi.fn(),
@@ -35,7 +35,7 @@ function formDataMeja(nilai: Record<string, string>): FormData {
   return data
 }
 
-//Memalsukan (mock) $queryRaw agar bisa mengembalikan nilai berbeda secara berurutan dalam satu kali eksekusi fungsi (seperti createMeja yang melakukan beberapa kali SELECT)
+//createmeja memanggil queryraw beberapa kali dg urutan tetap
 function queueQueryRaw(...results: unknown[][]) {
   let index = 0
   prismaMock.$queryRaw.mockImplementation(async () => {
@@ -45,12 +45,12 @@ function queueQueryRaw(...results: unknown[][]) {
   })
 }
 
-//Mengambil nilai sisipan dari pemanggilan $executeRaw
+//mengambil nilai sisipan dari pemanggilan $executeRaw
 function nilaiExecuteRaw(): unknown[] {
   return prismaMock.$executeRaw.mock.calls[0]?.slice(1) ?? []
 }
 
-const ROLE_NON_OWNER = ['cashier', 'waiter', 'kitchen'] as const //Array berisi role selain owner
+const ROLE_NON_OWNER = ['cashier', 'waiter', 'kitchen'] as const //berisi role selain owner
 
 describe('TC-02 meja (unit)', () => {
   beforeEach(() => {
@@ -66,13 +66,13 @@ describe('TC-02 meja (unit)', () => {
   })
 
 
-  //Mengembalikan globalThis.crypto ke aslinya. Tanpa ini, stub bisa "bocor" ke test lain
+  //Mengembalikan globalThis.crypto ke aslinya
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
   describe('createMeja', () => {
-    //1. menguji pembuatan meja dengan mock
+    //menguji pembuatan meja dengan mock
     it('membuat meja kursi dengan nomor urut, token, dan status kosong', async () => {
       //db punya no meja k009 lalu cek duplikat dan token kosong
       queueQueryRaw([{ nomor_meja: 'K009' }], [], [])
