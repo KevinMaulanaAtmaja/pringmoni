@@ -1,3 +1,5 @@
+import type { MejaReservasiAktif } from '@/types'
+
 export interface UserFixture {
   id: number
   username: string
@@ -18,6 +20,7 @@ export interface MejaFixture {
   tokenMeja: string
   statusMeja: string
   deletedAt: Date | null
+  reservasiAktif: MejaReservasiAktif | null
 }
 
 export interface KategoriMenuFixture {
@@ -174,6 +177,7 @@ export function mejaFixture(overrides: Partial<MejaFixture> = {}): MejaFixture {
     tokenMeja: 'TOKEN01',
     statusMeja: 'kosong',
     deletedAt: null,
+    reservasiAktif: null,
     ...overrides,
   }
 }

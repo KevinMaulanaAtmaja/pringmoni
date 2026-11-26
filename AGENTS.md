@@ -169,6 +169,7 @@ Project ini menggunakan **OpenCode Workflow** dengan konfigurasi di folder `.ope
 | `npm run dev` | Tidak - dijalankan oleh user |
 | `npm run build` | Ya **tapi hanya saat dev server user TIDAK aktif** |
 | `npm run lint` | Ya |
+| Menjalankan atau membuat kode test | **Tidak** — hanya jika diminta eksplisit user (biar tidak memperlambat pekerjaan) |
 | Install dependencies baru | Hanya BE yang boleh |
 | Mengosongkan database | **HANYA atas perintah eksplisit user** |
 

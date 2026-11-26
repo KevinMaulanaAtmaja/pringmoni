@@ -42,6 +42,8 @@ beforeEach(() => {
   prismaMock.$queryRaw.mockResolvedValue([])
   prismaMock.$executeRaw.mockResolvedValue(1)
   prismaMock.pesanan.updateMany.mockResolvedValue({ count: 0 })
+  prismaMock.reservasi.findMany.mockResolvedValue([])
+  prismaMock.reservasi.updateMany.mockResolvedValue({ count: 0 })
 
   vi.stubGlobal('crypto', { randomUUID: randomUuidMock })
 })
@@ -75,43 +77,35 @@ describe('getNextNomorMeja', () => {
   it('menolak tanpa session', async () => {
     authMock.mockResolvedValue(null)
 
-    await expect(getNextNomorMeja('kursi')).rejects.toThrow('Unauthorized')
+    await expect(getNextNomorMeja(1)).rejects.toThrow('Unauthorized')
   })
 
   it('menolak role selain owner', async () => {
     authMock.mockResolvedValue(sessionUntuk('waiter'))
 
-    await expect(getNextNomorMeja('kursi')).rejects.toThrow('Unauthorized')
+    await expect(getNextNomorMeja(1)).rejects.toThrow('Unauthorized')
   })
 
-  it('memakai awalan L untuk lesehan', async () => {
-    prismaMock.$queryRaw.mockResolvedValue([{ nomor_meja: 'L002' }, { nomor_meja: 'L007' }])
-
-    const hasil = await getNextNomorMeja('lesehan')
-
-    expect(hasil).toBe('L008')
+  it('menghasilkan nomor dari prefix tipe', async () => {
+    prismaMock.tipeMeja.findFirst.mockResolvedValue({ prefixKode: 'K' })
+    prismaMock.$queryRaw.mockResolvedValue([{ nomor_meja: 'K002' }, { nomor_meja: 'K007' }])
+    expect(await getNextNomorMeja(1)).toBe('K008')
   })
-
-  it('memakai awalan K dan mengabaikan karakter non-angka', async () => {
-    prismaMock.$queryRaw.mockResolvedValue([{ nomor_meja: 'K01' }, { nomor_meja: 'KX010' }])
-
-    const hasil = await getNextNomorMeja('kursi')
-
-    expect(hasil).toBe('K011')
-  })
-
   it('memulai dari 001 saat belum ada meja', async () => {
+    prismaMock.tipeMeja.findFirst.mockResolvedValue({ prefixKode: 'C' })
     prismaMock.$queryRaw.mockResolvedValue([])
-
-    expect(await getNextNomorMeja('kursi')).toBe('K001')
+    expect(await getNextNomorMeja(3)).toBe('C001')
   })
 })
 
 describe('createMeja', () => {
+  beforeEach(() => {
+    prismaMock.tipeMeja.findFirst.mockResolvedValue({ id: 1, prefixKode: 'K' })
+  })
   it('menolak tanpa session', async () => {
     authMock.mockResolvedValue(null)
 
-    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMeja: 'kursi' }))
+    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMejaId: '1' }))
 
     expect(hasil).toEqual({ error: 'Unauthorized' })
   })
@@ -119,22 +113,22 @@ describe('createMeja', () => {
   it('menolak role selain owner', async () => {
     authMock.mockResolvedValue(sessionUntuk('cashier'))
 
-    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMeja: 'kursi' }))
+    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMejaId: '1' }))
 
     expect(hasil).toEqual({ error: 'Unauthorized' })
   })
 
   it.each(['0', '21', 'abc'])('menolak kapasitas %s', async (kapasitas) => {
-    const hasil = await createMeja(null, formData({ kapasitas, tipeMeja: 'kursi' }))
+    const hasil = await createMeja(null, formData({ kapasitas, tipeMejaId: '1' }))
 
     expect(hasil).toEqual({ error: 'Kapasitas harus antara 1-20 orang' })
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled()
   })
 
-  it('menolak tipe meja tidak dikenal', async () => {
-    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMeja: 'bar' }))
-
-    expect(hasil).toEqual({ error: 'Tipe meja wajib dipilih' })
+  it('menolak tipe meja tidak ditemukan', async () => {
+    prismaMock.tipeMeja.findFirst.mockImplementation(async (args?: { where?: { id?: number } }) => { if (args?.where?.id === 999) return null; return { id: 1, prefixKode: 'K' } })
+    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMejaId: '999' }))
+    expect(hasil).toEqual({ error: 'Tipe meja tidak ditemukan' })
   })
 
   it('menolak nomor meja yang sudah ada', async () => {
@@ -142,7 +136,7 @@ describe('createMeja', () => {
       .mockResolvedValueOnce([{ nomor_meja: 'K001' }])
       .mockResolvedValueOnce([{ id: 1 }])
 
-    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMeja: 'kursi' }))
+    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMejaId: '1' }))
 
     expect(hasil).toEqual({ error: 'Nomor meja sudah ada' })
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled()
@@ -154,7 +148,7 @@ describe('createMeja', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
 
-    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMeja: 'kursi' }))
+    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMejaId: '1' }))
 
     expect(hasil).toEqual({ success: true })
     expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1)
@@ -172,7 +166,7 @@ describe('createMeja', () => {
       .mockReturnValueOnce('aaaaaaaa-0000-0000-0000-000000000000')
       .mockReturnValueOnce('bbbbbbbb-0000-0000-0000-000000000000')
 
-    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMeja: 'kursi' }))
+    const hasil = await createMeja(null, formData({ kapasitas: '4', tipeMejaId: '1' }))
 
     expect(hasil).toEqual({ success: true })
     expect(randomUuidMock).toHaveBeenCalledTimes(2)

@@ -356,7 +356,7 @@ export async function getPesananForDashboard(filters?: {
   const pesanan = await prisma.pesanan.findMany({
     where: whereClause,
     include: {
-      meja: true,
+      meja: { include: { tipeMeja: { select: { namaTipe: true } } } },
       waiter: true,
       kasir: true,
       detailPesanan: {
@@ -371,7 +371,7 @@ export async function getPesananForDashboard(filters?: {
     id: p.id,
     mejaId: p.mejaId,
     meja: p.meja.nomorMeja,
-    tipeMeja: p.meja.nomorMeja.startsWith('L') ? 'lesehan' as const : 'kursi' as const,
+    tipeMeja: (p.meja as { tipeMeja?: { namaTipe: string } | null }).tipeMeja?.namaTipe || 'Umum',
     status: p.statusPesanan,
     statusBayar: p.statusPembayaran,
     metodePembayaran: p.metodePembayaran,
@@ -440,7 +440,7 @@ export async function getPesananById(id: number) {
   const pesanan = await prisma.pesanan.findFirst({
     where: { id, deletedAt: null },
     include: {
-      meja: true,
+      meja: { include: { tipeMeja: { select: { namaTipe: true } } } },
       waiter: true,
       kasir: true,
       voucher: true,
@@ -464,7 +464,7 @@ export async function getPesananById(id: number) {
     id: pesanan.id,
     meja_id: pesanan.mejaId,
     nomor_meja: pesanan.meja.nomorMeja,
-    tipe_meja: pesanan.meja.nomorMeja.startsWith('L') ? 'lesehan' : 'kursi',
+    tipe_meja: pesanan.meja.tipeMeja?.namaTipe || 'Umum',
     status_pesanan: pesanan.statusPesanan,
     status_pembayaran: pesanan.statusPembayaran,
     total_harga: Number(pesanan.totalHarga),
@@ -931,7 +931,7 @@ export async function cancelExpiredOrders() {
 export interface MejaTersediaPindah {
   id: number
   nomorMeja: string
-  tipeMeja: "lesehan" | "kursi"
+  tipeMeja: string
   kapasitas: number
   tokenMeja: string
 }
@@ -966,6 +966,7 @@ export async function getMejaTersediaPindah(tokenMejaSaatIni: string): Promise<
       nomorMeja: true,
       kapasitas: true,
       tokenMeja: true,
+      tipeMeja: { select: { namaTipe: true } },
     },
     orderBy: { nomorMeja: "asc" },
   })
@@ -975,7 +976,7 @@ export async function getMejaTersediaPindah(tokenMejaSaatIni: string): Promise<
     daftar: mejaTersedia.map((m) => ({
       id: m.id,
       nomorMeja: m.nomorMeja,
-      tipeMeja: m.nomorMeja.startsWith("L") ? ("lesehan" as const) : ("kursi" as const),
+      tipeMeja: m.tipeMeja?.namaTipe || "Umum",
       kapasitas: m.kapasitas,
       tokenMeja: m.tokenMeja!,
     })),

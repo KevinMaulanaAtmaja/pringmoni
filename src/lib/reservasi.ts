@@ -51,26 +51,40 @@ export function generateKodeReservasi(): string {
 
 /**
  * Expiry lazy tanpa auth — aman dipanggil dari halaman customer.
- * Hanya memproses reservasi online yang melewati batas konfirmasi.
+ * Menutup reservasi yang lewat batas konfirmasi (menunggu kedatangan ->
+ * expired, sudah dikonfirmasi tapi tidak datang -> no_show) agar meja
+ * tidak terus terblokir oleh reservasi lama.
  */
 export async function expireReservasiLazy() {
   const now = new Date()
   const expired = await prisma.reservasi.findMany({
     where: {
-      statusReservasi: StatusReservasi.menunggu_kedatangan,
+      statusReservasi: {
+        in: [StatusReservasi.menunggu_kedatangan, StatusReservasi.dikonfirmasi],
+      },
       batasKonfirmasi: { lt: now },
+      pesananId: null,
     },
-    select: { id: true, mejaId: true },
+    select: { id: true, mejaId: true, statusReservasi: true },
     take: 100,
   })
 
   if (expired.length === 0) return 0
 
   for (const reservasi of expired) {
+    const data =
+      reservasi.statusReservasi === StatusReservasi.dikonfirmasi
+        ? {
+            statusReservasi: StatusReservasi.no_show,
+            noShowAt: now,
+            updatedAt: now,
+          }
+        : { statusReservasi: StatusReservasi.expired, updatedAt: now }
+
     await prisma.$transaction([
       prisma.reservasi.update({
         where: { id: reservasi.id },
-        data: { statusReservasi: StatusReservasi.expired, updatedAt: now },
+        data,
       }),
       prisma.meja.updateMany({
         where: { id: reservasi.mejaId, statusMeja: StatusMeja.dipesan },

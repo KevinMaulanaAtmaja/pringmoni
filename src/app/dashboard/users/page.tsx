@@ -43,6 +43,7 @@ const roleColors: Record<RoleUser, string> = {
   cashier: 'bg-blue-100 text-blue-800',
   waiter: 'bg-green-100 text-green-800',
   kitchen: 'bg-orange-100 text-orange-800',
+  gudang: 'bg-amber-100 text-amber-800',
 }
 
 const roleLabels: Record<RoleUser, string> = {
@@ -50,6 +51,7 @@ const roleLabels: Record<RoleUser, string> = {
   cashier: 'Kasir',
   waiter: 'Pelayan',
   kitchen: 'Dapur',
+  gudang: 'Gudang',
 }
 
 const ITEMS_PER_PAGE = 5
@@ -237,6 +239,8 @@ export default function UsersPage() {
             <SelectItem value="owner">Owner</SelectItem>
             <SelectItem value="cashier">Kasir</SelectItem>
             <SelectItem value="waiter">Waiter</SelectItem>
+            <SelectItem value="kitchen">Dapur</SelectItem>
+            <SelectItem value="gudang">Gudang</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -424,6 +428,7 @@ export default function UsersPage() {
                     <SelectItem value="cashier">Kasir</SelectItem>
                     <SelectItem value="kitchen">Dapur</SelectItem>
                     <SelectItem value="waiter">Pelayan</SelectItem>
+                    <SelectItem value="gudang">Gudang</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

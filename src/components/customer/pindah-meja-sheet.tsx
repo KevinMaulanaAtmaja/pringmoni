@@ -143,15 +143,11 @@ export function PindahMejaSheet({
                             : "bg-muted text-muted-foreground"
                         }`}
                       >
-                        {m.tipeMeja === "lesehan" ? (
-                          <Sofa className="size-4" />
-                        ) : (
-                          <Armchair className="size-4" />
-                        )}
+                        <Armchair className="size-4" />
                       </div>
                       <p className="mt-1.5 text-sm font-semibold">{m.nomorMeja}</p>
                       <p className="text-xs text-muted-foreground">
-                        {m.kapasitas} {m.tipeMeja === "lesehan" ? "lesehan" : "kursi"}
+                        {m.kapasitas} orang · {m.tipeMeja}
                       </p>
                     </button>
                   );

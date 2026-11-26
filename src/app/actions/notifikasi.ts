@@ -70,7 +70,6 @@ const KIND_PER_ROLE: Record<RoleUser, NotifikasiKind[]> = {
     "belum_diantar",
     "siap_selesai",
     "refund",
-    "stok_menipis",
   ],
   cashier: [
     "terlambat",
@@ -82,6 +81,7 @@ const KIND_PER_ROLE: Record<RoleUser, NotifikasiKind[]> = {
   ],
   waiter: ["terlambat", "perlu_diproses", "belum_diantar", "siap_selesai"],
   kitchen: ["terlambat", "perlu_diproses", "belum_diantar"],
+  gudang: ["stok_menipis"],
 }
 
 function awalHari(now: Date) {
@@ -199,6 +199,7 @@ export async function getNotifikasiDashboard(): Promise<{
         where: {
           deletedAt: null,
           statusPesanan: { in: ["menunggu", "diproses"] },
+          createdAt: { gte: hariIni },
         },
         select: {
           id: true,
@@ -217,6 +218,7 @@ export async function getNotifikasiDashboard(): Promise<{
       prisma.pesanan.findMany({
         where: {
           deletedAt: null,
+          createdAt: { gte: hariIni },
           OR: [{ statusPesanan: "refund" }, { statusPembayaran: "refund" }],
         },
         select: {
@@ -245,6 +247,8 @@ export async function getNotifikasiDashboard(): Promise<{
     const items: NotifikasiItem[] = []
 
     for (const p of aktif) {
+      if (p.createdAt < hariIni) continue
+
       const jumlahItem = p.detailPesanan.reduce((s, d) => s + d.jumlah, 0)
       const itemBelumDiantar = p.detailPesanan
         .filter((d) => d.statusAntar === "belum")
@@ -286,6 +290,8 @@ export async function getNotifikasiDashboard(): Promise<{
 
     if (kinds.includes("refund")) {
       for (const p of refund) {
+        if (p.createdAt < hariIni) continue
+
         items.push({
           id: `refund-${p.id}`,
           kind: "refund",

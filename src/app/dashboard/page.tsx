@@ -48,7 +48,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6 capitalize">
-        Dashboard {role === 'owner' ? 'Owner' : role === 'cashier' ? 'Kasir' : role === 'kitchen' ? 'Kitchen' : 'Waiter'}
+        Dashboard {role === 'owner' ? 'Owner' : role === 'cashier' ? 'Kasir' : role === 'kitchen' ? 'Kitchen' : role === 'gudang' ? 'Gudang' : 'Waiter'}
       </h1>
       <StatGrid stats={stats} role={role} />
       <DashboardCharts charts={charts} />

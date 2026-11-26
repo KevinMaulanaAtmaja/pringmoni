@@ -49,6 +49,11 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Reservasi", icon: CalendarCheck, href: "/dashboard/reservasi" },
         { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
+    : (effectiveRole === 'gudang')
+    ? [
+        { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+        { name: "Stok Bahan", icon: Boxes, href: "/dashboard/stok-bahan" },
+      ]
     : (effectiveRole === 'kitchen')
     ? [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -59,7 +64,6 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
-        { name: "Stok Bahan", icon: Boxes, href: "/dashboard/stok-bahan" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
         { name: "Akun", icon: User, href: "/dashboard/users" },
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },

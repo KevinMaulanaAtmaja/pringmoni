@@ -40,9 +40,9 @@ export type RiwayatStokWithType = {
   createdAt: string
 }
 
-async function requireOwner() {
+async function requireGudang() {
   const session = await auth()
-  if (!session?.user || session.user.role !== "owner") {
+  if (!session?.user || session.user.role !== "gudang") {
     throw new Error("Unauthorized")
   }
   return session
@@ -55,7 +55,7 @@ function hitungStatus(stokQty: number, stokMinimum: number): StatusStok {
 }
 
 export async function getStokBahanList(tipe: LokasiStok): Promise<StokBahanWithType[]> {
-  await requireOwner()
+  await requireGudang()
   const items = await prisma.stokBahan.findMany({
     where: { tipe, deletedAt: null },
     orderBy: { createdAt: "desc" },
@@ -86,7 +86,7 @@ export async function createStokBahan(data: {
   keterangan?: string
 }) {
   try {
-    const session = await requireOwner()
+    const session = await requireGudang()
     const cleanName = data.namaBahan.trim()
     if (!cleanName) {
       return { error: "Nama bahan tidak boleh kosong" }
@@ -172,7 +172,7 @@ export async function updateStokBahan(data: {
   keterangan?: string
 }) {
   try {
-    const session = await requireOwner()
+    const session = await requireGudang()
     const cleanName = data.namaBahan.trim()
     if (!cleanName) {
       return { error: "Nama bahan tidak boleh kosong" }
@@ -242,7 +242,7 @@ export async function updateStokBahan(data: {
 
 export async function deleteStokBahan(id: number) {
   try {
-    await requireOwner()
+    await requireGudang()
     const item = await prisma.stokBahan.findUnique({ where: { id } })
     if (!item || item.deletedAt) {
       return { error: "Bahan tidak ditemukan" }
@@ -266,7 +266,7 @@ export async function deleteStokBahan(id: number) {
 
 export async function resetAllStokBahan() {
   try {
-    await requireOwner()
+    await requireGudang()
     await prisma.stokBahan.updateMany({
       where: { deletedAt: null },
       data: { deletedAt: new Date() },
@@ -280,7 +280,7 @@ export async function resetAllStokBahan() {
 
 export async function restockBahan(id: number, jumlah: number, keterangan?: string) {
   try {
-    const session = await requireOwner()
+    const session = await requireGudang()
 
     const item = await prisma.stokBahan.findUnique({ where: { id } })
     if (!item || item.deletedAt) {
@@ -322,7 +322,7 @@ export async function restockBahan(id: number, jumlah: number, keterangan?: stri
 
 export async function transferStokBahan(stokBahanId: number, jumlah: number) {
   try {
-    const session = await requireOwner()
+    const session = await requireGudang()
 
     if (!Number.isFinite(jumlah) || jumlah <= 0) {
       return { error: "Jumlah transfer harus lebih dari 0" }
@@ -432,7 +432,7 @@ export async function transferStokBahan(stokBahanId: number, jumlah: number) {
 
 export async function hapusResepBahan(resepId: number) {
   try {
-    await requireOwner()
+    await requireGudang()
 
     const resep = await prisma.resepMenu.findUnique({
       where: { id: resepId },
@@ -458,7 +458,7 @@ export async function hapusResepBahan(resepId: number) {
 
 export async function getRiwayatStok(stokBahanId: number): Promise<RiwayatStokWithType[]> {
   try {
-    await requireOwner()
+    await requireGudang()
 
     const riwayat = await prisma.riwayatStok.findMany({
       where: { stokBahanId },
@@ -487,7 +487,7 @@ export async function getRiwayatStok(stokBahanId: number): Promise<RiwayatStokWi
 }
 
 export async function getBahanDapurList(): Promise<StokBahanWithType[]> {
-  await requireOwner()
+  await requireGudang()
   const items = await prisma.stokBahan.findMany({
     where: { tipe: "dapur", deletedAt: null },
     orderBy: { namaBahan: "asc" },

@@ -195,7 +195,8 @@ describe('getNotifikasiDashboard', () => {
     })
   })
 
-  it('menyertakan stok menipis hanya untuk owner', async () => {
+  it('menyertakan stok menipis hanya untuk role gudang', async () => {
+    authMock.mockResolvedValue(sessionUntuk('gudang'))
     prismaMock.stokBahan.findMany.mockResolvedValue([
       { id: 3, namaBahan: 'Beras', stokQty: 2, satuan: 'kg', statusStok: 'menipis' },
     ])
@@ -210,6 +211,46 @@ describe('getNotifikasiDashboard', () => {
         href: '/dashboard/stok-bahan',
       })
     )
+  })
+
+  it('tidak menyertakan notifikasi stok untuk owner', async () => {
+    prismaMock.stokBahan.findMany.mockResolvedValue([
+      { id: 3, namaBahan: 'Beras', stokQty: 2, satuan: 'kg', statusStok: 'menipis' },
+    ])
+
+    const hasil = await getNotifikasiDashboard()
+
+    expect(hasil.items).toEqual([])
+    expect(prismaMock.stokBahan.findMany).not.toHaveBeenCalled()
+  })
+
+  it('tidak menampilkan pesanan yang dibuat sebelum hari ini', async () => {
+    urutkanSekuens([
+      pesananAktif({
+        id: 20,
+        createdAt: new Date(SEKARANG.getTime() - 24 * 60 * MENIT),
+      }),
+    ])
+
+    const hasil = await getNotifikasiDashboard()
+
+    expect(hasil.total).toBe(0)
+  })
+
+  it('tidak menampilkan refund yang dibuat sebelum hari ini', async () => {
+    authMock.mockResolvedValue(sessionUntuk('cashier'))
+    urutkanSekuens(
+      [],
+      [
+        pesananRefund({
+          createdAt: new Date(SEKARANG.getTime() - 24 * 60 * MENIT),
+        }),
+      ]
+    )
+
+    const hasil = await getNotifikasiDashboard()
+
+    expect(hasil.total).toBe(0)
   })
 
   it('mengurutkan item berdasarkan prioritas jenis', async () => {

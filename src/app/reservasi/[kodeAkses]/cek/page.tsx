@@ -32,6 +32,7 @@ import {
 import { cekStatusReservasi } from "@/app/actions/reservasi-customer"
 import { LINK_RESERVASI_PUBLIK } from "@/lib/reservasi-akses"
 import { ambilHasilReservasi } from "@/lib/reservasi-hasil"
+import { apakahErrorJaringan, laporkanKoneksiPutus } from "@/lib/koneksi"
 
 interface ReservasiTampilan {
   sumber: "lokal" | "cek"
@@ -177,8 +178,13 @@ export default function CekReservasiPage() {
         setData({ sumber: "cek", ...res.data })
         setCekOpen(false)
       }
-    } catch {
-      setCekError("Gagal memeriksa status. Coba lagi.")
+    } catch (err) {
+      if (apakahErrorJaringan(err)) {
+        setCekOpen(false)
+        laporkanKoneksiPutus("Gagal memeriksa status reservasi. Periksa koneksi lalu coba lagi.")
+      } else {
+        setCekError("Gagal memeriksa status. Coba lagi.")
+      }
     } finally {
       setCekLoading(false)
     }

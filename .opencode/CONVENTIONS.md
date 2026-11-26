@@ -72,7 +72,8 @@ src/
 - Keputusan eksternal (payment gateway, dsb) harus dikunci sebelum implementasi.
 
 ### 3. Verifikasi Sebelum Commit
-- Wajib: `npm run lint` dan `npm test` (jika menyentuh proxy/action).
+- Wajib: `npm run lint` dan `npx tsc --noEmit` (jika menyentuh proxy/action).
+- Test (termasuk `npm test` / `npx vitest`) **hanya dijalankan atau dibuat atas permintaan eksplisit user** — lihat `AGENTS.md` → Pembatasan Kerja.
 - Jangan merge branch yang meninggalkan error lint.
 - Setelah ubah `prisma/schema.prisma`: `npx prisma validate` + `npx prisma generate` (saat dev server mati).
 

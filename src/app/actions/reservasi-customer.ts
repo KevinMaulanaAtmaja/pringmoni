@@ -40,6 +40,8 @@ interface CreateReservasiCustomerInput {
   mejaId: number
   /** Customer memilih "Meja Bebas" — resto yang mengatur penempatan meja. */
   mejaBebas?: boolean
+  /** Token tipe pool Meja Bebas; server yang memakainya, bukan pilihan client. */
+  tipeMejaToken?: string | null
   namaPelanggan: string
   noHp: string
   jumlahOrang: number
@@ -118,7 +120,8 @@ export async function getReservasiCustomer(kodeAkses: string) {
 
   await expireReservasiLazy()
 
-  const [menus, kategoris, mejas, vouchers, totalMejaQr] = await Promise.all([
+  const sekarang = new Date()
+  const [menus, kategoris, mejas, tipeMejas, vouchers, totalMejaQr] = await Promise.all([
     getMenusForCustomer(),
     getKategoriMenus(),
     prisma.meja.findMany({
@@ -130,6 +133,7 @@ export async function getReservasiCustomer(kodeAkses: string) {
             statusReservasi: {
               in: [StatusReservasi.menunggu_kedatangan, StatusReservasi.dikonfirmasi],
             },
+            batasKonfirmasi: { gte: sekarang },
           },
         },
         pesanan: {
@@ -141,7 +145,33 @@ export async function getReservasiCustomer(kodeAkses: string) {
         },
       },
       orderBy: { nomorMeja: "asc" },
-      select: { id: true, nomorMeja: true, kapasitas: true, tokenMeja: true },
+      select: {
+        id: true,
+        nomorMeja: true,
+        kapasitas: true,
+        tokenMeja: true,
+        tipeMejaId: true,
+        tipeMeja: {
+          select: {
+            namaTipe: true,
+            tokenTipe: true,
+            khususSatuCustomer: true,
+            modeBebas: true,
+          },
+        },
+      },
+    }),
+    prisma.tipeMeja.findMany({
+      where: { deletedAt: null },
+      orderBy: [{ modeBebas: "desc" }, { namaTipe: "asc" }],
+      select: {
+        id: true,
+        namaTipe: true,
+        tokenTipe: true,
+        tokenTipeAlias: true,
+        khususSatuCustomer: true,
+        modeBebas: true,
+      },
     }),
     getVoucherAktif(),
     prisma.meja.count({
@@ -154,9 +184,15 @@ export async function getReservasiCustomer(kodeAkses: string) {
       id: meja.id,
       nomorMeja: meja.nomorMeja,
       kapasitas: meja.kapasitas,
-      tipeMeja: meja.nomorMeja.toUpperCase().startsWith("L") ? "lesehan" : "kursi",
+      tipeMeja: meja.tipeMeja?.namaTipe ?? "Umum",
       punyaQr: Boolean(meja.tokenMeja),
+      tipeMejaId: meja.tipeMejaId,
+      namaTipe: meja.tipeMeja?.namaTipe ?? null,
+      tokenTipe: meja.tipeMeja?.tokenTipe ?? null,
+      khususSatuCustomer: meja.tipeMeja?.khususSatuCustomer ?? false,
+      modeBebas: meja.tipeMeja?.modeBebas ?? false,
     })),
+    tipeMejas: tipeMejas,
     menus,
     kategoris: kategoris.map((k) => ({
       id: k.id,
@@ -225,20 +261,118 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
     return { error: "Link reservasi tidak valid atau sudah tidak berlaku" }
   }
 
-  const mejaId = Number(data.mejaId)
+  const sekarang = new Date()
+  const filterMejaKosong = {
+    deletedAt: null,
+    statusMeja: StatusMeja.kosong,
+    reservasi: {
+      none: {
+        statusReservasi: {
+          in: [StatusReservasi.menunggu_kedatangan, StatusReservasi.dikonfirmasi],
+        },
+        batasKonfirmasi: { gte: sekarang },
+      },
+    },
+    pesanan: {
+      none: {
+        statusPesanan: { in: [StatusPesanan.menunggu, StatusPesanan.diproses] },
+        statusPembayaran: { not: StatusBayar.berhasil },
+        deletedAt: null,
+      },
+    },
+  } satisfies Prisma.MejaWhereInput
+
+  let mejaId = Number(data.mejaId)
+  let tipeBebas: { id: number; tokenTipe: string; namaTipe: string } | null = null
+  let poolBebasAdaIsinya = false
+
+  if (data.mejaBebas) {
+    const token = (data.tipeMejaToken || "").trim().toUpperCase()
+    if (!token) {
+      return { error: "Tipe Meja Bebas belum ditentukan. Muat ulang halaman reservasi." }
+    }
+    const tipeDitemukan = await prisma.tipeMeja.findFirst({
+      where: {
+        deletedAt: null,
+        modeBebas: true,
+        OR: [{ tokenTipe: token }, { tokenTipeAlias: token }],
+      },
+      select: { id: true, tokenTipe: true, tokenTipeAlias: true, namaTipe: true },
+    })
+    if (!tipeDitemukan) {
+      return { error: "Tipe Meja Bebas tidak valid. Muat ulang halaman reservasi." }
+    }
+    tipeBebas = {
+      id: tipeDitemukan.id,
+      tokenTipe: tipeDitemukan.tokenTipeAlias ?? tipeDitemukan.tokenTipe,
+      namaTipe: tipeDitemukan.namaTipe,
+    }
+
+    poolBebasAdaIsinya =
+      (await prisma.meja.count({
+        where: { deletedAt: null, tipeMejaId: tipeBebas.id },
+      })) > 0
+
+    const kandidat = await prisma.meja.findMany({
+      where: {
+        ...filterMejaKosong,
+        ...(poolBebasAdaIsinya ? { tipeMejaId: tipeBebas.id } : {}),
+      },
+      orderBy: { kapasitas: "asc" },
+      select: {
+        id: true,
+        kapasitas: true,
+        tipeMeja: { select: { khususSatuCustomer: true } },
+      },
+    })
+    const layak = kandidat.filter(
+      (m) => !m.tipeMeja?.khususSatuCustomer || m.kapasitas >= jumlahOrang
+    )
+    const pilihan =
+      layak.find((m) => m.kapasitas >= jumlahOrang) ??
+      layak[layak.length - 1] ??
+      kandidat[0]
+    if (!pilihan) {
+      return { error: "Semua meja pada tipe Meja Bebas sedang penuh. Silakan hubungi staf restoran." }
+    }
+    mejaId = pilihan.id
+  }
+
   if (!Number.isInteger(mejaId) || mejaId <= 0) {
     return { error: "Pilih meja yang tersedia terlebih dahulu" }
   }
 
   const meja = await prisma.meja.findFirst({
     where: { id: mejaId, deletedAt: null },
-    select: { id: true, nomorMeja: true, kapasitas: true, statusMeja: true },
+    select: {
+      id: true,
+      nomorMeja: true,
+      kapasitas: true,
+      statusMeja: true,
+      tipeMejaId: true,
+      tipeMeja: {
+        select: {
+          namaTipe: true,
+          tokenTipe: true,
+          khususSatuCustomer: true,
+          modeBebas: true,
+        },
+      },
+    },
   })
   if (!meja) return { error: "Meja tidak ditemukan" }
   if (meja.statusMeja !== StatusMeja.kosong) {
     return { error: `Meja ${meja.nomorMeja} sedang dipakai. Silakan pilih meja lain.` }
   }
-  if (!data.mejaBebas && jumlahOrang > meja.kapasitas) {
+  if (
+    data.mejaBebas &&
+    tipeBebas &&
+    poolBebasAdaIsinya &&
+    meja.tipeMejaId !== tipeBebas.id
+  ) {
+    return { error: "Meja yang dipilih bukan bagian dari tipe Meja Bebas" }
+  }
+  if (jumlahOrang > meja.kapasitas && (!data.mejaBebas || meja.tipeMeja?.khususSatuCustomer)) {
     return { error: `Kapasitas meja ${meja.nomorMeja} maksimal ${meja.kapasitas} orang` }
   }
 
@@ -339,6 +473,7 @@ export async function createReservasiCustomer(data: CreateReservasiCustomerInput
             statusReservasi: {
               in: [StatusReservasi.menunggu_kedatangan, StatusReservasi.dikonfirmasi],
             },
+            batasKonfirmasi: { gte: sekarang },
           },
           select: { id: true },
         })

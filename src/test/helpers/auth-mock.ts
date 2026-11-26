@@ -1,6 +1,6 @@
 import { vi } from 'vitest'
 
-export type TestRole = 'owner' | 'cashier' | 'waiter' | 'kitchen'
+export type TestRole = 'owner' | 'cashier' | 'waiter' | 'kitchen' | 'gudang'
 
 export type TestSessionUser = {
   id: string

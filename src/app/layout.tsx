@@ -5,6 +5,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "./providers";
 import Footer from "@/components/layout/Footer";
+import { ConnectionGuard } from "@/components/layout/ConnectionGuard";
 import AgentationToolbar from "@/components/agentation-toolbar";
 
 const geistMonoHeading = Geist_Mono({subsets:['latin'],variable:'--font-heading'});
@@ -77,7 +78,10 @@ export default function RootLayout({
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: stripExtensionAttrs }}
         />
-        <Providers>{children}</Providers>
+        <Providers>
+          <ConnectionGuard />
+          {children}
+        </Providers>
         <Footer />
         {process.env.NODE_ENV === "development" && <AgentationToolbar />}
       </body>

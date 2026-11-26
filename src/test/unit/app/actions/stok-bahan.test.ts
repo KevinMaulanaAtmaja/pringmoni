@@ -48,7 +48,7 @@ beforeEach(() => {
     return Promise.all(arg as Promise<unknown>[])
   })
 
-  authMock.mockResolvedValue(sessionUntuk('owner', { id: '1', username: 'owner' }))
+  authMock.mockResolvedValue(sessionUntuk('gudang', { id: '1', username: 'gudang' }))
   prismaMock.stokBahan.findMany.mockResolvedValue([])
   prismaMock.stokBahan.findFirst.mockResolvedValue(null)
   prismaMock.stokBahan.findUnique.mockResolvedValue(stokBahanFixture())
@@ -64,8 +64,8 @@ beforeEach(() => {
 })
 
 describe('getStokBahanList', () => {
-  it('menolak non-owner', async () => {
-    authMock.mockResolvedValue(sessionUntuk('cashier'))
+  it('menolak non-gudang', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
 
     await expect(getStokBahanList('gudang')).rejects.toThrow('Unauthorized')
   })
@@ -85,8 +85,8 @@ describe('getStokBahanList', () => {
 })
 
 describe('createStokBahan', () => {
-  it('mengembalikan error Unauthorized untuk non-owner', async () => {
-    authMock.mockResolvedValue(sessionUntuk('waiter'))
+  it('mengembalikan error Unauthorized untuk non-gudang', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
 
     const hasil = await createStokBahan(INPUT_BARU)
 
@@ -178,8 +178,8 @@ describe('updateStokBahan', () => {
     hargaPerSatuan: 12000,
   }
 
-  it('menolak non-owner', async () => {
-    authMock.mockResolvedValue(sessionUntuk('cashier'))
+  it('menolak non-gudang', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
 
     const hasil = await updateStokBahan(input)
 
@@ -240,7 +240,7 @@ describe('updateStokBahan', () => {
 })
 
 describe('deleteStokBahan', () => {
-  it('menolak non-owner', async () => {
+  it('menolak non-gudang', async () => {
     authMock.mockResolvedValue(null)
 
     const hasil = await deleteStokBahan(1)
@@ -278,8 +278,8 @@ describe('deleteStokBahan', () => {
 })
 
 describe('resetAllStokBahan', () => {
-  it('menolak non-owner', async () => {
-    authMock.mockResolvedValue(sessionUntuk('cashier'))
+  it('menolak non-gudang', async () => {
+    authMock.mockResolvedValue(sessionUntuk('owner'))
 
     const hasil = await resetAllStokBahan()
 
@@ -298,7 +298,7 @@ describe('resetAllStokBahan', () => {
 })
 
 describe('restockBahan', () => {
-  it('menolak non-owner', async () => {
+  it('menolak non-gudang', async () => {
     authMock.mockResolvedValue(null)
 
     const hasil = await restockBahan(1, 10)
@@ -440,7 +440,7 @@ describe('hapusResepBahan', () => {
 })
 
 describe('getRiwayatStok', () => {
-  it('mengembalikan array kosong saat non-owner', async () => {
+  it('mengembalikan array kosong saat non-gudang', async () => {
     authMock.mockResolvedValue(sessionUtil('waiter'))
 
     const hasil = await getRiwayatStok(1)
@@ -460,7 +460,7 @@ describe('getRiwayatStok', () => {
         keterangan: null,
         createdAt: new Date('2026-11-05T03:04:05.000Z'),
         stokBahan: { namaBahan: 'Beras' },
-        user: { username: 'owner' },
+        user: { username: 'gudang' },
       },
     ])
 
@@ -468,14 +468,14 @@ describe('getRiwayatStok', () => {
 
     expect(hasil[0]).toMatchObject({
       namaBahan: 'Beras',
-      userName: 'owner',
+      userName: 'gudang',
       createdAt: '2026-11-05 03:04:05',
     })
   })
 })
 
 describe('getBahanDapurList', () => {
-  it('menolak non-owner', async () => {
+  it('menolak non-gudang', async () => {
     authMock.mockResolvedValue(null)
 
     await expect(getBahanDapurList()).rejects.toThrow('Unauthorized')
@@ -492,6 +492,6 @@ describe('getBahanDapurList', () => {
   })
 })
 
-function sessionUtil(role: 'owner' | 'cashier' | 'waiter' | 'kitchen') {
+function sessionUtil(role: 'owner' | 'cashier' | 'waiter' | 'kitchen' | 'gudang') {
   return sessionUntuk(role)
 }

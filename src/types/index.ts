@@ -1,6 +1,4 @@
-export type RoleUser = 'owner' | 'cashier' | 'waiter' | 'kitchen'
-
-export type TipeMeja = 'lesehan' | 'kursi'
+export type RoleUser = 'owner' | 'cashier' | 'waiter' | 'kitchen' | 'gudang'
 
 export interface User {
   id: number
@@ -53,13 +51,32 @@ export interface MejaReservasiAktif {
   jumlahOrang: number
 }
 
+export interface TipeMeja {
+  id: number
+  namaTipe: string
+  tokenTipe: string
+  /** Alias opsional (hanya tipe Bebas) yang menggantikan token asli di tampilan; token asli tetap tersimpan. */
+  tokenTipeAlias?: string | null
+  prefixKode: string
+  /** Meja dengan tipe ini hanya boleh dipesan oleh 1 customer (kapasitas tetap dipatuhi). */
+  khususSatuCustomer: boolean
+  /** Tipe ini dipakai sebagai pool opsi "Meja Bebas" di reservasi customer. */
+  modeBebas: boolean
+  jumlahMeja?: number
+}
+
 export interface Meja {
   id: number
   nomorMeja: string
-  tipeMeja: TipeMeja
+  tipeMeja: string
   kapasitas: number
   tokenMeja?: string
   statusMeja: StatusMeja
+  tipeMejaId?: number | null
+  namaTipe?: string | null
+  tokenTipe?: string | null
+  khususSatuCustomer?: boolean
+  modeBebas?: boolean
   /** Reservasi aktif terbaru yang menahan meja (null kalau tidak ada). */
   reservasiAktif?: MejaReservasiAktif | null
 }

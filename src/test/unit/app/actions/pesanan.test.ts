@@ -1,3 +1,4 @@
+vi.mock('next/server', () => ({ after: (fn: () => void | Promise<void>) => { try { const r = fn(); if (r && typeof (r as Promise<void>).then === 'function') (r as Promise<void>).catch(() => {}) } catch {} } }))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StatusPesanan } from '@prisma/client'
 
@@ -582,7 +583,7 @@ describe('getMejaTersediaPindah', () => {
     expect(hasil).toEqual({ error: 'Tidak ada pesanan aktif yang bisa dipindah di meja ini' })
   })
 
-  it('mengembalikan daftar meja kosong dengan tipe lesehan/kursi', async () => {
+  it('mengembalikan daftar meja kosong dengan tipe dari tipe', async () => {
     prismaMock.pesanan.findFirst.mockResolvedValue({ id: 1 })
     prismaMock.meja.findMany.mockResolvedValue([
       { id: 2, nomorMeja: 'L01', kapasitas: 6, tokenMeja: 'TOKEN02' },
@@ -594,8 +595,8 @@ describe('getMejaTersediaPindah', () => {
     expect(hasil).toEqual({
       mejaSaatIni: { nomorMeja: 'K01', kapasitas: 4 },
       daftar: [
-        { id: 2, nomorMeja: 'L01', tipeMeja: 'lesehan', kapasitas: 6, tokenMeja: 'TOKEN02' },
-        { id: 3, nomorMeja: 'K02', tipeMeja: 'kursi', kapasitas: 4, tokenMeja: 'TOKEN03' },
+        { id: 2, nomorMeja: 'L01', tipeMeja: 'Lesehan', kapasitas: 6, tokenMeja: 'TOKEN02' },
+        { id: 3, nomorMeja: 'K02', tipeMeja: 'Kursi', kapasitas: 4, tokenMeja: 'TOKEN03' },
       ],
     })
     expect(prismaMock.meja.findMany).toHaveBeenCalledWith(
@@ -710,7 +711,7 @@ function barisPesanan(
 
   return {
     ...pesananFixture({ id: 1, totalHarga: 50000 }),
-    meja: { nomorMeja: 'L01' },
+    meja: { nomorMeja: 'L01', tipeMeja: { namaTipe: 'Lesehan' } },
     waiter: null,
     kasir: null,
     voucher: null,
@@ -826,7 +827,7 @@ describe('getPesananForDashboard', () => {
 
     const daftar = hasil as Exclude<typeof hasil, { error: string }>
     expect(daftar[0]).toMatchObject({
-      tipeMeja: 'lesehan',
+      tipeMeja: 'Lesehan',
       items: 4,
       itemNames: ['Menu 1', 'Menu 2', 'Menu 3'],
       sisaItems: 1,
@@ -923,7 +924,7 @@ describe('getPesananById', () => {
         jumlahBayar: 60000,
         kembalian: 10000,
         catatan: 'tanpa sambal',
-        meja: { nomorMeja: 'L02' },
+        meja: { nomorMeja: 'L02', tipeMeja: { namaTipe: 'Lesehan' } },
         waiter: { username: 'waiter1' },
         kasir: { username: 'kasir1' },
         voucher: { kode: 'HEBAT', namaVoucher: 'Hebat', diskonPersen: 10 },
@@ -934,7 +935,7 @@ describe('getPesananById', () => {
     const detail = hasil as NonNullable<Exclude<typeof hasil, { error: string }>>
 
     expect(detail).toMatchObject({
-      tipe_meja: 'lesehan',
+      tipe_meja: 'Lesehan',
       voucher_kode: 'HEBAT',
       voucher_diskon_persen: 10,
       biaya_admin: 1000,
@@ -1075,7 +1076,7 @@ describe('getPesananByTokenAndId', () => {
         midtransOrderId: 'PUB-1',
         namaPelanggan: null,
         metodePembayaran: 'tunai',
-        meja: { nomorMeja: 'K01' },
+        meja: { nomorMeja: 'K01', tipeMeja: { namaTipe: 'Kursi' } },
       })
     )
 

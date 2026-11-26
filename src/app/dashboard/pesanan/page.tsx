@@ -880,7 +880,7 @@ export default function PesananPage() {
                     </div>
                     <div>
                       <span className="text-gray-500">Tipe:</span>
-                      <p className="font-medium">{selectedPesanan.tipe_meja === 'lesehan' ? 'Lesehan' : 'Kursi'}</p>
+                      <p className="font-medium">{selectedPesanan.tipe_meja || "-"}</p>
                     </div>
                     <div>
                       <span className="text-gray-500">Status:</span>

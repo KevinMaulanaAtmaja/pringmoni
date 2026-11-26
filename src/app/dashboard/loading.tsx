@@ -7,6 +7,7 @@ const ROLE_SKELETON: Record<Exclude<RoleUser, "waiter">, { title: string; statCa
   owner: { title: "Dashboard Owner", statCards: 4, chartCards: 4 },
   cashier: { title: "Dashboard Kasir", statCards: 3, chartCards: 2 },
   kitchen: { title: "Dashboard Kitchen", statCards: 3, chartCards: 0 },
+  gudang: { title: "Dashboard Gudang", statCards: 2, chartCards: 0 },
 }
 
 function StatCardSkeleton({ title }: { title: string }) {

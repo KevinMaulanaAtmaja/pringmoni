@@ -23,14 +23,15 @@ Dokumen ini menjelaskan **arsitektur teknis** dari **Pringmoni Resto POS & Monit
 
 ## 2. Database Schema
 
-### Models (16)
+### Models (20)
 | Model | Deskripsi | Relasi |
 |-------|-----------|--------|
 | Users | Akun (owner, cashier, waiter, kitchen) | - |
 | JadwalShift | Slot jadwal shift yang diatur owner | -> Users |
 | ShiftKasir | Sesi buka/tutup shift kasir + kas awal/akhir | -> Users, JadwalShift |
 | KasKeluar | Pengeluaran kas selama shift | -> ShiftKasir, Users |
-| Meja | Meja restoran + token QR | - |
+| Meja | Meja restoran + token QR | -> TipeMeja |
+| TipeMeja | Tipe meja (Kursi, Lesehan, Camping, dst): mode 1 customer / pool Meja Bebas + prefix nomor & token (dulu model `KriteriaMeja`, sudah direname) | -> Meja |
 | Menu | Menu makanan/minuman | -> KategoriMenu |
 | MenuFoto | Foto menu (multi-gambar) | -> Menu |
 | KategoriMenu | Kategori menu | - |
@@ -41,6 +42,9 @@ Dokumen ini menjelaskan **arsitektur teknis** dari **Pringmoni Resto POS & Monit
 | StokBahan | Master bahan: lokasi (gudang/dapur), kategori, satuan, stok, minimum, harga, status | -> RiwayatStok, ResepMenu |
 | RiwayatStok | Log pergerakan stok (sebelum/sesudah, jenis, keterangan, user) | -> StokBahan, Users |
 | ResepMenu | Komposisi menu (bahan dapur + jumlah per porsi) | -> Menu, StokBahan |
+| Reservasi | Reservasi offline/online + DP (status reservasi, batas konfirmasi) | -> Meja, Users, Pesanan, Voucher |
+| DetailReservasi | Item pre-order dalam reservasi | -> Reservasi, Menu |
+| Pengaturan | Pengaturan sistem key-value (diubah owner) | - |
 | Logs | Log aktivitas | - |
 
 ### Enums (stok & resep)
@@ -76,7 +80,7 @@ src/app/
 │   ├── pesanan/page.tsx              # Kelola pesanan
 │   ├── kasir/page.tsx                # Kasir
 │   ├── menu/page.tsx                 # Kelola menu + stok harian
-│   ├── stok-bahan/page.tsx           # Stok bahan internal (gudang/dapur)
+│   ├── stok-bahan/page.tsx           # Stok bahan internal (khusus role GUDANG)
 │   ├── meja/page.tsx                 # Kelola meja
 │   ├── users/page.tsx                # Kelola user
 │   ├── shift/page.tsx                # Shift (tab jadwal [owner] + riwayat shift)
@@ -86,7 +90,7 @@ src/app/
 └── api/uploadthing/                  # Upload gambar
 ```
 
-> Reservasi customer memakai **link umum** `/reservasi/<kodeAkses>` (kode publik di `src/lib/reservasi-akses.ts`, bukan token meja). Halaman memuat menu + daftar meja kosong; server (`reservasi-customer.ts`) memvalidasi kode akses dan mengunci meja secara transaksional (`FOR UPDATE` + cek reservasi/pesanan aktif). Meja tanpa QR tetap muncul di daftar selama statusnya `kosong`.
+> Reservasi customer memakai **link umum** `/reservasi/<kodeAkses>` (kode publik di `src/lib/reservasi-akses.ts`, bukan token meja). Halaman memuat menu + daftar meja kosong; server (`reservasi-customer.ts`) memvalidasi kode akses dan mengunci meja secara transaksional (`FOR UPDATE` + cek reservasi/pesanan aktif). Meja tanpa QR tetap muncul di daftar selama statusnya `kosong`. Cek "reservasi aktif" selalu menyertakan `batasKonfirmasi >= sekarang`, dan `expireReservasiLazy()` (`src/lib/reservasi.ts`) menutup reservasi lewat batas (`expired` / `no_show` bila sudah dikonfirmasi dan belum punya pesanan) agar meja tidak terblokir reservasi lama.
 >
 > Setelah sukses, form mengarahkan ke `/reservasi/<kodeAkses>/cek` (halaman terpisah dari form). Halaman ini membaca hasil dari `sessionStorage` (`src/lib/reservasi-hasil.ts`) dan menyediakan popup cek status (kode + no HP) melalui `cekStatusReservasi`. Tombol kembali memakai dialog konfirmasi lalu `router.push` ke form. Proxy membuka ketiga pola reservasi tanpa login.
 
@@ -97,15 +101,16 @@ src/app/
 | `reservasi.ts` | CRUD reservasi offline, konfirmasi kedatangan, batal, expire, verifikasi DP |
 | `reservasi-customer.ts` | Link reservasi publik: daftar meja kosong, buat reservasi online + DP |
 | `meja.ts` | getMejas (dengan `reservasiAktif` terbaru per meja), createMeja, updateMeja, getMejaByToken, kosongkanMeja |
+| `tipe-meja.ts` | CRUD Tipe Meja (dulu `kriteria-meja.ts`, model `KriteriaMeja` → `TipeMeja`): nama + mode `khususSatuCustomer` / `modeBebas` (mutual eksklusif di UI, unik di server), token & prefix nomor dibuat otomatis; tipe Bebas boleh punya **alias token** (`tokenTipeAlias`, mis. `BEBAS12`) — token asli tetap tersimpan & tak pernah berubah |
 | `menu.ts` | getMenus, createMenu, updateMenu, deleteMenu, aturStokHarian (+ per kategori) |
 | `menu-foto.ts` | kelola foto menu (tambah/hapus/urutan) |
-| `stok-bahan.ts` | getStokBahanList, getBahanDapurList, CRUD bahan, restockBahan, transferStokBahan, getRiwayatStok |
+| `stok-bahan.ts` | getStokBahanList, getBahanDapurList, CRUD bahan, restockBahan, transferStokBahan, getRiwayatStok (semua via `requireGudang`) |
 | `pesanan.ts` | getPesanan, createPesanan, updateStatusPesanan, prosesPembayaran, pindahMeja |
 | `kasir.ts` | pesanan belum bayar, konfirmasi pembayaran QRIS/tunai |
 | `shift.ts` | getJadwalShift/simpan/update/hapus (owner), bukaShift/tutupShift/tambahKasKeluar (kasir), getRiwayatShift (owner semua / kasir miliknya), getShiftAktif (termasuk saran uang awal dari shift kasir lain) |
 | `voucher.ts` | CRUD voucher + validasi diskon/minimal belanja |
 | `refund.ts` | refund pesanan + bukti foto, batas 3 hari sejak `createdAt` (`src/lib/refund.ts`) |
-| `notifikasi.ts` | getNotifikasiTerlambat (pesanan >30 menit belum ditangani + sweep tengah malam) |
+| `notifikasi.ts` | getNotifikasiTerlambat (pesanan >30 menit belum ditangani + sweep tengah malam); pesanan/refund difilter `createdAt >= awal hari`, stok menipis hanya untuk GUDANG |
 | `dashboard.ts` | statistik dashboard |
 | `laporan.ts` | laporan harian/bulanan + analitik menu terlaris |
 | `logs.ts` | getLogs, clearLogs |
@@ -132,6 +137,7 @@ Roles:
 - `CASHIER` - Kasir + Pesanan + shift miliknya
 - `WAITER` - Pesanan + Meja
 - `KITCHEN` - Pesanan + Menu (stok harian)
+- `GUDANG` - Dashboard + Stok Bahan (gudang/dapur) saja; OWNER tidak punya akses ke `/dashboard/stok-bahan` (proxy + sidebar + action menolak)
 
 ### 5.1 Ambil alih sesi (takeover antar perangkat)
 
@@ -199,3 +205,18 @@ Gudang --transfer--> Dapur --pemakaian--> RiwayatStok (monitoring internal)
 - Gate di `createPesanan`: menu harus `statusMenu = tersedia` dan `stokManual >= jumlah`; stok harian otomatis berkurang saat pesanan dibuat.
 - **Stok bahan** (`StokBahan` + `RiwayatStok`) adalah monitoring internal aliran gudang -> dapur (restock, koreksi/limbah, transfer, pemakaian). Tidak menentukan tampilan customer.
 - `ResepMenu` masih ada di schema dan dipakai `potongStokDapur` (pemotongan stok dapur internal saat pesanan selesai) **bila data resep tersedia**; tidak ada lagi UI rakit resep.
+
+## 9. Penanganan Koneksi Terputus
+
+Komponen `ConnectionGuard` dipasang sekali di root layout (`src/app/layout.tsx`) sehingga aktif di semua route tanpa perlu wiring per halaman.
+
+| Elemen | Peran |
+|--------|-------|
+| `src/lib/koneksi.ts` | `apakahErrorJaringan()` (deteksi pesan `Failed to fetch`, `NetworkError`, `fetch failed`, `timeout`, dll. + `navigator.onLine`) dan `laporkanKoneksiPutus()` (dispatch event `pringmoni:koneksi-putus`). |
+| `src/components/layout/ConnectionGuard.tsx` | Mendengarkan `online`, `offline`, event kustom, `error`, dan `unhandledrejection`; merender dialog modal "Koneksi Terputus" dengan aksi **Coba Lagi** (reload) / **Tutup Sementara**. Popup muncul lagi saat pindah halaman selagi offline. |
+| `src/components/layout/KoneksiErrorFallback.tsx` | UI fallback bersama untuk error boundary: membedakan error jaringan vs error umum, tombol **Muat Ulang** & **Coba Lagi**. |
+| `src/app/error.tsx` | Error boundary root (customer dine-in, reservasi, landing, auth). |
+| `src/app/dashboard/error.tsx` | Error boundary dashboard untuk semua role. |
+| `src/app/global-error.tsx` | Fallback root layout (memakai inline style karena menggantikan layout + CSS). |
+
+Alur: koneksi putus / server action gagal → `laporkanKoneksiPutus()` atau event browser → `ConnectionGuard` membuka dialog. Error render yang tidak tertangkap ditangani `error.tsx` → fallback ramah pengguna, bukan halaman error Next.js. Halaman customer membedakan token tidak valid (dialog "Token Tidak Valid" dengan scan QR / input manual) dari kegagalan jaringan (popup koneksi). Halaman reservasi (form, DP upload, cek status) memakai pola yang sama.

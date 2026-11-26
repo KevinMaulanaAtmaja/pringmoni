@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
-import { TipeMeja, MejaReservasiAktif } from "@/types"
+import { MejaReservasiAktif } from "@/types"
 import { StatusReservasi } from "@prisma/client"
 
 export type MejaResult = {
@@ -14,6 +14,12 @@ export type MejaResult = {
   kapasitas: number
   tokenMeja: string | null
   statusMeja: string
+  tipeMejaId: number | null
+  namaTipe: string | null
+  tokenTipe: string | null
+  prefixKode: string | null
+  khususSatuCustomer: boolean
+  modeBebas: boolean
   createdAt: Date
   updatedAt: Date | null
   deletedAt: Date | null
@@ -28,22 +34,25 @@ export async function getMeja() {
 
   const meja = await prisma.$queryRaw<MejaResult[]>`
     SELECT 
-      id, 
-      nomor_meja as "nomorMeja", 
-      kapasitas, 
-      token_meja as "tokenMeja", 
-      status_meja as "statusMeja", 
-      created_at as "createdAt", 
-      updated_at as "updatedAt", 
-      deleted_at as "deletedAt",
-      CASE 
-        WHEN nomor_meja LIKE 'L%' THEN 'lesehan'::text
-        WHEN nomor_meja LIKE 'K%' THEN 'kursi'::text
-        ELSE 'kursi'::text
-      END as "tipeMeja"
-    FROM meja
-    WHERE deleted_at IS NULL
-    ORDER BY nomor_meja ASC
+      m.id, 
+      m.nomor_meja as "nomorMeja", 
+      m.kapasitas, 
+      m.token_meja as "tokenMeja", 
+      m.status_meja as "statusMeja", 
+      m.tipe_meja_id as "tipeMejaId",
+      k.nama_tipe as "namaTipe",
+      k.token_tipe as "tokenTipe",
+      k.prefix_kode as "prefixKode",
+      COALESCE(k.khusus_satu_customer, false) as "khususSatuCustomer",
+      COALESCE(k.mode_bebas, false) as "modeBebas",
+      m.created_at as "createdAt", 
+      m.updated_at as "updatedAt", 
+      m.deleted_at as "deletedAt",
+      COALESCE(k.nama_tipe, 'Umum') as "tipeMeja"
+    FROM meja m
+    LEFT JOIN tipe_meja k ON k.id = m.tipe_meja_id AND k.deleted_at IS NULL
+    WHERE m.deleted_at IS NULL
+    ORDER BY m.nomor_meja ASC
   `
 
   const mejaIds = meja.map((m) => m.id)
@@ -52,6 +61,7 @@ export async function getMeja() {
         where: {
           mejaId: { in: mejaIds },
           statusReservasi: { in: [StatusReservasi.menunggu_kedatangan, StatusReservasi.dikonfirmasi] },
+          batasKonfirmasi: { gte: new Date() },
         },
         orderBy: { createdAt: "desc" },
         select: {
@@ -78,11 +88,14 @@ export async function getMeja() {
   return data
 }
 
-async function generateNomorMeja(tipe: TipeMeja): Promise<string> {
-  // Determine prefix based on tipe
-  const prefix = tipe === 'lesehan' ? 'L' : 'K'
+async function generateNomorMeja(tipeMejaId: number): Promise<string> {
+  const tipe = await prisma.tipeMeja.findFirst({
+    where: { id: tipeMejaId, deletedAt: null },
+    select: { prefixKode: true },
+  })
+  if (!tipe) throw new Error("Tipe meja tidak ditemukan")
+  const prefix = tipe.prefixKode.toUpperCase()
 
-  // Get meja with the same prefix, extract numbers, find max
   const allMeja = await prisma.$queryRaw<Array<{ nomor_meja: string }>>`
     SELECT nomor_meja FROM meja 
     WHERE deleted_at IS NULL
@@ -92,24 +105,38 @@ async function generateNomorMeja(tipe: TipeMeja): Promise<string> {
 
   let maxNumber = 0
   for (const m of allMeja) {
-    const numStr = m.nomor_meja.replace(/[^0-9]/g, '')
-    const num = parseInt(numStr) || 0
-    if (num > maxNumber) {
-      maxNumber = num
-    }
+    const suffix = m.nomor_meja.slice(prefix.length)
+    if (!/^\d+$/.test(suffix)) continue
+    const num = parseInt(suffix, 10)
+    if (num > maxNumber) maxNumber = num
   }
 
-  const newNumber = (maxNumber + 1).toString().padStart(3, '0')
-  
-  return `${prefix}${newNumber}`
+  return `${prefix}${(maxNumber + 1).toString().padStart(3, "0")}`
 }
 
-export async function getNextNomorMeja(tipe: TipeMeja): Promise<string> {
+export async function getNextNomorMeja(tipeMejaId: number): Promise<string> {
   const session = await auth()
-  if (!session?.user || session.user.role !== 'owner') {
+  if (!session?.user || session.user.role !== "owner") {
     throw new Error("Unauthorized")
   }
-  return await generateNomorMeja(tipe)
+  return await generateNomorMeja(tipeMejaId)
+}
+
+async function validasiTipeMeja(
+  nilai: FormDataEntryValue | null,
+  wajib = false
+): Promise<number | null | { error: string }> {
+  const teks = nilai === null || nilai === "" ? null : String(nilai)
+  if (teks === null) return wajib ? { error: "Tipe meja wajib dipilih" } : null
+  const id = Number(teks)
+  if (!Number.isInteger(id) || id <= 0) return { error: "Tipe meja tidak valid" }
+
+  const tipe = await prisma.tipeMeja.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true },
+  })
+  if (!tipe) return { error: "Tipe meja tidak ditemukan" }
+  return tipe.id
 }
 
 export async function createMeja(prevState: { error?: string; success?: boolean } | null, formData: FormData) {
@@ -119,17 +146,16 @@ export async function createMeja(prevState: { error?: string; success?: boolean 
   }
 
   const kapasitas = parseInt(formData.get("kapasitas") as string)
-  const tipe = formData.get("tipeMeja") as TipeMeja
-
   if (!kapasitas || kapasitas < 1 || kapasitas > 20) {
     return { error: "Kapasitas harus antara 1-20 orang" }
   }
 
-  if (!tipe || (tipe !== 'lesehan' && tipe !== 'kursi')) {
-    return { error: "Tipe meja wajib dipilih" }
+  const tipeMejaId = await validasiTipeMeja(formData.get("tipeMejaId"), true)
+  if (tipeMejaId === null || typeof tipeMejaId === "object") {
+    return { error: tipeMejaId?.error ?? "Tipe meja wajib dipilih" }
   }
 
-  const nomorMeja = await generateNomorMeja(tipe)
+  const nomorMeja = await generateNomorMeja(tipeMejaId)
 
   const existingMeja = await prisma.$queryRaw<Array<{ id: number }>>`
     SELECT id FROM meja WHERE nomor_meja = ${nomorMeja}
@@ -151,8 +177,8 @@ export async function createMeja(prevState: { error?: string; success?: boolean 
   } while (tokenExists)
 
   await prisma.$executeRaw`
-    INSERT INTO meja (nomor_meja, kapasitas, token_meja, status_meja)
-    VALUES (${nomorMeja}, ${kapasitas}, ${token}, 'kosong')
+    INSERT INTO meja (nomor_meja, kapasitas, token_meja, status_meja, tipe_meja_id)
+    VALUES (${nomorMeja}, ${kapasitas}, ${token}, 'kosong', ${tipeMejaId})
   `
 
   revalidatePath("/dashboard/meja")
@@ -171,9 +197,14 @@ export async function updateMeja(id: number, formData: FormData) {
     return { error: "Kapasitas harus antara 1-20 orang" }
   }
 
+  const tipeMejaId = await validasiTipeMeja(formData.get("tipeMejaId"))
+  if (typeof tipeMejaId === "object" && tipeMejaId !== null) {
+    return { error: tipeMejaId.error }
+  }
+
   await prisma.$executeRaw`
     UPDATE meja 
-    SET kapasitas = ${kapasitas}
+    SET kapasitas = ${kapasitas}, tipe_meja_id = ${tipeMejaId}
     WHERE id = ${id}
   `
 

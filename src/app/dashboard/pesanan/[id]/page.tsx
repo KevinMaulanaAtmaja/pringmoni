@@ -63,7 +63,7 @@ export default function PesananDetailPage() {
     meja: {
       id: number
       nomorMeja: string
-      tipeMeja: "lesehan" | "kursi"
+      tipeMeja: string
       kapasitas: number
       statusMeja: "kosong"
     }
@@ -116,7 +116,7 @@ export default function PesananDetailPage() {
           meja: {
             id: result.meja_id,
             nomorMeja: result.nomor_meja,
-            tipeMeja: result.tipe_meja as "lesehan" | "kursi",
+            tipeMeja: result.tipe_meja,
             kapasitas: 0,
             statusMeja: "kosong" as const,
           },
@@ -209,7 +209,7 @@ export default function PesananDetailPage() {
           <CardContent className="space-y-4">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Meja</span>
-              <span className="font-medium">{pesanan.meja?.nomorMeja} ({pesanan.meja?.tipeMeja === 'lesehan' ? 'Lesehan' : 'Kursi'})</span>
+              <span className="font-medium">{pesanan.meja?.nomorMeja} ({pesanan.meja?.tipeMeja || "-"})</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Status</span>

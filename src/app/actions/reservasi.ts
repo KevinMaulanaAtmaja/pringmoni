@@ -106,6 +106,7 @@ export async function createReservasi(data: CreateReservasiData) {
     where: {
       mejaId,
       statusReservasi: { in: activeReservationStatuses() },
+      batasKonfirmasi: { gte: new Date() },
     },
     select: { id: true },
   })
@@ -602,6 +603,7 @@ export async function getMejaUntukReservasi() {
   const reservasiAktif = await prisma.reservasi.findMany({
     where: {
       statusReservasi: { in: activeReservationStatuses() },
+      batasKonfirmasi: { gte: new Date() },
     },
     select: {
       id: true,

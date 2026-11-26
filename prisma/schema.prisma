@@ -123,18 +123,39 @@ model KasKeluar {
 }
 
 model Meja {
-  id         Int        @id @default(autoincrement())
-  nomorMeja  String     @unique @map("nomor_meja")
-  kapasitas  Int        @map("kapasitas")
-  tokenMeja  String?    @unique @map("token_meja")
-  statusMeja StatusMeja @default(kosong) @map("status_meja")
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime?  @map("updated_at")
-  deletedAt  DateTime?  @map("deleted_at")
-  pesanan    Pesanan[]
-  reservasi  Reservasi[]
+  id             Int           @id @default(autoincrement())
+  nomorMeja      String        @unique @map("nomor_meja")
+  kapasitas      Int           @map("kapasitas")
+  tokenMeja      String?       @unique @map("token_meja")
+  statusMeja     StatusMeja    @default(kosong) @map("status_meja")
+  tipeMejaId     Int?          @map("tipe_meja_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime?     @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+  tipeMeja       TipeMeja?     @relation(fields: [tipeMejaId], references: [id])
+  pesanan        Pesanan[]
+  reservasi      Reservasi[]
 
+  @@index([tipeMejaId])
   @@map("meja")
+}
+
+model TipeMeja {
+  id                 Int       @id @default(autoincrement())
+  namaTipe           String    @unique @map("nama_tipe")
+  tokenTipe          String    @unique @map("token_tipe")
+  /// Alias opsional (hanya tipe Bebas) yang dipakai di tampilan & matching reservasi; token asli tidak pernah berubah.
+  tokenTipeAlias     String?   @unique @map("token_tipe_alias")
+  prefixKode         String    @unique @map("prefix_kode")
+  /// Tipe ini hanya boleh dipesan/dipakai oleh 1 customer pada waktu bersamaan.
+  khususSatuCustomer Boolean   @default(false) @map("khusus_satu_customer")
+  /// Tipe ini dipakai sebagai pool opsi "Meja Bebas" di reservasi customer (hanya satu tipe aktif).
+  modeBebas          Boolean   @default(false) @map("mode_bebas")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  deletedAt          DateTime? @map("deleted_at")
+  mejas              Meja[]
+
+  @@map("tipe_meja")
 }
 
 model KategoriMenu {
@@ -336,6 +357,7 @@ enum RoleUser {
   cashier
   waiter
   kitchen
+  gudang
 }
 
 enum StatusMeja {
@@ -393,6 +415,7 @@ enum JenisAksiLog {
   CREATE_ORDER
   UPDATE_ORDER_STATUS
   PINDAH_MEJA
+  MANAGE_TIPE_MEJA
   CANCEL_ORDER_KASIR
   CANCEL_ORDER_EXPIRED
   CANCEL_ORDER_STALE

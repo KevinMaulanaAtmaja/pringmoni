@@ -35,6 +35,8 @@ beforeEach(() => {
   prismaMock.$queryRaw.mockResolvedValue([])
   prismaMock.$executeRaw.mockResolvedValue(1)
   prismaMock.pesanan.updateMany.mockResolvedValue({ count: 0 })
+  prismaMock.reservasi.findMany.mockResolvedValue([])
+  prismaMock.reservasi.updateMany.mockResolvedValue({ count: 0 })
 
   vi.stubGlobal('crypto', { randomUUID: randomUuidMock })
 })

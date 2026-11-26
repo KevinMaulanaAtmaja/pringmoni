@@ -75,13 +75,12 @@ describe('proxy route protection', () => {
     }
   })
 
-  it('owner can access every dashboard route', async () => {
+  it('owner can access owner dashboard routes except stok-bahan', async () => {
     for (const path of [
       '/dashboard',
       '/dashboard/menu',
       '/dashboard/pesanan',
       '/dashboard/kasir',
-      '/dashboard/stok-bahan',
       '/dashboard/users',
       '/dashboard/laporan',
       '/dashboard/logging',
@@ -91,6 +90,30 @@ describe('proxy route protection', () => {
       const res = await run(path, 'owner')
       expect(res.status, path).toBe(200)
       expect(res.location, path).toBeNull()
+    }
+
+    const stokBahan = await run('/dashboard/stok-bahan', 'owner')
+    expect(stokBahan.status).toBe(307)
+    expect(stokBahan.location).toContain('/dashboard')
+  })
+
+  it('gudang can access only dashboard and stok-bahan', async () => {
+    expect((await run('/dashboard', 'gudang')).status).toBe(200)
+    expect((await run('/dashboard/stok-bahan', 'gudang')).status).toBe(200)
+
+    for (const path of [
+      '/dashboard/menu',
+      '/dashboard/pesanan',
+      '/dashboard/kasir',
+      '/dashboard/users',
+      '/dashboard/laporan',
+      '/dashboard/logging',
+      '/dashboard/meja',
+      '/dashboard/shift',
+    ]) {
+      const res = await run(path, 'gudang')
+      expect(res.status, path).toBe(307)
+      expect(res.location, path).toContain('/dashboard')
     }
   })
 

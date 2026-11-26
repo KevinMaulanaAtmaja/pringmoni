@@ -26,12 +26,14 @@ export type PrismaMock = {
   shiftKasir: PrismaModelMock
   kasKeluar: PrismaModelMock
   meja: PrismaModelMock
+  tipeMeja: PrismaModelMock
   kategoriMenu: PrismaModelMock
   menu: PrismaModelMock
   menuFoto: PrismaModelMock
   pesanan: PrismaModelMock
   detailPesanan: PrismaModelMock
   refundBukti: PrismaModelMock
+  reservasi: PrismaModelMock
   voucher: PrismaModelMock
   logs: PrismaModelMock
   stokBahan: PrismaModelMock
@@ -71,12 +73,14 @@ export function createPrismaMock(): PrismaMock {
     shiftKasir: model(),
     kasKeluar: model(),
     meja: model(),
+    tipeMeja: model(),
     kategoriMenu: model(),
     menu: model(),
     menuFoto: model(),
     pesanan: model(),
     detailPesanan: model(),
     refundBukti: model(),
+    reservasi: model(),
     voucher: model(),
     logs: model(),
     stokBahan: model(),

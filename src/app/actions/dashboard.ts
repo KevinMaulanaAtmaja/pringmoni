@@ -83,6 +83,15 @@ export async function getDashboardStats() {
       }
     }
 
+    if (role === 'gudang') {
+      return {
+        pesananHariIni: stats.pesananHariIni,
+        pesananMenunggu: stats.pesananMenunggu,
+        showPendapatan: false,
+        showMeja: false,
+      }
+    }
+
     return {
       ...stats,
       showMeja: true,

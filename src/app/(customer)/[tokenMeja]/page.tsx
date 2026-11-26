@@ -7,6 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { MenuCard } from "@/components/customer/menu-card";
 import { CartSheet } from "@/components/customer/cart-sheet";
 import { PindahMejaSheet } from "@/components/customer/pindah-meja-sheet";
@@ -17,6 +24,7 @@ import { getCustomerMenuData, getMejaByToken, getStatusPesananAktifMeja } from "
 import { getVoucherAktif } from "@/app/actions/voucher";
 import { simpanKeranjangCheckout, simpanKodeVoucher, ambilKeranjangCheckout } from "@/lib/checkout-storage";
 import { hitungPotonganDiskon } from "@/lib/voucher";
+import { apakahErrorJaringan, laporkanKoneksiPutus } from "@/lib/koneksi";
 import type { CustomerMenu } from "@/types";
 import type { VoucherOpsi, VoucherTerpakai } from "@/types";
 import type { KeranjangItem } from "@/components/customer/cart-sheet";
@@ -68,6 +76,11 @@ export default function CustomerMenuPage() {
                 ]);
 
                 if (!data.meja) {
+                    if (typeof navigator !== "undefined" && !navigator.onLine) {
+                        laporkanKoneksiPutus("Gagal memuat data meja. Periksa koneksi lalu coba lagi.");
+                        setLoading(false);
+                        return;
+                    }
                     setError("Token meja salah. Silahkan scan QR code meja lagi.");
                     setLoading(false);
                     return;
@@ -99,8 +112,12 @@ export default function CustomerMenuPage() {
                     })),
                 );
                 setLoading(false);
-            } catch {
-                setError("Terjadi kesalahan saat memuat data");
+            } catch (err) {
+                if (apakahErrorJaringan(err)) {
+                    laporkanKoneksiPutus("Gagal memuat menu meja. Periksa koneksi lalu coba lagi.");
+                } else {
+                    setError("Terjadi kesalahan saat memuat data");
+                }
                 setLoading(false);
             }
         };
@@ -268,7 +285,8 @@ export default function CustomerMenuPage() {
             simpanKeranjangCheckout(keranjangValid);
             simpanKodeVoucher(effectiveVoucher?.kode ?? null);
             router.push(`/${tokenMeja}/checkout`);
-        } catch {
+        } catch (err) {
+            if (apakahErrorJaringan(err)) laporkanKoneksiPutus();
             // Jika validasi daring gagal, tetap lanjut — createPesanan tetap
             // jadi gerbang terakhir di server.
             simpanKeranjangCheckout(keranjang);
@@ -346,9 +364,13 @@ export default function CustomerMenuPage() {
                 setValidating(false);
                 setScanResultError("Token tidak valid. Silahkan scan QR code yang benar.");
             }
-        } catch {
+        } catch (err) {
             setValidating(false);
-            setScanResultError("Terjadi kesalahan validasi. Silahkan coba lagi.");
+            if (apakahErrorJaringan(err)) {
+                laporkanKoneksiPutus("Gagal memvalidasi token. Periksa koneksi lalu coba lagi.");
+            } else {
+                setScanResultError("Terjadi kesalahan validasi. Silahkan coba lagi.");
+            }
         }
     };
 
@@ -383,8 +405,12 @@ export default function CustomerMenuPage() {
                 setManualTokenError("Token meja tidak valid. Silahkan cek kembali.");
                 setManualTokenLoading(false);
             }
-        } catch {
-            setManualTokenError("Terjadi kesalahan. Silahkan coba lagi.");
+        } catch (err) {
+            if (apakahErrorJaringan(err)) {
+                laporkanKoneksiPutus("Gagal memvalidasi token. Periksa koneksi lalu coba lagi.");
+            } else {
+                setManualTokenError("Terjadi kesalahan. Silahkan coba lagi.");
+            }
             setManualTokenLoading(false);
         }
     };
@@ -465,13 +491,19 @@ return (
                     </div>
                 )}
 
-                {error && (
-                    <Card className="py-12 border-destructive">
-                        <CardContent className="text-center">
-                            <div className="mb-4">
-                                <p className="text-destructive font-semibold text-lg mb-2">Token Tidak Valid</p>
-                                <p className="text-muted-foreground mb-2">{error}</p>
-                            </div>
+                <Dialog open={!!error} onOpenChange={(buka) => { if (!buka) setError(null); }}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader className="items-center text-center">
+                      <DialogTitle className={(error ?? "").includes("Token meja salah") ? "text-destructive" : undefined}>
+                        {(error ?? "").includes("pembayaran")
+                          ? "Pesanan Menunggu Pembayaran"
+                          : (error ?? "").includes("Token meja salah")
+                            ? "Token Tidak Valid"
+                            : "Tidak Dapat Memuat Menu"}
+                      </DialogTitle>
+                      <DialogDescription>{error}</DialogDescription>
+                    </DialogHeader>
+                    <div className="text-center">
 
                             {!showScanner ? (
                                 <Button variant="outline" onClick={() => setShowScanner(true)}>
@@ -558,9 +590,9 @@ return (
                                     )}
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
-                )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
 
                         {!loading && !error && (
                             <>
