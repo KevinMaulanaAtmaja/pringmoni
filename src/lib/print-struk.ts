@@ -12,6 +12,7 @@ interface StrukData {
   nomorMeja: string
   items: StrukItem[]
   totalHarga: number
+  dpNominal?: number
   metodePembayaran?: string | null
   jumlahBayar?: number | null
   kembalian?: number
@@ -142,10 +143,26 @@ function renderStruk(doc: jsPDF, data: StrukData, startY: number, kitchen: boole
     doc.setFont("helvetica", "bold")
     doc.setFontSize(14)
     const grandTotal = subtotal + adminFee + ppn
+    const dp = data.dpNominal || 0
+    const sisaTagihan = Math.max(0, grandTotal - dp)
     const totalStr = `Rp ${grandTotal.toLocaleString("id-ID")}`
     doc.text("TOTAL", mg, y)
     rightText(doc, totalStr, y, mg)
     y += 8
+
+    if (dp > 0) {
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(11)
+      doc.text("DP Reservasi:", mg, y)
+      rightText(doc, `- ${formatRupiah(dp)}`, y, mg)
+      y += 5
+
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(12)
+      doc.text("SISA TAGIHAN:", mg, y)
+      rightText(doc, formatRupiah(sisaTagihan), y, mg)
+      y += 7
+    }
 
     if (data.jumlahBayar) {
       doc.setFont("helvetica", "normal")

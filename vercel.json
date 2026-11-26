@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    { "path": "/api/cron", "schedule": "*/5 * * * *" }
+  ],
+  "schedules": {
+    "similarity-refresh": {
+      "schedule": "*/15 * * * *",
+      "path": "/api/cron/similarity",
+      "requestMethod": "GET"
+    }
+  }
+}

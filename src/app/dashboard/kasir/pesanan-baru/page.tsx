@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PageTitle } from "@/components/ui/page-skeleton"
 import {
   Select,
   SelectContent,
@@ -52,7 +54,11 @@ export default function PesananBaruPage() {
     ]).then(([menusData, kategorisData, mejaData]) => {
       setMenus(menusData)
       setKategoris(kategorisData)
-      setMejas(Array.isArray(mejaData) ? mejaData : [])
+      setMejas(
+        Array.isArray(mejaData)
+          ? mejaData.filter((m) => m.statusMeja === "kosong")
+          : []
+      )
     }).finally(() => setLoading(false))
   }, [])
 
@@ -181,12 +187,36 @@ export default function PesananBaruPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-gray-500">
-        <div className="relative h-10 w-10">
-          <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-          <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
+      <div className="h-[calc(100vh-4rem)] flex flex-col">
+        <div className="flex items-center justify-between mb-4 shrink-0">
+          <PageTitle>Buat Pesanan Baru</PageTitle>
         </div>
-        <p className="text-sm">Memuat data...</p>
+        <div className="flex gap-2 mb-3 shrink-0">
+          <Skeleton className="h-10 w-40" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="flex-1 flex gap-4 min-h-0">
+          <div className="flex-1 rounded-2xl border overflow-hidden">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-3">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-xl" />
+              ))}
+            </div>
+          </div>
+          <div className="w-96 rounded-2xl border flex flex-col min-h-0">
+            <div className="p-3 border-b">
+              <Skeleton className="h-6 w-24" />
+            </div>
+            <div className="flex-1 p-3 space-y-2">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-16 rounded-xl" />
+              ))}
+            </div>
+            <div className="border-t p-3">
+              <Skeleton className="h-12 w-full" />
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -199,7 +229,7 @@ export default function PesananBaruPage() {
       </div>
 
       {success && (
-        <div className="fixed top-20 right-8 z-50 bg-green-700 text-white rounded-xl px-4 py-2.5 shadow-xl flex items-center gap-2 text-sm animate-in fade-in">
+        <div className="fixed top-20 right-8 z-50 bg-emerald-700 text-white rounded-xl px-4 py-2.5 shadow-xl flex items-center gap-2 text-sm animate-in fade-in">
           <Check size={16} />
           {successMsg}
         </div>
@@ -226,26 +256,11 @@ export default function PesananBaruPage() {
               <SelectValue placeholder="Pilih Meja" />
             </SelectTrigger>
             <SelectContent position="popper" align="center">
-              {mejas.map((m) => {
-                const kosong = m.statusMeja === "kosong"
-                return (
-                  <SelectItem
-                    key={m.id}
-                    value={String(m.id)}
-                    disabled={!kosong}
-                    className={!kosong ? "opacity-50" : ""}
-                  >
-                    <span className="flex items-center gap-2">
-                      Meja {m.nomorMeja} ({m.kapasitas} kursi)
-                      {!kosong && (
-                        <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">
-                          Terpakai
-                        </span>
-                      )}
-                    </span>
-                  </SelectItem>
-                )
-              })}
+              {mejas.map((m) => (
+                <SelectItem key={m.id} value={String(m.id)}>
+                  Meja {m.nomorMeja} ({m.kapasitas} kursi)
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -302,7 +317,7 @@ export default function PesananBaruPage() {
                     <button
                       key={menu.id}
                       onClick={() => tambahKeCart(menu)}
-                      className="bg-white rounded-lg border hover:border-green-400 hover:shadow-sm active:scale-[0.97] transition-all text-left flex flex-col cursor-pointer overflow-hidden group"
+                      className="bg-white rounded-lg border hover:border-emerald-400 hover:shadow-sm active:scale-[0.97] transition-all text-left flex flex-col cursor-pointer overflow-hidden group"
                     >
                       <div className="w-full h-14 bg-gray-100 flex items-center justify-center overflow-hidden">
                         {menu.fotoUrl ? (
@@ -316,10 +331,10 @@ export default function PesananBaruPage() {
                         )}
                       </div>
                       <div className="p-1.5 flex flex-col flex-1">
-                        <span className="font-semibold text-xs leading-tight line-clamp-1 group-hover:text-green-700">
+                        <span className="font-semibold text-xs leading-tight line-clamp-1 group-hover:text-emerald-700">
                           {menu.namaMenu}
                         </span>
-                        <span className="mt-auto pt-0.5 text-xs font-bold text-green-700">
+                        <span className="mt-auto pt-0.5 text-xs font-bold text-emerald-700">
                           Rp {Number(menu.harga).toLocaleString()}
                         </span>
                       </div>
@@ -332,7 +347,7 @@ export default function PesananBaruPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setVisibleCount((prev) => prev + 8)}
-                      className="text-green-700 hover:text-green-800 hover:bg-green-50 gap-1"
+                      className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 gap-1"
                     >
                       <ChevronDown size={18} />
                       Lihat Menu Lainnya ({filteredMenus.length - visibleCount} lainnya)
@@ -351,7 +366,7 @@ export default function PesananBaruPage() {
               <ShoppingCart size={20} />
               Keranjang
               {totalItems > 0 && (
-                <Badge className="bg-green-600 ml-auto">{totalItems}</Badge>
+                <Badge className="bg-emerald-600 ml-auto">{totalItems}</Badge>
               )}
             </div>
           </div>
@@ -403,7 +418,7 @@ export default function PesananBaruPage() {
                       placeholder="Catatan..."
                       value={item.catatan}
                       onChange={(e) => updateCatatan(item.menuId, e.target.value)}
-                      className="flex-1 min-w-0 h-8 px-3 text-sm bg-white border rounded-lg outline-none focus:border-green-400"
+                      className="flex-1 min-w-0 h-8 px-3 text-sm bg-white border rounded-lg outline-none focus:border-emerald-400"
                     />
                   </div>
                 </div>
@@ -431,7 +446,7 @@ export default function PesananBaruPage() {
                       onClick={() => setMetodePembayaran(m.value)}
                       className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-sm ${
                         active
-                          ? "border-green-500 bg-green-50 text-green-700"
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                           : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                       }`}
                     >
@@ -449,7 +464,7 @@ export default function PesananBaruPage() {
             </div>
             <div className="flex items-center justify-between font-bold text-lg">
               <span>Total</span>
-              <span className="text-green-700">
+              <span className="text-emerald-700">
                 Rp {totalHarga.toLocaleString()}
               </span>
             </div>

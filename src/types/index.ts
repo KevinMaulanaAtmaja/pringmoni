@@ -41,7 +41,17 @@ export interface UserResponse {
   data?: UserWithRole
 }
 
-export type StatusMeja = 'kosong' | 'terpakai'
+export type StatusMeja = 'kosong' | 'terpakai' | 'dipesan'
+
+/** Reservasi aktif terbaru untuk satu meja (null kalau tidak ada). */
+export interface MejaReservasiAktif {
+  id: number
+  kodeReservasi: string | null
+  namaPelanggan: string | null
+  statusReservasi: string
+  waktuKedatangan: Date | string
+  jumlahOrang: number
+}
 
 export interface Meja {
   id: number
@@ -50,6 +60,8 @@ export interface Meja {
   kapasitas: number
   tokenMeja?: string
   statusMeja: StatusMeja
+  /** Reservasi aktif terbaru yang menahan meja (null kalau tidak ada). */
+  reservasiAktif?: MejaReservasiAktif | null
 }
 
 // ── Shift Kasir ───────────────────────────────────────────────────────────────
@@ -383,4 +395,22 @@ export interface UpdateStokBahanInput {
   hargaPerSatuan: number
   statusStok: StatusStok
   keterangan?: string
+}
+
+export interface RincianSkor {
+  cbf: number
+  cf: number
+  stok: number
+}
+
+export interface RekomendasiMenu {
+  menuId: number
+  skor: number
+  rincian: RincianSkor
+}
+
+export interface VoiceRecommendation {
+  mood: string
+  alasan: string
+  rekomendasi: RekomendasiMenu[]
 }

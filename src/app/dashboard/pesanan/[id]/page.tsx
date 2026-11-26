@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  CardGridSkeleton,
+  PageTitle,
+  TableSkeleton,
+} from "@/components/ui/page-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import { getPesananById, updateStatusPesanan, cancelPesanan } from "@/app/actions/pesanan"
 import type { DetailPesananItem } from "@/types"
 import { StatusPesanan } from "@prisma/client"
@@ -43,6 +49,7 @@ export default function PesananDetailPage() {
     statusPesanan: "menunggu" | "diproses" | "selesai" | "dibatalkan" | "refund"
     statusPembayaran: "menunggu" | "berhasil" | "dibatalkan" | "refund"
     totalHarga: number
+    dpNominal: number
     diskonVoucher: number
     voucherKode: string | null
     voucherNama: string | null
@@ -95,6 +102,7 @@ export default function PesananDetailPage() {
           statusPesanan: result.status_pesanan as "menunggu" | "diproses" | "selesai" | "dibatalkan" | "refund",
           statusPembayaran: result.status_pembayaran as "menunggu" | "berhasil" | "dibatalkan" | "refund",
           totalHarga: Number(result.total_harga),
+          dpNominal: Number(result.dp_nominal || 0),
           diskonVoucher: Number(result.diskon_voucher ?? 0),
           voucherKode: result.voucher_kode ?? null,
           voucherNama: result.voucher_nama ?? null,
@@ -166,12 +174,18 @@ export default function PesananDetailPage() {
   }
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center py-20 gap-3">
-      <div className="relative h-10 w-10">
-        <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-        <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
+    <div className="w-full max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-9 w-9 rounded-md" />
+        <PageTitle>Detail Pesanan</PageTitle>
       </div>
-      <p className="text-sm text-muted-foreground">Memuat...</p>
+      <CardGridSkeleton
+        title={false}
+        cards={2}
+        cardHeight="h-96"
+        gridClassName="grid grid-cols-1 gap-6 md:grid-cols-2"
+      />
+      <TableSkeleton columns={6} rows={4} />
     </div>
   )
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>
@@ -285,6 +299,20 @@ export default function PesananDetailPage() {
               Rp {pesanan.totalHarga.toLocaleString("id-ID")}
             </span>
           </div>
+          {pesanan.dpNominal > 0 && (
+            <>
+              <div className="flex justify-between text-emerald-700 font-medium text-sm">
+                <span>DP Reservasi (Telah Lunas)</span>
+                <span>-Rp {pesanan.dpNominal.toLocaleString("id-ID")}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2">
+                <span className="font-bold">Sisa Tagihan Pelunasan</span>
+                <span className="font-bold text-lg text-emerald-800">
+                  Rp {Math.max(0, pesanan.totalHarga - pesanan.dpNominal).toLocaleString("id-ID")}
+                </span>
+              </div>
+            </>
+          )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Metode</span>
               <span className="font-medium">
@@ -429,6 +457,7 @@ export default function PesananDetailPage() {
                  harga: Number(i.hargaSaatPesan),
                })),
                totalHarga: Number(pesanan.totalHarga),
+               dpNominal: pesanan.dpNominal,
                adminFee: pesanan.biayaAdmin ? Number(pesanan.biayaAdmin) : undefined,
                ppn: pesanan.ppn ? Number(pesanan.ppn) : undefined,
                metodePembayaran: pesanan.metodePembayaran,

@@ -6,7 +6,6 @@ import {
   AlertCircle,
   Bell,
   CheckCircle2,
-  Loader2,
   PackageCheck,
   Receipt,
   RefreshCcw,
@@ -20,6 +19,7 @@ import {
 } from "@/app/actions/notifikasi"
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime"
 import { useNotification } from "@/hooks/use-notification"
+import { ListSkeleton } from "@/components/ui/page-skeleton"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -280,9 +280,8 @@ export function StaleNotificationBell() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" />
-            Memuat...
+          <div className="p-2">
+            <ListSkeleton rows={3} itemHeight="h-12" className="space-y-2" />
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-1 py-6 px-3 text-center">
@@ -301,10 +300,13 @@ export function StaleNotificationBell() {
         )}
 
         <div className="border-t p-1">
-          <DropdownMenuItem asChild>
+          <DropdownMenuItem
+            asChild
+            className="cursor-pointer rounded-lg p-0 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 data-[highlighted]:bg-neutral-100 dark:data-[highlighted]:bg-neutral-800 focus:text-inherit! hover:text-inherit!"
+          >
             <Link
               href="/dashboard/pesanan"
-              className="justify-center text-xs font-medium"
+              className="flex w-full justify-center px-2.5 py-2 text-xs font-medium text-foreground transition-colors hover:text-inherit!"
             >
               Lihat semua pesanan
             </Link>

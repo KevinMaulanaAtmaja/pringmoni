@@ -19,6 +19,7 @@ import {
   ScrollText,
   History,
   Boxes,
+  CalendarCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
@@ -46,6 +47,8 @@ export function DashboardClient({ role, header, children }: DashboardClientProps
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const isDesktop = useMediaQuery("(min-width: 768px)")
+  const loweredRole = (role ?? "").toLowerCase()
+  const effectiveRole = loweredRole === "kasir" ? "cashier" : loweredRole
 
   const marginLeft = collapsed ? "ml-0 md:ml-20 lg:ml-20" : "ml-0 md:ml-20 lg:ml-64"
 
@@ -61,7 +64,7 @@ export function DashboardClient({ role, header, children }: DashboardClientProps
             side="left"
             className="!w-72 p-0 bg-transparent border-0 [&>button]:hidden"
           >
-            <SidebarMobile role={role} onClose={handleMobileClose} />
+            <SidebarMobile role={effectiveRole} onClose={handleMobileClose} />
           </SheetContent>
         </Sheet>
       )}
@@ -69,7 +72,7 @@ export function DashboardClient({ role, header, children }: DashboardClientProps
       {/* Desktop sidebar */}
       <div className="hidden md:block fixed top-0 left-0 h-screen z-50">
         <Sidebar
-          role={role}
+          role={effectiveRole}
           collapsed={collapsed}
           onToggle={() => setCollapsed((prev) => !prev)}
         />
@@ -116,6 +119,7 @@ function SidebarMobile({ role, onClose }: { role?: string; onClose: () => void }
         { name: "Buat Pesanan", icon: ShoppingCart, href: "/dashboard/kasir/pesanan-baru" },
         { name: "Kasir", icon: Receipt, href: "/dashboard/kasir" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
+        { name: "Reservasi", icon: CalendarCheck, href: "/dashboard/reservasi" },
         { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
     : (role === 'kitchen')

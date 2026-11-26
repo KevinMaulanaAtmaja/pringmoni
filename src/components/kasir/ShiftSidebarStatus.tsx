@@ -54,7 +54,7 @@ export function ShiftSidebarStatus({ collapsed }: { collapsed?: boolean }) {
         title={aktif ? `Shift aktif sejak ${jamLabel(shift!.waktuMasuk)}` : "Shift belum dibuka"}
         className={`mt-4 flex items-center justify-center p-2.5 rounded-xl transition-all shrink-0 ${
           aktif
-            ? "bg-green-400/20 text-green-100 hover:bg-green-400/30"
+            ? "bg-emerald-400/20 text-emerald-100 hover:bg-emerald-400/30"
             : "bg-amber-500/25 text-amber-100 hover:bg-amber-500/40"
         }`}
       >
@@ -68,13 +68,13 @@ export function ShiftSidebarStatus({ collapsed }: { collapsed?: boolean }) {
       href="/dashboard/kasir"
       className={`mt-4 flex items-start gap-3 p-3 rounded-xl transition-all shrink-0 ${
         aktif
-          ? "bg-green-400/20 hover:bg-green-400/30"
+          ? "bg-emerald-400/20 hover:bg-emerald-400/30"
           : "bg-amber-500/25 hover:bg-amber-500/40"
       }`}
     >
       <span
         className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${
-          aktif ? "bg-green-300 animate-pulse" : "bg-amber-300"
+          aktif ? "bg-emerald-300 animate-pulse" : "bg-amber-300"
         }`}
       />
       <span className="min-w-0">

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { TableBodySkeleton } from '@/components/ui/page-skeleton'
 import {
   Table,
   TableBody,
@@ -268,17 +269,7 @@ export default function UsersPage() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="relative h-5 w-5">
-                      <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
-                      <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-primary" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">Memuat...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
+              <TableBodySkeleton columns={6} rows={6} />
             ) : paginatedUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-4">

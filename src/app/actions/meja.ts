@@ -4,7 +4,8 @@ import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
-import { TipeMeja } from "@/types"
+import { TipeMeja, MejaReservasiAktif } from "@/types"
+import { StatusReservasi } from "@prisma/client"
 
 export type MejaResult = {
   id: number
@@ -16,6 +17,7 @@ export type MejaResult = {
   createdAt: Date
   updatedAt: Date | null
   deletedAt: Date | null
+  reservasiAktif: MejaReservasiAktif | null
 }
 
 export async function getMeja() {
@@ -43,7 +45,37 @@ export async function getMeja() {
     WHERE deleted_at IS NULL
     ORDER BY nomor_meja ASC
   `
-  return meja
+
+  const mejaIds = meja.map((m) => m.id)
+  const reservasiAktifList = mejaIds.length
+    ? await prisma.reservasi.findMany({
+        where: {
+          mejaId: { in: mejaIds },
+          statusReservasi: { in: [StatusReservasi.menunggu_kedatangan, StatusReservasi.dikonfirmasi] },
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          mejaId: true,
+          kodeReservasi: true,
+          namaPelanggan: true,
+          statusReservasi: true,
+          waktuKedatangan: true,
+          jumlahOrang: true,
+        },
+      })
+    : []
+
+  const reservasiAktifMap = new Map(
+    reservasiAktifList.map((r) => [r.mejaId, r])
+  )
+
+  const data = meja.map((m) => ({
+    ...m,
+    reservasiAktif: reservasiAktifMap.get(m.id) ?? null,
+  }))
+
+  return data
 }
 
 async function generateNomorMeja(tipe: TipeMeja): Promise<string> {
@@ -163,6 +195,10 @@ export async function deleteMeja(id: number) {
     return { error: "Meja sedang digunakan, tidak dapat dihapus" }
   }
 
+  if (meja[0]?.status_meja === 'dipesan') {
+    return { error: "Meja sedang direservasi, tidak dapat dihapus" }
+  }
+
   await prisma.$executeRaw`
     UPDATE meja SET deleted_at = NOW() WHERE id = ${id}
   `
@@ -208,6 +244,19 @@ export async function kosongkanMeja(id: number) {
     })
   }
 
+  const reservasiDibatalkan = await prisma.reservasi.updateMany({
+    where: {
+      mejaId: id,
+      statusReservasi: { in: ['menunggu_kedatangan', 'dikonfirmasi'] },
+      pesananId: null,
+    },
+    data: {
+      statusReservasi: 'batal',
+      cancelledAt: new Date(),
+      updatedAt: new Date(),
+    },
+  })
+
   await prisma.$executeRaw`
     UPDATE meja SET status_meja = 'kosong', updated_at = NOW() WHERE id = ${id}
   `
@@ -224,6 +273,10 @@ export async function kosongkanMeja(id: number) {
     logMsg += ` — ${belumBayar.length} pesanan dibatalkan (total: ${ringkasan}), nominal Rp${total.toLocaleString('id-ID')}`
   } else {
     logMsg += ' — tidak ada pesanan aktif'
+  }
+
+  if (reservasiDibatalkan.count > 0) {
+    logMsg += ` — ${reservasiDibatalkan.count} reservasi dibatalkan`
   }
 
   await createLog('UPDATE_ORDER_STATUS', logMsg)

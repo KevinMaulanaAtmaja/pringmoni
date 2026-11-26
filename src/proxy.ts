@@ -14,9 +14,11 @@ const roleRouteAccess: Record<string, RoleUser[]> = {
   "/dashboard/menu": ["owner", "kitchen"],
   "/dashboard/stok-bahan": ["owner"],
   "/dashboard/meja": ["owner", "cashier", "waiter"],
+  "/dashboard/reservasi": ["cashier"],
   "/dashboard/users": ["owner"],
   "/dashboard/laporan": ["owner"],
   "/dashboard/logging": ["owner"],
+  "/dashboard/testing": ["owner"],
   "/dashboard/shift": ["owner", "cashier"],
 }
 
@@ -31,16 +33,33 @@ const RESERVED_ROOT_SEGMENTS = new Set([
 // Public pages that never need a session
 const PUBLIC_ROUTES = ["/", "/login", "/reset-password"]
 
+// Customer reservation routes (tanpa login): /reservasi/[kodeAkses],
+// /reservasi/[kodeAkses]/cek (halaman cek reservasi), /reservasi/status (legacy redirect)
+const RESERVASI_PUBLIC_PATTERN = /^\/reservasi(\/[^/]+(\/cek)?)?$/
+
 // Customer kiosk routes: /[tokenMeja], /[tokenMeja]/pesanan, /[tokenMeja]/checkout, ...
 const CUSTOMER_TOKEN_PATTERN = /^[a-zA-Z0-9-]+$/
 const CUSTOMER_SUBPATH_PATTERN =
   /^(pesanan|checkout|pembayaran|pembayaran-langkah)(\/.*)?$/
+
+// Server Actions are POST requests to the page route. Redirecting one to an
+// HTML page makes the client throw "An unexpected response was received from
+// the server." Bypass only routes whose Server Actions already enforce auth
+// themselves, so unauthorised calls still get a normal action error.
+const SERVER_ACTION_BYPASS = new Set(["/dashboard/reservasi"])
 
 function isRoleUser(value: unknown): value is RoleUser {
   return (
     typeof value === "string" &&
     (ALL_ROLES as readonly string[]).includes(value)
   )
+}
+
+function normalizeRoleValue(value: unknown): RoleUser | undefined {
+  if (typeof value !== "string") return undefined
+  const lowered = value.toLowerCase()
+  const canonical = lowered === "kasir" ? "cashier" : lowered
+  return isRoleUser(canonical) ? canonical : undefined
 }
 
 function getRouteRole(pathname: string): RoleUser[] | null {
@@ -63,6 +82,7 @@ function getRouteRole(pathname: string): RoleUser[] | null {
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.includes(pathname)) return true
   if (/^\/reset-password\/[^/]+$/.test(pathname)) return true
+  if (RESERVASI_PUBLIC_PATTERN.test(pathname)) return true
 
   const segments = pathname.split("/").filter(Boolean)
   if (segments.length === 0) return false
@@ -79,9 +99,27 @@ export async function proxy(request: NextRequest) {
   const session = await auth()
   const isLoggedIn = !!session?.user
   const rawRole = session?.user?.role
-  const userRole: RoleUser | undefined = isRoleUser(rawRole) ? rawRole : undefined
+  const userRole: RoleUser | undefined = normalizeRoleValue(rawRole)
   const hasValidRole = userRole !== undefined
   const takenOver = session?.user?.takenOver === true
+  const isServerAction =
+    request.method === "POST" && request.headers.has("next-action")
+  const bypassServerAction =
+    isServerAction && SERVER_ACTION_BYPASS.has(pathname)
+
+  // Server Action: beri kesempatan action sendiri mengembalikan error auth
+  // (bukan redirect HTML yang membuat client melempar E394).
+  if (bypassServerAction) {
+    const res = NextResponse.next()
+    if (takenOver) {
+      for (const cookie of request.cookies.getAll()) {
+        if (cookie.name.startsWith("authjs.") || cookie.name.startsWith("__Secure-authjs.")) {
+          res.cookies.delete(cookie.name)
+        }
+      }
+    }
+    return res
+  }
 
   // Sesi ini sudah digantikan login dari perangkat lain -> hapus cookie sesi
   // lalu arahkan ke login. Dikecualikan untuk halaman login itu sendiri supaya

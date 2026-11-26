@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/test-results.xml
+/test-results.json
+/test-results/
 
 # next.js
 /.next/
@@ -36,6 +39,14 @@ debug.log
 .env*
 !.env.example
 
+# testing environment - local only, must not be committed
+.env.test
+.env.test.local
+
+# playwright local artifacts (berisi session/auth state)
+/playwright/.auth/
+/playwright-report/
+
 # vercel
 .vercel
 
@@ -49,5 +60,6 @@ next-env.d.ts
 graphify-out/cost.json
 graphify-out/cache/
 graphify-out/*.pending.json
+graphify-out/.graphify_build_state.json
 # snapshot harian graphify (backup otomatis) - tidak perlu di-commit
 graphify-out/20*/

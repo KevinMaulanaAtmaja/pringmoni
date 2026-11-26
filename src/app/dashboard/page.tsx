@@ -1,9 +1,8 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import { getDashboardStats, getDashboardCharts, getStaleOrders, autoCancelStaleUnpaid } from "@/app/actions/dashboard"
+import { getDashboardStats, getDashboardCharts, autoCancelStaleUnpaid } from "@/app/actions/dashboard"
 import { StatGrid } from "@/components/dashboard/StatGrid"
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts"
-import { StaleOrdersWarning } from "@/components/dashboard/StaleOrdersWarning"
 import { DashboardRealtimeRefresh } from "@/components/dashboard/DashboardRealtimeRefresh"
 
 export default async function DashboardPage() {
@@ -46,19 +45,11 @@ export default async function DashboardPage() {
     charts = {}
   }
 
-  let staleOrders: Awaited<ReturnType<typeof getStaleOrders>> = []
-  try {
-    staleOrders = await getStaleOrders()
-  } catch {
-    staleOrders = []
-  }
-
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6 capitalize">
-        Dashboard {role === 'owner' ? 'Owner' : role === 'cashier' ? 'Kasir' : 'Waiter'}
+        Dashboard {role === 'owner' ? 'Owner' : role === 'cashier' ? 'Kasir' : role === 'kitchen' ? 'Kitchen' : 'Waiter'}
       </h1>
-      <StaleOrdersWarning orders={staleOrders} />
       <StatGrid stats={stats} role={role} />
       <DashboardCharts charts={charts} />
       <DashboardRealtimeRefresh />

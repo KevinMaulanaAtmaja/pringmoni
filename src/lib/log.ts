@@ -20,6 +20,12 @@ type JenisAksiLog =
   | "CLOSE_SHIFT"
   | "AUTO_CLOSE_SHIFT"
   | "KAS_KELUAR"
+  | "CREATE_RESERVASI"
+  | "CONFIRM_RESERVASI"
+  | "CANCEL_RESERVASI"
+  | "EXPIRE_RESERVASI"
+  | "CREATE_RESERVASI_CUSTOMER"
+  | "VERIFIKASI_DP_CUSTOMER"
 
 async function getIp(): Promise<string | null> {
   try {

@@ -128,3 +128,4 @@ Missing: Network failure scenario, invalid card handling
 5. **MATCH PROJECT CONVENTIONS** - use existing test patterns
 6. **INDEPENDENT TESTS** - no test should depend on another
 7. **MEANINGFUL ASSERTIONS** - every test should be able to fail
+8. **TEST = SPEC** - if implementation does not match the spec, the test must stay red and the failure must be reported. Never weaken assertions, skip/delete tests, or change expected values to make a test pass. Only fix a genuinely wrong setup/mock/fixture; if the spec is ambiguous, ask the user before changing the test.

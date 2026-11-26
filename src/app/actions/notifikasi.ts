@@ -4,6 +4,7 @@ import type { RoleUser } from "@prisma/client"
 import prisma from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
+import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
 
 /**
@@ -89,7 +90,7 @@ function awalHari(now: Date) {
   return d
 }
 
-async function sweepTengahMalam(hariIni: Date) {
+export async function sweepTengahMalam(hariIni: Date) {
   try {
     const sisa = await prisma.pesanan.findMany({
       where: {
@@ -126,6 +127,10 @@ async function sweepTengahMalam(hariIni: Date) {
         data: { statusMeja: "kosong" },
       }),
     ])
+
+    for (const mejaId of mejaIds) {
+      await finalizeReservasiUntukMeja(mejaId, "batal")
+    }
 
     if (pesananTerbatal.count > 0) {
       await createLog(
@@ -194,7 +199,6 @@ export async function getNotifikasiDashboard(): Promise<{
         where: {
           deletedAt: null,
           statusPesanan: { in: ["menunggu", "diproses"] },
-          createdAt: { gte: hariIni },
         },
         select: {
           id: true,
@@ -213,7 +217,6 @@ export async function getNotifikasiDashboard(): Promise<{
       prisma.pesanan.findMany({
         where: {
           deletedAt: null,
-          createdAt: { gte: hariIni },
           OR: [{ statusPesanan: "refund" }, { statusPembayaran: "refund" }],
         },
         select: {

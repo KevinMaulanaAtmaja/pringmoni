@@ -68,6 +68,9 @@ src/app/
 │   ├── checkout/page.tsx             # Konfirmasi pesanan
 │   ├── pembayaran/...                # Pembayaran QRIS/tunai
 │   └── pesanan/page.tsx              # Lihat pesanan
+├── reservasi/[kodeAkses]/page.tsx    # Form reservasi publik (link umum, pilih meja)
+├── reservasi/[kodeAkses]/cek/page.tsx # Detail reservasi berhasil + popup cek (kode + no HP)
+├── reservasi/status/page.tsx         # Legacy: redirect ke /reservasi/<kodeAkses>/cek
 ├── dashboard/                        # Admin dashboard
 │   ├── page.tsx                      # Statistik
 │   ├── pesanan/page.tsx              # Kelola pesanan
@@ -83,11 +86,17 @@ src/app/
 └── api/uploadthing/                  # Upload gambar
 ```
 
+> Reservasi customer memakai **link umum** `/reservasi/<kodeAkses>` (kode publik di `src/lib/reservasi-akses.ts`, bukan token meja). Halaman memuat menu + daftar meja kosong; server (`reservasi-customer.ts`) memvalidasi kode akses dan mengunci meja secara transaksional (`FOR UPDATE` + cek reservasi/pesanan aktif). Meja tanpa QR tetap muncul di daftar selama statusnya `kosong`.
+>
+> Setelah sukses, form mengarahkan ke `/reservasi/<kodeAkses>/cek` (halaman terpisah dari form). Halaman ini membaca hasil dari `sessionStorage` (`src/lib/reservasi-hasil.ts`) dan menyediakan popup cek status (kode + no HP) melalui `cekStatusReservasi`. Tombol kembali memakai dialog konfirmasi lalu `router.push` ke form. Proxy membuka ketiga pola reservasi tanpa login.
+
 ## 4. Server Actions
 
 | File | Fungsi |
 |------|--------|
-| `meja.ts` | getMejas, createMeja, updateMeja, getMejaByToken, kosongkanMeja |
+| `reservasi.ts` | CRUD reservasi offline, konfirmasi kedatangan, batal, expire, verifikasi DP |
+| `reservasi-customer.ts` | Link reservasi publik: daftar meja kosong, buat reservasi online + DP |
+| `meja.ts` | getMejas (dengan `reservasiAktif` terbaru per meja), createMeja, updateMeja, getMejaByToken, kosongkanMeja |
 | `menu.ts` | getMenus, createMenu, updateMenu, deleteMenu, aturStokHarian (+ per kategori) |
 | `menu-foto.ts` | kelola foto menu (tambah/hapus/urutan) |
 | `stok-bahan.ts` | getStokBahanList, getBahanDapurList, CRUD bahan, restockBahan, transferStokBahan, getRiwayatStok |
@@ -95,7 +104,7 @@ src/app/
 | `kasir.ts` | pesanan belum bayar, konfirmasi pembayaran QRIS/tunai |
 | `shift.ts` | getJadwalShift/simpan/update/hapus (owner), bukaShift/tutupShift/tambahKasKeluar (kasir), getRiwayatShift (owner semua / kasir miliknya), getShiftAktif (termasuk saran uang awal dari shift kasir lain) |
 | `voucher.ts` | CRUD voucher + validasi diskon/minimal belanja |
-| `refund.ts` | refund pesanan + bukti foto |
+| `refund.ts` | refund pesanan + bukti foto, batas 3 hari sejak `createdAt` (`src/lib/refund.ts`) |
 | `notifikasi.ts` | getNotifikasiTerlambat (pesanan >30 menit belum ditangani + sweep tengah malam) |
 | `dashboard.ts` | statistik dashboard |
 | `laporan.ts` | laporan harian/bulanan + analitik menu terlaris |
@@ -157,6 +166,11 @@ ke `/login?takenOver=1`, yang menampilkan **dialog sekali** "Sesi diambil alih"
 Catatan: enforcement dilakukan di **proxy** sehingga request lama (termasuk POST
 server action) dialihkan ke login **sebelum** aksi dieksekusi. Role yang sudah
 login tapi tidak punya akses route diarahkan ke `/dashboard` (bukan `/login`).
+
+Catatan: POST server action ke `/dashboard/reservasi` dikecualikan dari redirect
+proxy (`SERVER_ACTION_BYPASS`). Action `requireReservasiRole` menolak sesi
+`takenOver`, sehingga error auth dikembalikan sebagai error action (bukan
+redirect HTML yang memicu E394).
 
 ## 6. Real-time Flow
 

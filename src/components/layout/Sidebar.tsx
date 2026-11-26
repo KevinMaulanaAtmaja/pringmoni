@@ -16,6 +16,8 @@ import {
   PanelLeftOpen,
   Boxes,
   History,
+  FlaskConical,
+  CalendarCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ShiftSidebarStatus } from "@/components/kasir/ShiftSidebarStatus"
@@ -28,23 +30,26 @@ interface SidebarProps {
 
 export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
+  const loweredRole = (role ?? "").toLowerCase()
+  const effectiveRole = loweredRole === "kasir" ? "cashier" : loweredRole
 
-  const navItems = (role === 'waiter')
+  const navItems = (effectiveRole === 'waiter')
     ? [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
       ]
-    : (role === 'cashier')
+    : (effectiveRole === 'cashier')
     ? [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Pesanan", icon: ClipboardList, href: "/dashboard/pesanan" },
         { name: "Buat Pesanan", icon: ShoppingCart, href: "/dashboard/kasir/pesanan-baru" },
         { name: "Kasir", icon: Receipt, href: "/dashboard/kasir" },
         { name: "Meja", icon: Armchair, href: "/dashboard/meja" },
+        { name: "Reservasi", icon: CalendarCheck, href: "/dashboard/reservasi" },
         { name: "Riwayat Shift", icon: History, href: "/dashboard/shift" },
       ]
-    : (role === 'kitchen')
+    : (effectiveRole === 'kitchen')
     ? [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Menu", icon: UtensilsCrossed, href: "/dashboard/menu" },
@@ -60,6 +65,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         { name: "Logging", icon: ScrollText, href: "/dashboard/logging" },
         { name: "Laporan", icon: BarChart3, href: "/dashboard/laporan" },
         { name: "Shift", icon: History, href: "/dashboard/shift" },
+        { name: "Testing", icon: FlaskConical, href: "/dashboard/testing" },
       ]
 
   return (
