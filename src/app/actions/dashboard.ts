@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { createLog } from "@/lib/log"
 import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
 import { triggerPusher, ORDERS_CHANNEL, PESANAN_EVENTS } from "@/lib/pusher"
+import { getNotifikasiTerlambat } from "@/app/actions/notifikasi"
 import type { RoleUser } from "@/types"
 
 const AUTO_CANCEL_THROTTLE_MS = 60_000
@@ -244,6 +245,25 @@ export async function getDashboardCharts() {
     console.error('Dashboard charts error:', error)
     return result
   }
+}
+
+export interface StaleOrder {
+  id: number
+  nomorMeja: string
+  statusPesanan: string
+  lamaMenit: number
+  createdAt: Date
+}
+
+export async function getStaleOrders(): Promise<StaleOrder[]> {
+  const { orders } = await getNotifikasiTerlambat()
+  return orders.map((o) => ({
+    id: o.id,
+    nomorMeja: o.nomorMeja,
+    statusPesanan: o.statusPesanan,
+    lamaMenit: o.lamaMenit,
+    createdAt: new Date(o.createdAt),
+  }))
 }
 
 export async function autoCancelStaleUnpaid() {

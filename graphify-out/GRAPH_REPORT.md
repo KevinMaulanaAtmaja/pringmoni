@@ -1,16 +1,16 @@
-# Graph Report - pringmoni  (2026-11-18)
+# Graph Report - pringmoni  (2026-11-26)
 
 ## Corpus Check
-- 343 files · ~374,119 words
+- 343 files · ~374,177 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2587 nodes · 4924 edges · 216 communities (142 shown, 42 thin omitted)
+- 2589 nodes · 4930 edges · 254 communities (154 shown, 68 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 15 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `72987329`
+- Built from commit: `88843f8a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,16 +19,16 @@
 - actions/shift.ts
 - page-skeleton.tsx
 - compilerOptions
-- uploadthing.ts
+- uploadthing-client.ts
 - src/types/index.ts
 - LaporanClient.tsx
 - types/index.ts
 - components.json
 - 2. MVP (Minimum Viable Product)
-- voice-order-sheet.tsx
-- button.tsx
-- notifikasi.ts
-- cn
+- pindah-meja-sheet.tsx
+- kasir/page.tsx
+- actions/refund.ts
+- menu-tabs.tsx
 - 20260408053831_init_all_schema/migration.sql
 - devDependencies
 - ui/BankIcon.tsx
@@ -36,7 +36,7 @@
 - logs.ts
 - OWASP Top 10 Focus Areas
 - Whitebox Testing Plan - Pringmoni
-- kasir/page.tsx
+- dashboard/pesanan/page.tsx
 - DashboardCharts.tsx
 - GrafikPeakHours.tsx
 - app/layout.tsx
@@ -50,14 +50,14 @@
 - auth.ts
 - scripts
 - scripts.js
-- fixtures.ts
+- cek/page.tsx
 - StaleNotificationBell.tsx
 - components/BankIcon.tsx
 - PieMetode.tsx
 - reservasi-customer.ts
 - 20260327055635_init/migration.sql
 - security-scan.ts
-- kasir.ts
+- createLog
 - ARCHITECTURE - Pringmoni
 - proxy.ts
 - README.md
@@ -71,25 +71,25 @@
 - stok-bahan.ts
 - auth-mock.ts
 - cbf.ts
-- VoiceOrderSheet
-- cf.ts
+- voice-order-sheet.tsx
+- refresh-similarity.ts
 - prisma-mock.ts
 - 20261017000001_add_jadwal_shift_dan_kas_keluar/migration.sql
 - 20260930000001_add_shift_kasir/migration.sql
-- login.ts
+- rate-limiter.ts
 - VOICE_ORDER_PLAN.md
 - Rencana Integration Testing - Pringmoni
 - users.test.ts
 - print-struk.ts
 - actions/voucher.ts
 - export-laporan.test.ts
-- menu-management.tsx
+- cn
 - graphify.js
 - package.json
 - PerbandinganCard.tsx
 - use-voice-input.ts
 - transcribe/route.ts
-- src_lib_auth_auth
+- dashboard.ts
 - next.config.ts
 - checkout/page.tsx
 - DashboardClient.tsx
@@ -97,15 +97,15 @@
 - pusher
 - Tester Agent
 - qrcode
-- CekReservasiPage
-- ReservasiPage
+- reservasi-hasil.ts
+- actions/reservasi.ts
 - similarity-refresh
 - seed-historical.ts
 - exceljs
 - postcss.config.mjs
 - prisma
 - seed-resep.ts
-- sesi.ts
+- login.ts
 - lucide-react
 - reservasi/page.tsx
 - zod
@@ -128,8 +128,8 @@
 - Security Best Practices
 - Backend Developer Agent
 - Phase 2: Multi-Perspective Analysis
-- [kodeAkses]/page.tsx
-- voice-search-button.tsx
+- reservasi-jadwal.ts
+- notifikasi.ts
 - Alur Kerja Wajib (Anti-Churn)
 - Debugging Protocol
 - Parallel Execution Command
@@ -152,29 +152,40 @@
 - Graphify Command
 - dependencies
 - opencode.json
-- uploadthing-client.ts
+- [kodeAkses]/page.tsx
 - shadcn
 - ✅ SELESAI
 - seed-menu.ts
-- bcryptjs
+- ReservasiCustomerPage
 - useOrdersRealtime
-- class-variance-authority
-- createLog
+- rekomendasi/route.ts
+- scoring.ts
+- log.ts
+- cf.ts
 - xlsx
 - Penjelasan Test Operasi Database — `meja-operasi.test.ts`
 - Implementasi Reservasi (PBI-7.1)
 - seed.ts
 - "reservasi"
 - testPrisma.ts
-- prisma.ts
+- menu-foto.ts
+- dashboard/loading.tsx
+- gemini.ts
 - 8. Rencana: Pengaturan Jam Reservasi oleh Owner
+- getKategoriMenus
 - qrcode.react
+- hitungRincianDp
 - @uploadthing/react
 - seed-2025.ts
+- tokenize.ts
+- optionalDependencies
+- babel-plugin-react-compiler
 - PROGRESS - Sesi 2026-11-06 (Whitebox Testing S1-S3 lanjutan)
+- clsx
 - PROGRESS - Sesi 2026-11-05 (Whitebox Testing S3-S6)
 - PROGRESS - Sesi 2026-11-16 (Skeleton page reusable + fix enum usang)
 - PROGRESS - Sesi 2026-11-08 (Rencana integration testing)
+- cn
 - PROGRESS - Sesi 2026-09-02
 - PROGRESS.md
 - PROGRESS - Sesi 2026-11-07 (Whitebox: rencana ke depan + commit unit test S0-S6)
@@ -188,10 +199,24 @@
 - PROGRESS - Sesi 2026-11-10 (Latihan uji operasi DB di file terpisah)
 - PROGRESS - Sesi 2026-11-17 (Akses kasir /dashboard/reservasi)
 - PROGRESS - Sesi 2026-11-17 (Badge status meja)
+- eslint
 - cloudinary
+- eslint-config-next
+- @hugeicons/core-free-icons
+- @hugeicons/react
+- jspdf
+- next
 - next-auth
+- nodemailer
+- jsqr
+- pg
 - react
 - uploadthing
+- @prisma/client
+- pusher-js
+- radix-ui
+- @radix-ui/react-dialog
+- react-dom
 - stok-bahan/page.tsx
 - tmp-cek-meja.ts
 - tmp-cek-prisma.ts
@@ -199,6 +224,19 @@
 - "reservasi"
 - ref_dotenv
 - ref_node_fs
+- recharts
+- sharp
+- tw-animate-css
+- uuid
+- tailwindcss
+- @testing-library/jest-dom
+- @testing-library/user-event
+- ts-node
+- tsx
+- @types/node
+- typescript
+- vitest
+- @vitest/coverage-v8
 
 ## God Nodes (most connected - your core abstractions)
 1. `cn()` - 97 edges
@@ -227,27 +265,27 @@
 ## Import Cycles
 - None detected.
 
-## Communities (216 total, 42 thin omitted)
+## Communities (254 total, 68 thin omitted)
 
 ### Community 1 - "[tokenMeja]/page.tsx"
-Cohesion: 0.21
-Nodes (13): getVoucherAktif(), CustomerMenuPage(), Menu, CartSheet(), CartSheetProps, getItemKey(), KeranjangItem, MenuCard() (+5 more)
+Cohesion: 0.20
+Nodes (16): getCustomerMenuData, getStatusPesananAktifMeja(), getVoucherAktif(), CustomerMenuPage(), Menu, CartSheet(), CartSheetProps, getItemKey() (+8 more)
 
 ### Community 2 - "actions/shift.ts"
-Cohesion: 0.06
-Nodes (77): ambilShiftRow(), autoCloseShifts(), bukaShift(), getDaftarKasir(), getDaftarKasirLengkap(), getJadwalShift(), getKasKeluarAktif(), getRiwayatShift() (+69 more)
+Cohesion: 0.05
+Nodes (78): ambilShiftRow(), autoCloseShifts(), bukaShift(), getDaftarKasir(), getDaftarKasirLengkap(), getJadwalShift(), getKasKeluarAktif(), getRiwayatShift() (+70 more)
 
 ### Community 3 - "page-skeleton.tsx"
-Cohesion: 0.05
-Nodes (26): ROLE_SKELETON, CardGridSkeleton(), CardGridSkeletonProps, ChartBlockSkeleton(), ChartBlockSkeletonProps, ChartCardsSkeleton(), ChartCardsSkeletonProps, FilterBarSkeleton() (+18 more)
+Cohesion: 0.06
+Nodes (26): CardGridSkeleton(), CardGridSkeletonProps, ChartBlockSkeleton(), ChartBlockSkeletonProps, ChartCardsSkeleton(), ChartCardsSkeletonProps, FilterBarSkeleton(), FilterBarSkeletonProps (+18 more)
 
 ### Community 4 - "compilerOptions"
 Cohesion: 0.06
 Nodes (30): dom, dom.iterable, esnext, **/*.mts, .next/dev/types/**/*.ts, next-env.d.ts, .next/types/**/*.ts, node (+22 more)
 
-### Community 5 - "uploadthing.ts"
-Cohesion: 0.40
-Nodes (4): { GET, POST }, f, OurFileRouter, utapi
+### Community 5 - "uploadthing-client.ts"
+Cohesion: 0.28
+Nodes (6): { GET, POST }, UploadButton, { useUploadThing }, f, OurFileRouter, utapi
 
 ### Community 6 - "src/types/index.ts"
 Cohesion: 0.05
@@ -269,29 +307,29 @@ Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent 
 Cohesion: 0.10
 Nodes (20): 1. Tujuan Proyek, 2. MVP (Minimum Viable Product), 3. Fitur Lengkap, 4. DOD (Definition of Done) & Kendala, 5. Plan Next Semester, Admin Dashboard, Customer-Facing, Dokumentasi (+12 more)
 
-### Community 11 - "voice-order-sheet.tsx"
-Cohesion: 0.15
-Nodes (17): MejaTersediaPindah, PindahMejaSheet(), handleOpenChange(), handlePindah(), PindahMejaSheetProps, VoiceOrderSheetProps, src_components_ui_sheet_sheet, SheetContent (+9 more)
+### Community 11 - "pindah-meja-sheet.tsx"
+Cohesion: 0.25
+Nodes (7): MejaTersediaPindah, PindahMejaSheet(), handleOpenChange(), handlePindah(), PindahMejaSheetProps, SheetHeader(), src_components_ui_sheet_sheettrigger
 
-### Community 12 - "button.tsx"
+### Community 12 - "kasir/page.tsx"
 Cohesion: 0.11
-Nodes (37): getRefundInfo(), initialState, initialState, initialState, metodeConfig, PesananData, StatusPesanan, PembayaranInfo (+29 more)
+Nodes (33): metodeConfig, PesananData, StatusPesanan, metodeColors, metodeIcons, metodeLabels, Pesanan, PesananItem (+25 more)
 
-### Community 13 - "notifikasi.ts"
+### Community 13 - "actions/refund.ts"
 Cohesion: 0.12
-Nodes (19): awalHari(), getNotifikasiDashboard(), getNotifikasiTerlambat(), KIND_PER_ROLE, klasifikasiPesanan(), NotifikasiPesananTerlambat, PesananNotifikasi, PRIORITAS_KIND (+11 more)
+Nodes (18): ajukanRefund(), deleteRefundBukti(), getRefundInfo(), RefundBuktiInput, RefundInfo, requireKasir(), ORDERS_CHANNEL, PESANAN_EVENTS (+10 more)
 
-### Community 14 - "cn"
-Cohesion: 0.12
-Nodes (18): MenuTabs(), CardAction(), CardFooter(), Checkbox(), DialogOverlay(), SelectScrollDownButton(), SelectScrollUpButton(), SelectSeparator() (+10 more)
+### Community 14 - "menu-tabs.tsx"
+Cohesion: 0.31
+Nodes (6): MenuTabs(), Tabs(), TabsContent(), TabsList(), tabsListVariants, TabsTrigger()
 
 ### Community 15 - "20260408053831_init_all_schema/migration.sql"
 Cohesion: 0.16
 Nodes (14): "detail_pesanan", "kategori_menu", "logs", "meja", "menu", "menu_foto", "pesanan", "users" (+6 more)
 
 ### Community 16 - "devDependencies"
-Cohesion: 0.05
-Nodes (43): agentation, agentation-mcp, babel-plugin-react-compiler, eslint, eslint-config-next, devDependencies, agentation, agentation-mcp (+35 more)
+Cohesion: 0.11
+Nodes (19): agentation, agentation-mcp, devDependencies, agentation, agentation-mcp, @tailwindcss/postcss, @testing-library/react, @types/bcryptjs (+11 more)
 
 ### Community 18 - "laporan.ts"
 Cohesion: 0.30
@@ -309,9 +347,9 @@ Nodes (26): 10. SSRF, 1. Broken Access Control, 1. Map Attack Surface, 2. Analyz
 Cohesion: 0.05
 Nodes (38): 10. Risiko & Mitigasi, 11. Progress Tracker, 12. Riwayat Perubahan, 1. Tujuan & Ruang Lingkup, 2.1 Library tersedia, 2.2 Test yang sudah berjalan (27 file, 526 test), 2.3 Gap yang harus ditutup di Fase 0, 2. Baseline Library & Kondisi Saat Ini (+30 more)
 
-### Community 22 - "kasir/page.tsx"
-Cohesion: 0.16
-Nodes (11): metodeColors, metodeIcons, metodeLabels, Pesanan, PesananItem, statusBayarColors, statusBayarLabels, RefundDialog() (+3 more)
+### Community 22 - "dashboard/pesanan/page.tsx"
+Cohesion: 0.21
+Nodes (8): PesananDetail, PesananItem, statusBayarColors, statusColors, Checkbox(), VarianBadge(), VarianBadgeProps, pisahCatatanItem()
 
 ### Community 23 - "DashboardCharts.tsx"
 Cohesion: 0.19
@@ -334,12 +372,12 @@ Cohesion: 0.08
 Nodes (25): 1. Race Conditions, 2. Null/Undefined References, 3. Off-by-One Errors, 4. State Mutations, 5. Environment Mismatches, 6. Dependency Conflicts, Common Bug Patterns, Core Philosophy (+17 more)
 
 ### Community 28 - "menu.ts"
-Cohesion: 0.08
-Nodes (35): applyStokHarian(), createKategori(), createMenu(), CreateMenuInput, deleteKategori(), deleteMenu(), deleteAllMenuFotos(), deleteMenuFoto() (+27 more)
+Cohesion: 0.14
+Nodes (24): applyStokHarian(), createKategori(), createMenu(), CreateMenuInput, deleteKategori(), deleteMenu(), getMenus(), requireOwner() (+16 more)
 
 ### Community 29 - "pesanan.ts"
-Cohesion: 0.15
-Nodes (30): getKategoriMenus(), cancelExpiredOrders(), cancelPesanan(), createPesanan(), CreatePesananData, CreatePesananItem, getActivePesananByToken(), getCustomerMenuData (+22 more)
+Cohesion: 0.14
+Nodes (27): cancelExpiredOrders(), cancelPesanan(), CreatePesananData, CreatePesananItem, getActivePesananByToken(), getCustomerPaymentStatus(), getMejaByToken(), getMejaTersediaPindah() (+19 more)
 
 ### Community 30 - "testing/page.tsx"
 Cohesion: 0.09
@@ -347,15 +385,15 @@ Nodes (31): BarisTest(), formatDurasi(), formatWaktu(), gayaStatusFase, gayaStat
 
 ### Community 31 - "meja.ts"
 Cohesion: 0.13
-Nodes (17): createMeja(), deleteMeja(), generateNomorMeja(), getMeja(), getNextNomorMeja(), kosongkanMeja(), MejaResult, updateMeja() (+9 more)
+Nodes (16): createMeja(), deleteMeja(), generateNomorMeja(), getNextNomorMeja(), kosongkanMeja(), MejaResult, updateMeja(), getQrFrameClass() (+8 more)
 
 ### Community 32 - "Workflow Baku"
 Cohesion: 0.12
 Nodes (16): 1) Persiapan, 2) Pencarian & Verifikasi, 3) Ekstraksi Pasal Relevan, 4) Pemetaan ke Kodebase & Graphify, 5) Rekomendasi Stack (Model/Hosting/STT/Dashboard), 6) Penyusunan Output, Auditing Regulations (UU PDP), Checklist Kualitas (+8 more)
 
 ### Community 33 - "auth.ts"
-Cohesion: 0.12
-Nodes (11): utapi, StatCard(), StatGrid(), StatGridProps, CustomUser, src_lib_auth_handlers, { handlers, auth, signIn, signOut }, next-auth (+3 more)
+Cohesion: 0.14
+Nodes (8): utapi, src_lib_auth_auth, src_lib_auth_handlers, { handlers, auth, signIn, signOut }, next-auth, User, ambilVersiSesi(), catatVersiSesi()
 
 ### Community 34 - "scripts"
 Cohesion: 0.15
@@ -365,29 +403,29 @@ Nodes (13): scripts, build, dev, graph:update, lint, seed-2025, seed-menu, seed-
 Cohesion: 0.32
 Nodes (14): addSimReplay(), advanceSimOnSlide(), beginSimStream(), beginSimThink(), escapeHtml(), finishSim(), go(), initSims() (+6 more)
 
-### Community 36 - "fixtures.ts"
-Cohesion: 0.15
-Nodes (12): hitungStatus(), potongStokDapur(), detailPesananFixture, jadwalShiftFixture, kasKeluarFixture, kategoriMenuFixture, menuFixture, riwayatStokFixture (+4 more)
+### Community 36 - "cek/page.tsx"
+Cohesion: 0.17
+Nodes (16): initialState, initialState, initialState, ReservasiTampilan, CafeSpotlightProps, StatCardProps, Card(), CardAction() (+8 more)
 
 ### Community 37 - "StaleNotificationBell.tsx"
-Cohesion: 0.06
-Nodes (33): NotifikasiItem, NotifikasiKind, LaporanPage(), ClockDisplay(), getServerSnapshot(), getSnapshot(), pad(), subscribe() (+25 more)
+Cohesion: 0.11
+Nodes (18): buildSubtext(), formatDurasi(), formatRupiah(), KIND_META, KindMeta, labelStatus(), NotifikasiRow(), DropdownMenu() (+10 more)
 
 ### Community 39 - "PieMetode.tsx"
 Cohesion: 0.33
 Nodes (5): COLORS, formatRupiah(), PieMetode(), PieMetodeProps, PieTooltipPayload
 
 ### Community 40 - "reservasi-customer.ts"
-Cohesion: 0.16
-Nodes (15): ref_crypto, sweepTengahMalam(), cekStatusReservasi(), CreateReservasiCustomerInput, globalStore, ItemReservasiInput, normalisasiNoHp(), RateEntry (+7 more)
+Cohesion: 0.13
+Nodes (20): cekDanCatatRate(), cekStatusReservasi(), createReservasiCustomer(), CreateReservasiCustomerInput, getIp(), getReservasiCustomer(), globalStore, ItemReservasiInput (+12 more)
 
 ### Community 42 - "security-scan.ts"
 Cohesion: 0.67
 Nodes (3): isSensitiveFile(), SecurityScanPlugin(), SENSITIVE_FILES
 
-### Community 43 - "kasir.ts"
-Cohesion: 0.16
-Nodes (25): accPesanan(), batalkanPesananKasir(), confirmQrisPayment(), generateQRISCode(), getPaidOrdersForNotification(), getPembayaranInfo(), getPesananBelumBayar(), getPesananRiwayatKasir() (+17 more)
+### Community 43 - "createLog"
+Cohesion: 0.21
+Nodes (23): accPesanan(), batalkanPesananKasir(), confirmQrisPayment(), generateQRISCode(), getPembayaranInfo(), getPesananRiwayatKasir(), KasirPesananItem, konfirmasiPembayaran() (+15 more)
 
 ### Community 44 - "ARCHITECTURE - Pringmoni"
 Cohesion: 0.12
@@ -403,39 +441,39 @@ Nodes (3): Deploy on Vercel, Getting Started, Learn More
 
 ### Community 51 - "KasirPage"
 Cohesion: 0.15
-Nodes (7): KasirPage(), getGrandTotal(), handleBatalFinal(), handleBayar(), handleBayarTunaiStep(), handleMethodWarningProceed(), useShiftAktif()
+Nodes (6): KasirPage(), getGrandTotal(), handleBatalFinal(), handleBayarTunaiStep(), handleMethodWarningProceed(), useShiftAktif()
 
 ### Community 54 - "dependencies"
-Cohesion: 0.05
-Nodes (41): clsx, cn, @hugeicons/core-free-icons, @hugeicons/react, jspdf, next, nodemailer, dependencies (+33 more)
+Cohesion: 0.22
+Nodes (9): bcryptjs, class-variance-authority, dependencies, bcryptjs, class-variance-authority, @react-pdf/renderer, tailwind-merge, @react-pdf/renderer (+1 more)
 
 ### Community 64 - "stok-bahan.ts"
 Cohesion: 0.19
 Nodes (23): createStokBahan(), deleteStokBahan(), getBahanDapurList(), getRiwayatStok(), getStokBahanList(), hapusResepBahan(), hitungStatus(), requireOwner() (+15 more)
 
 ### Community 65 - "auth-mock.ts"
-Cohesion: 0.09
-Nodes (16): createLogNoSession(), sessionUntuk(), TestRole, TestSession, TestSessionUser, pesananFixture, orderKasir(), orderRiwayat() (+8 more)
+Cohesion: 0.12
+Nodes (10): createLogNoSession(), sessionUntuk(), TestRole, TestSession, TestSessionUser, sessionUtil(), { authMock, createLogMock, triggerPusherMock }, SEKARANG (+2 more)
 
 ### Community 66 - "cbf.ts"
-Cohesion: 0.05
-Nodes (56): analisaTranskrip(), dynamic, keMenuPenilaian(), PayloadValid, POST(), runtime, validasiPayload(), analisaKriteriaGemini() (+48 more)
+Cohesion: 0.16
+Nodes (17): buildVektorKriteria(), buildVektorMenu(), CacheKatalog, cosineSimilarity(), GlobalStore, globalThisStore, HasilRekomendasi, INDIKATOR_SUHU (+9 more)
 
-### Community 67 - "VoiceOrderSheet"
-Cohesion: 0.22
-Nodes (6): persen(), VoiceOrderSheet(), didukungDiClient(), HasilAudioTranscribe, tanpaLangganan(), useAudioTranscribe()
+### Community 67 - "voice-order-sheet.tsx"
+Cohesion: 0.17
+Nodes (10): persen(), VoiceOrderSheet(), VoiceOrderSheetProps, didukungDiClient(), HasilAudioTranscribe, tanpaLangganan(), useAudioTranscribe(), CustomerMenu (+2 more)
 
-### Community 69 - "cf.ts"
-Cohesion: 0.10
-Nodes (31): main(), prisma, ref_node_path, dynamic, handler(), runtime, terotentikasi(), src_data_menu_similarity (+23 more)
+### Community 69 - "refresh-similarity.ts"
+Cohesion: 0.15
+Nodes (18): main(), prisma, ref_node_path, dynamic, handler(), runtime, terotentikasi(), hitungMatriksSimilarity() (+10 more)
 
 ### Community 70 - "prisma-mock.ts"
-Cohesion: 0.18
-Nodes (10): resetPasswordAction(), userFixture, createPrismaMock(), MockFunction, model(), PrismaMock, PrismaModelMock, { sendEmailMock, createLogMock, hashMock } (+2 more)
+Cohesion: 0.10
+Nodes (19): resetPasswordAction(), detailPesananFixture, jadwalShiftFixture, kasKeluarFixture, kategoriMenuFixture, menuFixture, riwayatStokFixture, shiftKasirFixture (+11 more)
 
-### Community 73 - "login.ts"
-Cohesion: 0.13
-Nodes (18): HasilValidasi, loginAction(), LoginState, STATE_AWAL, validasiKredensial(), LoginPage(), checkRateLimit(), getKey() (+10 more)
+### Community 73 - "rate-limiter.ts"
+Cohesion: 0.15
+Nodes (11): LoginState, checkRateLimit(), getKey(), HasilConsumeRateLimit, PROFIL, ProfilRateLimit, RateLimitEntry, RateLimitNamespace (+3 more)
 
 ### Community 74 - "VOICE_ORDER_PLAN.md"
 Cohesion: 0.12
@@ -454,48 +492,48 @@ Cohesion: 0.15
 Nodes (19): ADMIN_FEE_QRIS_PERSEN, ADMIN_FEE_TRANSFER, EXPIRY_QRIS_MENIT, EXPIRY_TRANSFER_MENIT, hitungAdminFee(), hitungExpiryMenit(), centerText(), formatRupiah() (+11 more)
 
 ### Community 78 - "actions/voucher.ts"
-Cohesion: 0.22
+Cohesion: 0.21
 Nodes (17): createVoucher(), deleteVoucher(), getVoucherList(), HasilValidasiVoucher, normalisasiKode(), requireOwner(), setStatusVoucher(), updateVoucher() (+9 more)
 
 ### Community 79 - "export-laporan.test.ts"
 Cohesion: 0.13
 Nodes (10): clickMock, createElementMock, createObjectUrlMock, excelState, FakeJsPDF, FakeWorkbook, FakeWorksheet, pdfState (+2 more)
 
-### Community 80 - "menu-management.tsx"
-Cohesion: 0.12
-Nodes (42): MenuWithKategori, CartItem, aksiColors, aksiKategori, aksiLabels, JenisAksi, statusColors, statusLabels (+34 more)
+### Community 80 - "cn"
+Cohesion: 0.11
+Nodes (46): getMeja(), MenuWithKategori, CartItem, aksiColors, aksiKategori, aksiLabels, JenisAksi, statusColors (+38 more)
 
 ### Community 81 - "graphify.js"
 Cohesion: 0.32
 Nodes (6): hasGraph(), location, IMPORTANT: keep the reminder string free of backticks and $(...) constructs., server(), setup(), ref_path
 
 ### Community 82 - "package.json"
-Cohesion: 0.15
-Nodes (12): lightningcss-win32-x64-msvc, name, optionalDependencies, lightningcss-win32-x64-msvc, @tailwindcss/oxide-win32-x64-msvc, overrides, effect, prisma (+4 more)
+Cohesion: 0.25
+Nodes (7): name, overrides, effect, prisma, seed, private, version
 
 ### Community 83 - "PerbandinganCard.tsx"
 Cohesion: 0.67
 Nodes (3): formatRupiah(), PerbandinganCard(), PerbandinganData
 
 ### Community 84 - "use-voice-input.ts"
-Cohesion: 0.18
-Nodes (15): adalahFirefox(), ambilKonstruktor(), HasilVoiceInput, pesanError(), punyaModeLokal(), siapkanModelLokal(), SpeechRecognitionCtor, SpeechRecognitionErrorEvent (+7 more)
+Cohesion: 0.17
+Nodes (16): VoiceSearchButton(), adalahFirefox(), ambilKonstruktor(), HasilVoiceInput, pesanError(), punyaModeLokal(), siapkanModelLokal(), SpeechRecognitionCtor (+8 more)
 
 ### Community 85 - "transcribe/route.ts"
 Cohesion: 0.23
 Nodes (9): bersihkanTeks(), dynamic, HasilTranskrip, POST(), responsError(), runtime, transkripsiGemini(), transkripsiGroq() (+1 more)
 
-### Community 86 - "src_lib_auth_auth"
-Cohesion: 0.36
-Nodes (9): autoCancelStaleUnpaid(), cekAutoCancelOtomatis(), getDashboardCharts(), getDashboardStats(), getPaidStaleWarnings(), PaidStaleOrder, DashboardPage(), src_lib_auth_auth (+1 more)
+### Community 86 - "dashboard.ts"
+Cohesion: 0.27
+Nodes (12): autoCancelStaleUnpaid(), cekAutoCancelOtomatis(), getDashboardCharts(), getDashboardStats(), getPaidStaleWarnings(), getStaleOrders(), PaidStaleOrder, StaleOrder (+4 more)
 
 ### Community 88 - "checkout/page.tsx"
-Cohesion: 0.29
-Nodes (9): CheckoutData, CheckoutPage(), CreatePesananResult, metodeOptions, ambilKeranjangCheckout(), ambilKodeVoucher(), CHECKOUT_STORAGE_KEY, CHECKOUT_VOUCHER_KEY (+1 more)
+Cohesion: 0.26
+Nodes (11): createPesanan(), validateVoucher(), CheckoutData, CheckoutPage(), CreatePesananResult, metodeOptions, ambilKeranjangCheckout(), ambilKodeVoucher() (+3 more)
 
 ### Community 89 - "DashboardClient.tsx"
-Cohesion: 0.27
-Nodes (9): jamLabel(), rupiah(), ShiftSidebarStatus(), DashboardClient(), DashboardClientProps, SidebarMobile(), useMediaQuery(), Sidebar() (+1 more)
+Cohesion: 0.10
+Nodes (23): LaporanPage(), jamLabel(), rupiah(), ShiftSidebarStatus(), ClockDisplay(), getServerSnapshot(), getSnapshot(), pad() (+15 more)
 
 ### Community 90 - "Legal Audit A5 - UU PDP"
 Cohesion: 0.14
@@ -505,13 +543,13 @@ Nodes (13): 1) Identifikasi Scope, 2) Pencarian Sumber Resmi, 3) Ekstraksi Pasal
 Cohesion: 0.18
 Nodes (10): Component Test, Priority Test, Project Context, Role & Folder Access, Rules, Test Examples, Tester Agent, Tester Logic (BE Tester) (+2 more)
 
-### Community 94 - "CekReservasiPage"
-Cohesion: 0.33
-Nodes (4): CekReservasiPage(), formatRupiah(), formatWaktu(), labelStatus()
+### Community 94 - "reservasi-hasil.ts"
+Cohesion: 0.17
+Nodes (10): CekReservasiPage(), formatRupiah(), formatWaktu(), labelStatus(), ambilHasilReservasi(), HASIL_STORAGE_KEY, HASIL_STORAGE_TTL_MS, HasilReservasi (+2 more)
 
-### Community 95 - "ReservasiPage"
-Cohesion: 0.11
-Nodes (14): formatKategoriNama(), ReservasiPage(), handleConfirmCancel(), handleConfirmKedatangan(), handleCreateReservasi(), handleLanjutTampilanDp(), handleNextStep(), handleVerifikasiDp() (+6 more)
+### Community 95 - "actions/reservasi.ts"
+Cohesion: 0.10
+Nodes (20): activeReservationStatuses(), ALLOWED_ROLES, cancelReservasi(), confirmKedatanganReservasi(), CreateReservasiData, CreateReservasiItem, expireReservasi(), getMejaUntukReservasi() (+12 more)
 
 ### Community 96 - "similarity-refresh"
 Cohesion: 0.25
@@ -529,13 +567,13 @@ Nodes (3): prisma, prisma, prisma
 Cohesion: 0.47
 Nodes (5): butuhBumbu(), DRY_RUN, main(), prisma, upsertBahan()
 
-### Community 104 - "sesi.ts"
-Cohesion: 0.31
-Nodes (8): AMBANG_SESI_AKTIF_MS, ambilVersiSesi(), cacheVersi, catatAktivitasSesi(), catatVersiSesi(), sesiLainKemungkinanAktif(), terakhirCatatAktivitas, waktuLoginLabel()
+### Community 104 - "login.ts"
+Cohesion: 0.18
+Nodes (13): HasilValidasi, loginAction(), STATE_AWAL, validasiKredensial(), LoginPage(), resetRateLimit(), AMBANG_SESI_AKTIF_MS, cacheVersi (+5 more)
 
 ### Community 106 - "reservasi/page.tsx"
-Cohesion: 0.20
-Nodes (9): ALASAN_CEPAT, MejaRow, MenuRow, METODE_DP_LABEL, ReservasiItemDraft, ReservasiItemRow, ReservasiRow, STATUS_LABEL (+1 more)
+Cohesion: 0.16
+Nodes (13): ALASAN_CEPAT, MejaRow, MenuRow, METODE_DP_LABEL, ReservasiItemDraft, ReservasiItemRow, ReservasiRow, STATUS_LABEL (+5 more)
 
 ### Community 108 - "Rencana Skeleton Page - Pringmoni"
 Cohesion: 0.14
@@ -601,9 +639,13 @@ Nodes (11): Backend Developer Agent, Files to Work On, Modul 1: User Management,
 Cohesion: 0.17
 Nodes (11): Correctness Review, Maintainability Review, Output Format, Performance Review, Phase 1: Gather Context, Phase 2: Multi-Perspective Analysis, Phase 3: Synthesize Findings, Review Mode - Comprehensive Code Review (+3 more)
 
-### Community 130 - "[kodeAkses]/page.tsx"
-Cohesion: 0.06
-Nodes (54): cekDanCatatRate(), createReservasiCustomer(), getIp(), formatRupiah(), formatTanggalPanjang(), formatWaktu(), LANGKAH, MejaInfo (+46 more)
+### Community 130 - "reservasi-jadwal.ts"
+Cohesion: 0.22
+Nodes (15): createReservasi(), handleCreateReservasi(), resetFormReservasi(), akhirHari(), awalHari(), BATAS_KEDATANGAN_RESERVASI_MENIT, batasAkhirReservasi(), formatMenit() (+7 more)
+
+### Community 131 - "notifikasi.ts"
+Cohesion: 0.14
+Nodes (17): ref_crypto, awalHari(), getNotifikasiDashboard(), KIND_PER_ROLE, klasifikasiPesanan(), NotifikasiItem, NotifikasiKind, NotifikasiPesananTerlambat (+9 more)
 
 ### Community 132 - "Alur Kerja Wajib (Anti-Churn)"
 Cohesion: 0.11
@@ -689,6 +731,10 @@ Nodes (4): Graphify Command, Step 1: Build / Update Graph, Step 2: Answer Codeba
 Cohesion: 0.50
 Nodes (3): @opencode-ai/plugin, dependencies, @opencode-ai/plugin
 
+### Community 154 - "[kodeAkses]/page.tsx"
+Cohesion: 0.14
+Nodes (15): LANGKAH, MejaInfo, MenuItem, pad2(), PERIODE_RESERVASI, SARAN_CATATAN, toTanggalInputValue(), VoucherItem (+7 more)
+
 ### Community 156 - "✅ SELESAI"
 Cohesion: 0.20
 Nodes (10): 1. Teks "Coret item" → "Tandai item", 2. Fix bug checkbox waiter, 3. Delay navigasi halaman (loading.tsx), 4. Voice notifikasi pesanan masuk & dibayar, 5. Animasi loading + overlay gelap, 6. Responsive HP & tablet, 7. Icon logout nempel ke kanan, 8. Optimasi delay >5 detik (+2 more)
@@ -697,13 +743,29 @@ Nodes (10): 1. Teks "Coret item" → "Tandai item", 2. Fix bug checkbox waiter, 
 Cohesion: 0.24
 Nodes (9): KATEGORI_SEED, KategoriSeed, main(), MENU_CAFE_SEED, MENU_PAKET_SEED, MenuSeed, prisma, upsertKategori() (+1 more)
 
-### Community 159 - "useOrdersRealtime"
-Cohesion: 0.14
-Nodes (12): DetailPesananPage(), DashboardRealtimeRefresh(), NotifOrder, PaidOrder, soundedConfirmedOrders, soundedPaidOrders, ToastData, StaleNotificationBell() (+4 more)
+### Community 158 - "ReservasiCustomerPage"
+Cohesion: 0.17
+Nodes (12): formatRupiah(), formatTanggalPanjang(), formatWaktu(), ReservasiCustomerPage(), lanjut(), pilihTanggal(), unduhQris(), sesiTersediaUntukTanggal() (+4 more)
 
-### Community 162 - "createLog"
+### Community 159 - "useOrdersRealtime"
+Cohesion: 0.15
+Nodes (14): getPaidOrdersForNotification(), getPesananBelumBayar(), DetailPesananPage(), DashboardRealtimeRefresh(), KasirOrderNotifications(), NotifOrder, PaidOrder, soundedConfirmedOrders (+6 more)
+
+### Community 160 - "rekomendasi/route.ts"
+Cohesion: 0.20
+Nodes (13): analisaTranskrip(), dynamic, keMenuPenilaian(), PayloadValid, POST(), runtime, validasiPayload(), HasilAnalisisGemini (+5 more)
+
+### Community 161 - "scoring.ts"
+Cohesion: 0.26
+Nodes (13): MenuBahanData, matriksTersedia(), BOBOT_CBF_SAJA, BOBOT_HYBRID, bobotEfektif(), BobotHybrid, clamp01(), lolosGate() (+5 more)
+
+### Community 162 - "log.ts"
 Cohesion: 0.14
-Nodes (21): logoutAction(), activeReservationStatuses(), ALLOWED_ROLES, cancelReservasi(), confirmKedatanganReservasi(), createReservasi(), CreateReservasiData, CreateReservasiItem (+13 more)
+Nodes (11): forgotPasswordAction(), logoutAction(), resetPasswordConfirmAction(), ForgotPasswordPage(), ResetPasswordPage(), sendResetPasswordEmail(), transporter, getIp() (+3 more)
+
+### Community 163 - "cf.ts"
+Cohesion: 0.27
+Nodes (13): src_data_menu_similarity, ambilSimilarity(), BOBOT_RANK, bobotRank(), buatPetaSimilarity(), hitungSkorSosial(), kunciPasangan(), matriksRef (+5 more)
 
 ### Community 165 - "Penjelasan Test Operasi Database — `meja-operasi.test.ts`"
 Cohesion: 0.22
@@ -713,17 +775,41 @@ Nodes (8): Konsep Dasar (mengapa ada `describe`, `it`, `expect`, mock), Penjelas
 Cohesion: 0.10
 Nodes (19): 1. Ringkasan, 2. Perubahan Database, 3. Server Actions, 4. UI, 5. Integrasi, 6. Verifikasi, 7. Checklist Uji Manual, 8. Batasan yang Diketahui (+11 more)
 
-### Community 172 - "prisma.ts"
-Cohesion: 0.15
-Nodes (7): forgotPasswordAction(), ForgotPasswordPage(), sendResetPasswordEmail(), transporter, globalForPrisma, { authMock, triggerPusherMock, revalidatePathMock }, { sendMailMock }
+### Community 172 - "menu-foto.ts"
+Cohesion: 0.30
+Nodes (9): deleteAllMenuFotos(), deleteMenuFoto(), getMenuFotos(), requireOwner(), saveMenuFotoUrls(), confirmDeleteFoto(), loadMenuFotos(), openDialog() (+1 more)
+
+### Community 173 - "dashboard/loading.tsx"
+Cohesion: 0.20
+Nodes (6): ROLE_SKELETON, StatCard(), StatGridProps, CustomUser, Session, RoleUser
+
+### Community 174 - "gemini.ts"
+Cohesion: 0.31
+Nodes (7): analisaKriteriaGemini(), clamp01(), daftarString(), GeminiError, GeminiResponse, RESPONSE_SCHEMA, validasiHasil()
 
 ### Community 175 - "8. Rencana: Pengaturan Jam Reservasi oleh Owner"
 Cohesion: 0.08
 Nodes (23): 1. Keputusan yang sudah disepakati, 2. Ruang Lingkup, 3. Desain Data v2, 4. Fase Pengerjaan, 5. Alur Meja, 6. Verifikasi, 7. Urutan Eksekusi & Commit, 8.1 Keputusan yang sudah disepakati (+15 more)
 
+### Community 176 - "getKategoriMenus"
+Cohesion: 0.29
+Nodes (3): getKategoriMenus(), PesananBaruPage(), handleSubmit()
+
+### Community 179 - "hitungRincianDp"
+Cohesion: 0.48
+Nodes (5): DP_PERSEN, DP_ROUNDING_UNIT, hitungDpNominal(), hitungRincianDp(), RincianDp
+
 ### Community 182 - "seed-2025.ts"
 Cohesion: 0.60
 Nodes (5): main(), prisma, randomInt(), randomItem(), randomTime()
+
+### Community 189 - "tokenize.ts"
+Cohesion: 0.43
+Nodes (5): PREFIXES, stem(), STOPWORDS_ID, SUFFIXES, tokenize()
+
+### Community 190 - "optionalDependencies"
+Cohesion: 0.40
+Nodes (5): lightningcss-win32-x64-msvc, optionalDependencies, lightningcss-win32-x64-msvc, @tailwindcss/oxide-win32-x64-msvc, @tailwindcss/oxide-win32-x64-msvc
 
 ### Community 192 - "PROGRESS - Sesi 2026-11-06 (Whitebox Testing S1-S3 lanjutan)"
 Cohesion: 0.40
@@ -795,27 +881,27 @@ Nodes (3): PROGRESS - Sesi 2026-11-17 (Badge status meja), SELESAI, VERIFIKASI
 
 ### Community 230 - "stok-bahan/page.tsx"
 Cohesion: 0.17
-Nodes (12): StokBahanWithType, BahanLogo(), BahanLogoConfig, emptyForm, getBahanLogoConfig(), jenisPerubahanLabels, kategoriLabels, satuanLabels (+4 more)
+Nodes (12): BahanLogo(), BahanLogoConfig, emptyForm, getBahanLogoConfig(), jenisPerubahanLabels, kategoriLabels, satuanLabels, statusColors (+4 more)
 
 ## Knowledge Gaps
-- **1093 isolated node(s):** `$schema`, `@opencode-ai/plugin`, `recentTaskCalls`, `SENSITIVE_FILES`, `editedFiles` (+1088 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1346 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **42 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **1094 isolated node(s):** `$schema`, `@opencode-ai/plugin`, `recentTaskCalls`, `SENSITIVE_FILES`, `editedFiles` (+1089 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1347 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **68 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `cn` to `page-skeleton.tsx`, `StaleNotificationBell.tsx`, `stok-bahan/page.tsx`, `voice-order-sheet.tsx`, `button.tsx`, `menu-management.tsx`, `kasir/page.tsx`, `DashboardClient.tsx`, `app/layout.tsx`?**
+- **Why does `cn()` connect `cn` to `page-skeleton.tsx`, `cek/page.tsx`, `StaleNotificationBell.tsx`, `stok-bahan/page.tsx`, `pindah-meja-sheet.tsx`, `kasir/page.tsx`, `menu-tabs.tsx`, `dashboard/pesanan/page.tsx`, `DashboardClient.tsx`, `[kodeAkses]/page.tsx`, `app/layout.tsx`?**
   _High betweenness centrality (0.028) - this node is a cross-community bridge._
-- **Why does `Button()` connect `button.tsx` to `[tokenMeja]/page.tsx`, `[kodeAkses]/page.tsx`, `voice-search-button.tsx`, `actions/shift.ts`, `stok-bahan/page.tsx`, `LaporanClient.tsx`, `reservasi/page.tsx`, `voice-order-sheet.tsx`, `cn`, `menu-management.tsx`, `kasir/page.tsx`, `checkout/page.tsx`, `DashboardClient.tsx`, `pesanan.ts`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **Why does `KasirPage()` connect `KasirPage` to `kasir.ts`, `notifikasi.ts`, `print-struk.ts`, `kasir/page.tsx`, `useOrdersRealtime`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
+- **Why does `Button()` connect `kasir/page.tsx` to `[tokenMeja]/page.tsx`, `actions/shift.ts`, `voice-order-sheet.tsx`, `cek/page.tsx`, `stok-bahan/page.tsx`, `LaporanClient.tsx`, `reservasi/page.tsx`, `pindah-meja-sheet.tsx`, `cn`, `dashboard/pesanan/page.tsx`, `checkout/page.tsx`, `DashboardClient.tsx`, `[kodeAkses]/page.tsx`, `pesanan.ts`?**
+  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+- **Why does `createLog()` connect `createLog` to `auth-mock.ts`, `log.ts`, `notifikasi.ts`, `reservasi-jadwal.ts`, `actions/shift.ts`, `login.ts`, `actions/refund.ts`, `actions/voucher.ts`, `dashboard.ts`, `checkout/page.tsx`, `menu.ts`, `pesanan.ts`, `actions/reservasi.ts`, `meja.ts`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
 - **What connects `$schema`, `@opencode-ai/plugin`, `recentTaskCalls` to the rest of the system?**
-  _1093 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1094 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `actions/shift.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.05554035567715458 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05054945054945055 - nodes in this community are weakly interconnected._
 - **Should `page-skeleton.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.053075396825396824 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05593220338983051 - nodes in this community are weakly interconnected._
 - **Should `compilerOptions` be split into smaller, more focused modules?**
   _Cohesion score 0.06451612903225806 - nodes in this community are weakly interconnected._
