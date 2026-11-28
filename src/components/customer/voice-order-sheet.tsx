@@ -149,6 +149,9 @@ export function VoiceOrderSheet({
                         <Mic className="size-4 text-primary" />
                         Pesan Pakai Suara
                     </SheetTitle>
+                    <p className="mt-1 text-center text-[11px] text-muted-foreground">
+                        Opsional · kuota rekomendasi AI terbatas
+                    </p>
                 </SheetHeader>
 
                 <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -163,31 +166,57 @@ export function VoiceOrderSheet({
                         </div>
                     )}
 
-                    <div className="flex flex-col items-center gap-3 rounded-2xl border bg-muted/40 px-4 py-5">
-                        <button
-                            type="button"
-                            onClick={listening ? handleBerhentiDengar : handleMulaiDengar}
-                            disabled={!didukung || loading || menyiapkan}
-                            aria-label={menyiapkan ? "Menyiapkan model suara" : listening ? "Hentikan perekaman suara" : "Mulai bicara"}
-                            className={`flex size-16 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
-                                listening
-                                    ? "bg-destructive text-destructive-foreground animate-pulse"
-                                    : "bg-primary text-primary-foreground"
-                            }`}
-                        >
-                            {menyiapkan ? <Loader2 className="size-7 animate-spin" /> : listening ? <MicOff className="size-7" /> : <Mic className="size-7" />}
-                        </button>
-                        <p className="text-sm font-medium">
-                            {menyiapkan
-                                ? "Menyiapkan model suara..."
-                                : listening
-                                    ? "Mendengarkan... Tekan untuk menghentikan"
-                                    : "Tekan dan ceritakan yang Anda inginkan"}
-                        </p>
-                        <p className="text-center text-xs text-muted-foreground">
-                            Contoh: &ldquo;Aduh panas, enaknya yang seger&rdquo;
-                        </p>
-                    </div>
+                    {hasil ? (
+                        <div className="flex flex-col items-center gap-2 rounded-2xl border bg-muted/40 px-4 py-4 text-center">
+                            <p className="text-sm font-medium">Rekomendasi siap.</p>
+                            <p className="text-xs text-muted-foreground">
+                                Pilih menu di bawah atau tutup sheet. Buka lagi bila ingin mencari lain.
+                            </p>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="mt-1 rounded-full"
+                                onClick={() => {
+                                    pernahMendengar.current = false
+                                    setHasil(null)
+                                    setTeksManual("")
+                                    reset()
+                                }}
+                            >
+                                Cari lagi
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center gap-3 rounded-2xl border bg-muted/40 px-4 py-5">
+                            <button
+                                type="button"
+                                onClick={listening ? handleBerhentiDengar : handleMulaiDengar}
+                                disabled={!didukung || loading || menyiapkan}
+                                aria-label={menyiapkan ? "Menyiapkan model suara" : listening ? "Hentikan perekaman suara" : "Mulai bicara"}
+                                className={`flex size-16 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
+                                    listening
+                                        ? "bg-destructive text-destructive-foreground animate-pulse"
+                                        : "bg-primary text-primary-foreground"
+                                }`}
+                            >
+                                {menyiapkan ? <Loader2 className="size-7 animate-spin" /> : listening ? <MicOff className="size-7" /> : <Mic className="size-7" />}
+                            </button>
+                            <p className="text-sm font-medium">
+                                {menyiapkan
+                                    ? "Menyiapkan model suara..."
+                                    : listening
+                                        ? "Mendengarkan... Tekan untuk menghentikan"
+                                        : "Tekan dan ceritakan yang Anda inginkan"}
+                            </p>
+                            <p className="text-center text-xs text-muted-foreground">
+                                Contoh: &ldquo;Aduh panas, enaknya yang seger&rdquo;
+                            </p>
+                            <p className="text-center text-[11px] text-muted-foreground">
+                                Rekomendasi AI dibatasi 10x per 10 menit. Satu kali bicara cukup untuk satu permintaan.
+                            </p>
+                        </div>
+                    )}
 
                     {(!didukung || Boolean(errorVoice)) && audio.didukung && (
                         <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-dashed px-3 py-3">
@@ -234,7 +263,7 @@ export function VoiceOrderSheet({
                                 size="sm"
                                 className="rounded-full"
                                 onClick={() => void ambilRekomendasi(teksManual)}
-                                disabled={loading || !teksManual.trim()}
+                                disabled={loading || !teksManual.trim() || Boolean(hasil)}
                             >
                                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                                 <span className="ml-1.5">Lihat Rekomendasi</span>

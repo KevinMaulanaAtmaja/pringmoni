@@ -16,6 +16,7 @@ import { finalizeReservasiUntukMeja } from "@/lib/reservasi"
 import { refreshMatriksSimilarity } from "@/lib/spk/refresh-similarity"
 
 import { hitungPotonganDiskon } from "@/lib/voucher"
+import { gabungCatatanItem } from "@/lib/catatan-item"
 
 export async function updateStatusPesanan(id: number, status: StatusPesanan) {
   const session = await auth()
@@ -75,6 +76,7 @@ export interface CreatePesananItem {
   menuId: number
   jumlah: number
   catatan?: string | null
+  varian?: string | null
 }
 
 export interface CreatePesananData {
@@ -94,7 +96,9 @@ export async function getMejaByToken(tokenMeja: string) {
 
 export async function getMenusForCustomer() {
   const menus = await prisma.menu.findMany({
-    where: { statusMenu: 'tersedia', stokManual: { gt: 0 }, deletedAt: null },
+    // Menu dengan stok harian 0 tetap dikirim supaya customer melihat label
+    // "Habis", bukan menu yang tiba-tiba hilang dari daftar.
+    where: { statusMenu: { in: ['tersedia', 'habis'] }, deletedAt: null },
     select: {
       id: true,
       namaMenu: true,
@@ -277,7 +281,7 @@ export async function createPesanan(data: CreatePesananData) {
             menuId: item.menuId,
             jumlah: item.jumlah,
             hargaSaatPesan: itemPrices[item.menuId],
-            catatanItem: item.catatan,
+            catatanItem: gabungCatatanItem(item.catatan, item.varian),
           })),
         },
       },

@@ -82,7 +82,12 @@
 | PBI-2.2 | Kelola Item Pesanan | Done |
 | PBI-2.3 | Status & Pembatalan | Done |
 
-> Catatan PBI-2.1: Pemesanan tunduk pada validasi stok harian — menu harus `tersedia` dan `stokManual` mencukupi; jika tidak, ditolak server (lihat Modul 6).
+> Catatan PBI-2.1: Pemesanan tunduk pada validasi stok harian — menu harus `tersedia` dan `stokManual` mencukupi; jika tidak, ditolak server (lihat Modul 6). Angka sisa stok tidak ditampilkan di kartu/detail customer; menu dengan stok 0 tetap muncul dengan label **Habis** agar jelas, bukan menghilang dari daftar. Tampilan **Habis** memakai state netral (bukan error merah) dengan badge berikon, keterangan "Stok habis", dan tombol detail **Lihat menu lain** agar customer bisa langsung memilih menu lain.
+>
+> Catatan UX menu dine-in: filter (cari + mikrofon + tab Resto/Cafe + kategori) kini berupa kartu sticky di bawah header yang **selalu tampil**, dengan versi ringkas (search `h-9` di HP; tab Resto/Cafe dan kategori satu baris scroll di semua breakpoint, grup Resto/Cafe punya wadah berborder + pemisah vertikal yang jelas di HP dengan jarak internal tetap sama seperti kategori biasa) agar tidak banyak memakan ruang. Nomor meja ada di header; jumlah item, voucher, dan total hanya tampil di panel keranjang `xl` / sheet keranjang mobile — bukan di bar search. Mobile/tablet memakai bar keranjang ringkas di bawah berisi foto menu bulat (maks 3 + `+N`), ringkasan item/total, dan ikon keranjang yang membuka keranjang samping. Header responsif (brand, badge meja, ikon keranjang); kartu voucher di halaman menu dihapus — voucher dipilih/dilepas dari panel/sheet keranjang; peringatan "Meja Sedang Digunakan" hanya muncul saat meja benar-benar punya pesanan aktif. Tombol mic bersifat opsional dan kini tampil sebagai ikon ber-ring primary yang jelas (tanpa label teks), dengan penjelasan kuota AI terbatas di sheet; hasil hanya bisa diulang lewat **Cari lagi**.
+ Rencana & detail: `.opencode/DINE_IN_UX_PLAN.md`.
+>
+> Catatan varian suhu: pilihan **Panas / Dingin** hanya muncul untuk kategori yang mengaktifkan `pilihanSuhu`. Varian ikut tersimpan di `DetailPesanan.catatanItem` sebagai tag `[Varian: ...]`, ditampilkan sebagai badge di keranjang, checkout, detail pesanan customer/dashboard, kasir, dan struk (copy pelanggan + kitchen) tanpa menampilkan tag mentah.
 
 ### Modul 3: Pembayaran
 | PBI | Deskripsi | Status |
@@ -113,7 +118,7 @@
 | PBI-6.4 | ~~Rakit resep menu (BOM)~~ — dihapus dari UI; data resep lama tetap dipakai untuk pemotongan stok internal bila ada | Dihapus |
 | PBI-6.5 | Stok harian per menu diatur dari Menu Management | Done |
 | PBI-6.6 | Gate pemesanan berdasarkan stok harian + pemotongan stok harian otomatis | Done |
-| PBI-6.7 | Tampilkan sisa stok harian / "Stok Habis" di menu customer | Done |
+| PBI-6.7 | Tampilkan status "Stok Habis" di menu customer (angka sisa tidak ditampilkan) | Done |
 
 > Catatan Modul 6: ketersediaan menu untuk customer sepenuhnya mengacu pada **stok harian (`menu.stokManual`)** di Menu Management. Stok bahan (Gudang/Dapur) adalah monitoring internal dan tidak memengaruhi tampilan customer. UI "Rakit Resep" dihapus bersama route `/dashboard/resep`.
 
@@ -192,9 +197,9 @@
 | PBI-10.1 | Voucher: buat, edit, non-aktifkan (oleh OWNER) | Done |
 | PBI-10.2 | Voucher diskon % per total pembelian | Done |
 | PBI-10.3 | Voucher dengan minimal pembelian tertentu | Done |
-| PBI-10.4 | Tampil voucher di halaman menu (UI mirip kategori menu) | Done |
+| PBI-10.4 | Pilih voucher di panel/sheet keranjang customer | Done |
 
-> Catatan PBI-10.x: Management voucher berada sebagai tab **Voucher** di halaman Menu (`/dashboard/menu`) — tidak menambah menu sidebar. Diskon hanya untuk voucher berstatus aktif, minimal belanja & kode voucher divalidasi ulang di server saat pesanan dibuat (client tidak dipercaya). Nilai diskon disimpan di `pesanan.diskon_voucher` dan `pesanan.voucher_id`.
+> Catatan PBI-10.x: Management voucher berada sebagai tab **Voucher** di halaman Menu (`/dashboard/menu`) — tidak menambah menu sidebar. Customer memilih voucher lewat pemilih kartu di panel keranjang `xl` / sheet keranjang mobile (nama, kode, diskon, minimal belanja, status "Belum cukup"/"Dipakai", input kode opsional); kartu voucher di halaman menu sudah dihapus agar tidak memakan ruang. Diskon hanya untuk voucher berstatus aktif, minimal belanja & kode voucher divalidasi ulang di server saat pesanan dibuat (client tidak dipercaya). Nilai diskon disimpan di `pesanan.diskon_voucher` dan `pesanan.voucher_id`.
 
 ## 4. Definition of Done
 

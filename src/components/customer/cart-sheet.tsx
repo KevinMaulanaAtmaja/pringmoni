@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, ShoppingBag, Ticket, CheckCircle, X } from "lucide-react";
+import { Trash2, ShoppingBag, Ticket, Check, ChevronDown, X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -12,8 +12,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Minus, Plus } from "lucide-react";
+import { VarianBadge } from "@/components/ui/varian-badge";
 import { validateVoucher } from "@/app/actions/voucher";
 import { hitungPotonganDiskon } from "@/lib/voucher";
+import { cn } from "@/lib/utils";
 import type { VoucherOpsi, VoucherTerpakai } from "@/types";
 
 export interface KeranjangItem {
@@ -42,10 +44,11 @@ interface CartSheetProps {
   onApplyVoucher: (voucher: VoucherTerpakai | null) => void;
   /** Voucher aktif dari server (dipakai untuk daftar pilihan) */
   vouchers: VoucherOpsi[];
+  side?: "right" | "bottom";
 }
 
-function getItemKey(item: KeranjangItem): string {
-  return `${item.id}-${item.catatan || "no-note"}`;
+export function getItemKey(item: KeranjangItem): string {
+  return `${item.id}-${item.catatan || "no-note"}-${item.varian || "no-varian"}`;
 }
 
 export function CartSheet({
@@ -60,62 +63,13 @@ export function CartSheet({
   voucher,
   onApplyVoucher,
   vouchers,
+  side = "right",
 }: CartSheetProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [voucherInput, setVoucherInput] = useState("");
-  const [voucherError, setVoucherError] = useState("");
-  const [showVoucherList, setShowVoucherList] = useState(false);
-  const [voucherLoading, setVoucherLoading] = useState(false);
 
   const totalItem = keranjang.reduce((sum, item) => sum + item.jumlah, 0);
-
-  // Validasi voucher selalu lewat server (kode, status, minimal belanja).
-  const applyVoucher = async (kode: string) => {
-    setVoucherLoading(true);
-    setVoucherError("");
-    try {
-      const hasil = await validateVoucher(kode, subtotal);
-      if (!hasil.valid || !hasil.kode) {
-        setVoucherError(hasil.error ?? "Kode voucher tidak valid");
-        return;
-      }
-      onApplyVoucher({
-        kode: hasil.kode,
-        namaVoucher: hasil.namaVoucher ?? hasil.kode,
-        diskonPersen: hasil.diskonPersen ?? 0,
-        minimalBelanja: hasil.minimalBelanja ?? 0,
-      });
-      setVoucherInput("");
-    } catch {
-      setVoucherError("Gagal memvalidasi voucher. Coba lagi.");
-    } finally {
-      setVoucherLoading(false);
-    }
-  };
-
-  const handleApplyVoucher = () => {
-    if (!voucherInput.trim()) {
-      setVoucherError("Masukkan kode voucher");
-      return;
-    }
-    void applyVoucher(voucherInput.trim());
-  };
-
-  const handleRemoveVoucher = () => {
-    onApplyVoucher(null);
-    setVoucherInput("");
-    setVoucherError("");
-  };
-
-  const handleSelectVoucher = (v: VoucherOpsi) => {
-    void applyVoucher(v.kode);
-  };
-
   const potonganVoucher = voucher
     ? hitungPotonganDiskon(subtotal, voucher.diskonPersen)
-    : 0;
-  const minimalVoucherTerpakai = vouchers.length
-    ? Math.min(...vouchers.map((v) => v.minimalBelanja))
     : 0;
 
 return (
@@ -123,7 +77,13 @@ return (
       <SheetTrigger asChild>
         {children}
       </SheetTrigger>
-      <SheetContent className="flex flex-col w-full sm:max-w-lg p-0">
+      <SheetContent
+        side={side}
+        className={cn(
+          "flex w-full flex-col p-0",
+          side === "bottom" ? "max-h-[85vh] pb-8" : "sm:max-w-lg",
+        )}
+      >
         <SheetHeader className="border-b px-4 py-4">
           <div className="flex items-center justify-center">
             <SheetTitle className="flex items-center gap-2">
@@ -157,7 +117,10 @@ return (
                       >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium">{item.namaMenu}</h4>
+                          <h4 className="flex items-center gap-1.5 font-medium">
+                            {item.namaMenu}
+                            {item.varian && <VarianBadge varian={item.varian} />}
+                          </h4>
                           <p className="text-primary font-semibold text-sm">
                             Rp {item.harga.toLocaleString("id-ID")}
                           </p>
@@ -231,83 +194,13 @@ return (
                  </div>
                )}
 
-               {/* Voucher Input */}
-                {voucher ? (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="size-4 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium text-green-700">{voucher.kode}</p>
-                        <p className="text-xs text-green-600">
-                          -Rp {potonganVoucher.toLocaleString("id-ID")} ({voucher.diskonPersen}%)
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleRemoveVoucher}
-                      className="text-green-600 hover:text-green-800 p-1"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Kode voucher"
-                          value={voucherInput}
-                          onChange={(e) => {
-                            setVoucherInput(e.target.value);
-                            setVoucherError("");
-                          }}
-                          className="pl-10"
-                        />
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowVoucherList(!showVoucherList)}
-                      >
-                        List
-                      </Button>
-                      <Button onClick={handleApplyVoucher} disabled={voucherLoading}>
-                        {voucherLoading ? "..." : "Apply"}
-                      </Button>
-                    </div>
-                    {voucherError && (
-                      <p className="text-xs text-destructive">{voucherError}</p>
-                    )}
-                    {vouchers.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Min. pembelian Rp {minimalVoucherTerpakai.toLocaleString("id-ID")}
-                      </p>
-                    )}
+                <VoucherPicker
+                  subtotal={subtotal}
+                  voucher={voucher}
+                  onApplyVoucher={onApplyVoucher}
+                  vouchers={vouchers}
+                />
 
-                    {showVoucherList && (
-                      <div className="border rounded-lg p-2 space-y-2 bg-muted/50">
-                        {vouchers.length === 0 && (
-                          <p className="text-xs text-muted-foreground p-2">
-                            Belum ada voucher aktif.
-                          </p>
-                        )}
-                        {vouchers.map((v) => (
-                          <button
-                            key={v.kode}
-                            onClick={() => handleSelectVoucher(v)}
-                            className="w-full text-left p-2 rounded-lg hover:bg-background transition-colors"
-                          >
-                            <p className="text-sm font-medium">{v.kode}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Diskon {v.diskonPersen}% • min. belanja Rp{" "}
-                              {v.minimalBelanja.toLocaleString("id-ID")}
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
 
               {/* Divider */}
               <div className="border-t" />
@@ -333,5 +226,201 @@ return (
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+interface VoucherPickerProps {
+  subtotal: number;
+  voucher: VoucherTerpakai | null;
+  onApplyVoucher: (voucher: VoucherTerpakai | null) => void;
+  vouchers: VoucherOpsi[];
+  compact?: boolean;
+}
+
+export function VoucherPicker({
+  subtotal,
+  voucher,
+  onApplyVoucher,
+  vouchers,
+  compact = false,
+}: VoucherPickerProps) {
+  const [daftarBuka, setDaftarBuka] = useState(false);
+  const [inputBuka, setInputBuka] = useState(false);
+  const [kode, setKode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const potongan = voucher ? hitungPotonganDiskon(subtotal, voucher.diskonPersen) : 0;
+  const kurang = voucher ? Math.max(0, voucher.minimalBelanja - subtotal) : 0;
+
+  const pakaiVoucher = async (kodeVoucher: string) => {
+    if (!kodeVoucher.trim()) {
+      setError("Masukkan kode voucher");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const hasil = await validateVoucher(kodeVoucher.trim(), subtotal);
+      if (!hasil.valid || !hasil.kode) {
+        setError(hasil.error ?? "Kode voucher tidak valid");
+        return;
+      }
+      onApplyVoucher({
+        kode: hasil.kode,
+        namaVoucher: hasil.namaVoucher ?? hasil.kode,
+        diskonPersen: hasil.diskonPersen ?? 0,
+        minimalBelanja: hasil.minimalBelanja ?? 0,
+      });
+      setKode("");
+      setDaftarBuka(false);
+      setInputBuka(false);
+    } catch {
+      setError("Gagal memvalidasi voucher. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const lepasVoucher = () => {
+    onApplyVoucher(null);
+    setKode("");
+    setError("");
+  };
+
+  return (
+    <div className="space-y-2">
+      {voucher && (
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-xl border px-2.5 py-2",
+            kurang > 0 ? "border-amber-300 bg-amber-50" : "border-emerald-200 bg-emerald-50",
+          )}
+        >
+          <Ticket className={cn("size-4 shrink-0", kurang > 0 ? "text-amber-600" : "text-emerald-600")} />
+          <div className="min-w-0 flex-1">
+            <p className={cn("truncate text-xs font-semibold", kurang > 0 ? "text-amber-800" : "text-emerald-800")}>
+              {voucher.kode} · diskon {voucher.diskonPersen}%
+            </p>
+            <p className={cn("text-[10px]", kurang > 0 ? "text-amber-700" : "text-emerald-700")}>
+              {kurang > 0
+                ? `Kurang Rp ${kurang.toLocaleString("id-ID")} untuk pakai voucher ini`
+                : `Hemat Rp ${potongan.toLocaleString("id-ID")}`}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 text-emerald-700 hover:text-destructive"
+            aria-label="Lepas voucher"
+            onClick={lepasVoucher}
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      )}
+
+      {vouchers.length > 0 && (
+        <>
+          <button
+            type="button"
+            aria-expanded={daftarBuka}
+            onClick={() => setDaftarBuka((buka) => !buka)}
+            className="flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+          >
+            <span className="flex items-center gap-1.5">
+              <Ticket className="size-3.5 text-primary" />
+              {voucher ? "Ganti voucher" : "Pilih voucher"}
+              <span className="font-normal">({vouchers.length} tersedia)</span>
+            </span>
+            <ChevronDown className={cn("size-3.5 transition-transform", daftarBuka && "rotate-180")} />
+          </button>
+          {daftarBuka && (
+            <div className={cn("space-y-1.5 overflow-y-auto rounded-xl border bg-muted/40 p-1.5", compact ? "max-h-40" : "max-h-52")}>
+              {vouchers.map((v) => {
+                const aktif = voucher?.kode === v.kode;
+                const memenuhi = subtotal >= v.minimalBelanja;
+                const kurangBelanja = v.minimalBelanja - subtotal;
+                return (
+                  <button
+                    key={v.kode}
+                    type="button"
+                    disabled={!memenuhi || loading}
+                    onClick={() => (aktif ? lepasVoucher() : void pakaiVoucher(v.kode))}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors",
+                      aktif
+                        ? "border-emerald-300 bg-emerald-50"
+                        : "border-transparent bg-background hover:border-primary/30",
+                      !memenuhi && "cursor-not-allowed opacity-60",
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">
+                        {v.namaVoucher}
+                        <span className="ml-1 font-normal text-muted-foreground">· {v.kode}</span>
+                      </p>
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        Diskon {v.diskonPersen}% · min. Rp {v.minimalBelanja.toLocaleString("id-ID")}
+                        {!memenuhi && ` · kurang Rp ${kurangBelanja.toLocaleString("id-ID")}`}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                        aktif ? "bg-emerald-600 text-white" : "bg-primary/10 text-primary",
+                      )}
+                    >
+                      {aktif && <Check className="size-2.5" />}
+                      {aktif ? "Dipakai" : memenuhi ? "Pakai" : "Belum cukup"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {!voucher && (
+        <div>
+          <button
+            type="button"
+            aria-expanded={inputBuka}
+            onClick={() => setInputBuka((buka) => !buka)}
+            className="text-[11px] text-primary underline-offset-2 hover:underline"
+          >
+            Punya kode voucher? Ketik di sini
+          </button>
+          {inputBuka && (
+            <div className="mt-1.5 flex gap-1.5">
+              <Input
+                value={kode}
+                onChange={(e) => {
+                  setKode(e.target.value);
+                  setError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void pakaiVoucher(kode);
+                }}
+                placeholder="Kode voucher"
+                className="h-8 flex-1 text-xs"
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 shrink-0 px-3 text-xs"
+                disabled={loading}
+                onClick={() => void pakaiVoucher(kode)}
+              >
+                {loading ? "..." : "Pakai"}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+      {error && <p className="text-[11px] text-destructive">{error}</p>}
+    </div>
   );
 }

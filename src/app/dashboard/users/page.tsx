@@ -43,7 +43,6 @@ const roleColors: Record<RoleUser, string> = {
   cashier: 'bg-blue-100 text-blue-800',
   waiter: 'bg-green-100 text-green-800',
   kitchen: 'bg-orange-100 text-orange-800',
-  gudang: 'bg-teal-100 text-teal-800',
 }
 
 const roleLabels: Record<RoleUser, string> = {
@@ -51,7 +50,6 @@ const roleLabels: Record<RoleUser, string> = {
   cashier: 'Kasir',
   waiter: 'Pelayan',
   kitchen: 'Dapur',
-  gudang: 'Gudang',
 }
 
 const ITEMS_PER_PAGE = 5
