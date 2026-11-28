@@ -1,3 +1,60 @@
+# PROGRESS - Sesi 2026-11-28 (Searchbar HP ringkas, UX voucher, lanjutan tag Panas/Dingin)
+
+> Lanjutan branch `feature/fe-dine-in-ux`; rencana di `.opencode/DINE_IN_UX_PLAN.md`.
+
+## SELESAI
+- Searchbar sticky dine-in dibuat ringkas di HP: input `h-9` + teks lebih kecil (`xs`), ikon search/mic diperkecil, tab Resto/Cafe dan pill kategori digabung dalam satu baris scroll di semua breakpoint. Grup Resto/Cafe diberi wadah pill `border border-border/60 bg-muted/60 p-0.5 sm:p-1` + pemisah vertikal `w-px h-5 sm:h-6` agar **jelas terpisah** dari kategori biasa di HP; jarak internal antar Resto/Cafe tetap disamakan (`gap-1.5 sm:gap-2`). Kartu filter tidak lagi mendesak grid menu.
+- Voucher: kartu besar di halaman menu dihapus. `VoucherPicker` diexpor dari `cart-sheet.tsx` dan dipakai `CartSheet` + `FloatingCartPanel`: daftar kartu (nama, kode, diskon %, minimal belanja), status `Pakai` / `Dipakai` / `Belum cukup`, lepas voucher, dan input kode yang tersembunyi sampai dibuka. Validasi tetap `validateVoucher` (server) di kedua pemilih.
+- Mic pencarian dibuat lebih terlihat sebagai chip ikon sekunder (tanpa tulisan): `border-primary/25 bg-primary/10 text-primary shadow-sm`, `size-8 sm:size-9`, + tooltip, bukan ghost icon. Sheet menjelaskan kuota rekomendasi AI terbatas; setelah hasil muncul, tombol mic/manual dinonaktifkan sampai **Cari lagi** ditekan agar klik ganda tidak menghabiskan free API key Gemini. Rate limit server tetap `voice: 10x/10 menit` (`rate-limiter.ts`).
+- Lanjutan tag Panas/Dingin: `print-struk.ts` kini membaca tag `[Varian: ...]` lewat `pisahCatatanItem`, mencetak varian sebagai `[PANAS]`/`[DINGIN]` pada copy pelanggan & kitchen serta catatan item terpisah; tag mentah tidak dicetak. Test struk ditambahkan.
+- Error `RoleUser.gudang` diperbaiki: entri `gudang` dihapus dari `KIND_PER_ROLE` (`notifikasi.ts`) dan `roleColors`/`roleLabels` (`users/page.tsx`). `gudang` adalah nilai `LokasiStok`, bukan role user; enum Prisma `RoleUser` hanya `owner | cashier | waiter | kitchen`, dan `owner` sudah menerima notifikasi `stok_menipis`.
+- Kartu menu & detail customer: angka stok harian **tidak ditampilkan** lagi (`Sisa N porsi` / `Sisa 10 porsi` dihapus dari kartu dan dialog) karena cepat basi dan membuat kartu ramai. `getMenusForCustomer()` sekarang ikut mengembalikan menu ber-`statusMenu: 'habis'` (stok harian 0) supaya tetap terlihat dengan badge/teks **Habis**; stok harian tetap membatasi jumlah di keranjang, `handleTambah`, dan validasi checkout. Test `getMenusForCustomer` diperluas untuk menu habis.
+- Tampilan habis diperbagus: state netral (bukan merah error), border `border-border/70` + latar `bg-muted/20`, foto diredupkan ringan, badge `Ban` + "Habis", keterangan kecil "Stok habis" di bawah harga, dan detail dialog berisi ikon + judul situasional + pesan + tombol **Lihat menu lain** (`DialogClose`). Nama/harga tetap terbaca, customer tidak menemui jalan buntu.
+- Dokumen disinkronkan: PRD (catatan UX dine-in, varian suhu, PBI-10.4) + `DINE_IN_UX_PLAN.md`.
+
+## VERIFIKASI
+- `npx eslint` pada 5 file yang diubah: 0 error.
+- `npx vitest run src/test/unit/lib/print-struk.test.ts src/test/unit/lib/catatan-item.test.ts`: 14/14 passed.
+- `npx vitest run src/test/unit/app/actions/notifikasi.test.ts src/test/unit/lib/print-struk.test.ts src/test/unit/lib/catatan-item.test.ts`: 29 passed / 1 failed. Satu failure pre-existing (`membatalkan pesanan basi saat sweep tengah malam dan mencatat log`): mock `prisma.reservasi` belum ada, `finalizeReservasiUntukMeja` error di `reservasi.ts:91`. Tidak ada ekspektasi test yang diubah.
+- `npx vitest run src/test/unit/app/actions/pesanan.test.ts -t getMenusForCustomer`: 1 passed / 86 skipped (fixture menu `statusMenu: 'habis'`, `stokManual: 0` ikut terpetakan dengan `porsiTersedia: 0`).
+- `npm run lint -- --quiet`: 0 error (43 warning pre-existing di plugin/coverage/kode lama).
+- `npm run test` (suite penuh): 647 passed / 31 failed / 1 skipped. Kegagalan **pre-existing di luar scope sesi ini**: mock `prisma.reservasi` belum ada di `kasir/pesanan/meja/dashboard/notifikasi/refund`, `after()` Next dipanggil di luar request scope di `pesanan.test.ts`, filter log kategori, dan test refund bergantung tanggal. Tidak ada test yang dilonggarkan/diubah ekspektasinya.
+- `npx tsc --noEmit --incremental false`: **0 error** setelah entri `gudang` dibersihkan.
+- `npm run graph:update` dijalankan ulang setelah perubahan UI habis: 2732 nodes, 5122 edges, 241 communities. `npm run lint -- --quiet` tetap 0 error (43 warning pre-existing) dan `npx tsc --noEmit --incremental false` 0 error setelah revisi `menu-card.tsx` serta chip mic/`voice-order-sheet.tsx`.
+
+## BELUM
+- Uji visual manual via dev server user (searchbar HP, jarak/gaya pill Resto/Cafe vs kategori, pemilih voucher di sheet/panel, kartu & detail menu dengan stok harian habis).
+- Commit/PR belum diminta.
+
+---
+
+# PROGRESS - Sesi 2026-11-27 (UX dine-in meniru pola reservasi)
+
+> Branch `feature/fe-dine-in-ux` dari `develop`; rencana di `.opencode/DINE_IN_UX_PLAN.md`.
+
+## SELESAI
+- Halaman menu dine-in (`src/app/(customer)/[tokenMeja]/page.tsx`): filter search + mic + tab Resto/Cafe + kategori dipindah ke kartu sticky `top-16 z-40` dan **selalu tampil** (auto-hide/reveal dibatalkan sesuai feedback). Layout: mic di dalam kolom search, Resto/Cafe segmented control (`role="tablist"`), kategori pills tanpa scrollbar terlihat. Bar search tidak memuat info meja/item/total/voucher.
+- Nomor meja tetap di header; voucher dan detail lengkap hanya ada di panel/sheet keranjang. Teks "N menu tersedia" dihapus.
+- Voucher jadi kartu ringkas dengan keterangan minimal belanja saat voucher dipilih tapi belum memenuhi syarat; empty state menu punya tombol "Hapus filter".
+- Header responsif: mark "P", brand + badge meja tumpuk di HP / sejajar di `sm+`, aksi ikon-only di HP, cart badge ringkas, `h-14 sm:h-16`; filter sticky `top-14 sm:top-16`. CTA "Pesanan" tetap ada saat ada pesanan aktif.
+- Voucher: kartu "Pakai voucher" dengan toggle pilih/lepas, tombol "Hapus", info kurang nominal / nominal hemat, scrollbar pills disembunyikan.
+- Peringatan "Meja Sedang Digunakan" hanya muncul jika `statusMeja === "terpakai"` dan `adaPesananAktif`; meja kosong tidak muncul.
+- `src/components/customer/floating-cart-panel.tsx` (baru): panel keranjang sticky di kolom kanan breakpoint `xl`, dengan list scroll mandiri, stepper qty, voucher, total, Checkout. Grid menu tidak tertutup.
+- `src/components/customer/cart-sheet.tsx`: prop `side` (`right`/`bottom`) + `getItemKey` diekspor; trigger mobile kini membuka sheet bawah.
+- Bar keranjang mobile/tablet: ringkas di bawah (`inset-x-0`, `3.75rem + env(safe-area-inset-bottom)`, `z-40`, `xl:hidden`, `max-w-sm sm:max-w-md`). Kiri: foto menu bulat maks 3 + badge `+N`, tanpa nama; tengah: ringkasan `N item · Rp total` + "Ketuk untuk lihat keranjang" (atau "Belum ada menu dipilih"); kanan: ikon `ShoppingCart` primary. Ditekan membuka keranjang samping `side="right"`. Toast `7.25rem + safe-area`; `main` `pb-32`.
+- Dialog konfirmasi saat pindah meja / scan meja lain sementara keranjang belum kosong.
+
+## VERIFIKASI
+- `npx eslint` pada 3 file yang diubah: 0 error. (`npm run lint -- --quiet` terakhir: 0 error, warning lama tetap.)
+- `npx tsc --noEmit --incremental false`: 3 error pre-existing di luar scope ini — `src/app/actions/notifikasi.ts:85` dan `src/app/dashboard/users/page.tsx:46,54` (`gudang` belum ada di `RoleUser`).
+- `npm run graph:update`: sukses setelah revisi layout searchbar & bar keranjang.
+- Belum: cek visual manual via dev server user; perbaikan error `RoleUser` jika disetujui; `npm run build`; test tidak dijalankan tanpa permintaan eksplisit.
+
+## BELUM
+- Commit/PR (belum diminta user).
+
+---
+
 # PROGRESS - Sesi 2026-11-17 (Skeleton dashboard per role)
 
 > Menyamakan ketentuan skeleton dashboard untuk role selain OWNER (CASHIER / WAITER / KITCHEN).

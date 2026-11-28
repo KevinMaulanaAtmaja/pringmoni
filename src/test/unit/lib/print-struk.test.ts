@@ -83,6 +83,28 @@ describe('printStruk', () => {
     expect(teks.some((t) => t.startsWith('2x ') && t.endsWith('..'))).toBe(true)
   })
 
+  it('menampilkan varian suhu dan catatan item pada struk', () => {
+    printStruk({
+      id: 11,
+      nomorMeja: 'K05',
+      items: [
+        {
+          nama: 'Es Teh',
+          jumlah: 1,
+          harga: 5000,
+          catatan: '[Varian: Dingin] Catatan: tanpa gula',
+        },
+      ],
+      totalHarga: 5000,
+      createdAt: new Date('2026-11-28T10:00:00+07:00'),
+    })
+
+    const teks = semuaTeks()
+    expect(teks.some((t) => t === '1x Es Teh [DINGIN]')).toBe(true)
+    expect(teks.some((t) => t.trim() === 'tanpa gula')).toBe(true)
+    expect(teks.some((t) => t.includes('[Varian:'))).toBe(false)
+  })
+
   it('mencetak QRIS tanpa biaya admin tambahan', () => {
     printStruk({
       id: 8,

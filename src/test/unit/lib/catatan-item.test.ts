@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pisahCatatanItem } from '@/lib/catatan-item'
+import { gabungCatatanItem, pisahCatatanItem } from '@/lib/catatan-item'
 
 describe('pisahCatatanItem', () => {
   it('mengembalikan null untuk nilai kosong', () => {
@@ -31,6 +31,29 @@ describe('pisahCatatanItem', () => {
     expect(pisahCatatanItem('[Varian: A][Varian: B] Catatan: tes')).toEqual({
       varian: 'A',
       catatan: 'tes',
+    })
+  })
+})
+
+describe('gabungCatatanItem', () => {
+  it('menyimpan varian tanpa catatan', () => {
+    expect(gabungCatatanItem(null, 'Panas')).toBe('[Varian: Panas]')
+    expect(gabungCatatanItem('', 'Dingin')).toBe('[Varian: Dingin]')
+  })
+
+  it('menyimpan varian dan catatan', () => {
+    expect(gabungCatatanItem('tanpa saus', 'Dingin')).toBe('[Varian: Dingin] Catatan: tanpa saus')
+  })
+
+  it('mengembalikan catatan apa adanya bila tanpa varian', () => {
+    expect(gabungCatatanItem('tanpa saus', null)).toBe('tanpa saus')
+    expect(gabungCatatanItem(null, null)).toBe(null)
+  })
+
+  it('hasil gabungan bisa dibaca kembali oleh pisahCatatanItem', () => {
+    expect(pisahCatatanItem(gabungCatatanItem('pedas', 'Panas'))).toEqual({
+      varian: 'Panas',
+      catatan: 'pedas',
     })
   })
 })

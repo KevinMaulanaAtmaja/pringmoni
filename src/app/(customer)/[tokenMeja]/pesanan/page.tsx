@@ -6,11 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { VarianBadge } from "@/components/ui/varian-badge";
 import { CheckCircle, Clock, ChefHat, PackageCheck, Banknote, CreditCard, Loader2, AlertCircle, AlertTriangle, CheckCircle2, ArrowRightLeft } from "lucide-react";
 import { PindahMejaSheet } from "@/components/customer/pindah-meja-sheet";
 import { getPesananByTokenAndId } from "@/app/actions/pesanan";
 import { cekAutoCancelOtomatis } from "@/app/actions/dashboard";
 import { useOrdersRealtime } from "@/hooks/use-orders-realtime";
+import { pisahCatatanItem } from "@/lib/catatan-item";
 
 import type { LucideIcon } from "lucide-react";
 
@@ -340,18 +342,20 @@ export default function DetailPesananPage() {
             <div className="space-y-3">
               {pesanan.items.map((item, index) => {
                 const isDiantar = item.statusAntar === "diantar"
+                const { varian, catatan } = pisahCatatanItem(item.catatan)
                 return (
                   <div key={index} className="flex items-start gap-2">
                     {isDiantar && (
                       <CheckCircle2 className="size-4 text-green-500 mt-0.5 shrink-0" />
                     )}
                     <div>
-                      <p className={`font-medium ${isDiantar ? "line-through text-muted-foreground" : ""}`}>
+                      <p className={`flex flex-wrap items-center gap-1.5 font-medium ${isDiantar ? "line-through text-muted-foreground" : ""}`}>
                         {item.jumlah}x {item.namaMenu}
+                        {varian && <VarianBadge varian={varian} />}
                       </p>
-                      {item.catatan && (
+                      {catatan && (
                         <p className={`text-xs mt-1 ${isDiantar ? "text-muted-foreground/60" : "text-muted-foreground"}`}>
-                          {item.catatan}
+                          {catatan}
                         </p>
                       )}
                     </div>

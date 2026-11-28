@@ -82,7 +82,6 @@ const KIND_PER_ROLE: Record<RoleUser, NotifikasiKind[]> = {
   ],
   waiter: ["terlambat", "perlu_diproses", "belum_diantar", "siap_selesai"],
   kitchen: ["terlambat", "perlu_diproses", "belum_diantar"],
-  gudang: ["stok_menipis"],
 }
 
 function awalHari(now: Date) {

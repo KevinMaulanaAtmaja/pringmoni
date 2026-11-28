@@ -1,4 +1,15 @@
-﻿export function pisahCatatanItem(catatanItem: string | null | undefined): {
+﻿export function gabungCatatanItem(
+  catatan: string | null | undefined,
+  varian: string | null | undefined,
+): string | null {
+  const catatanBersih = catatan?.trim() || "";
+  const varianBersih = varian?.trim();
+  if (!varianBersih) return catatanBersih || null;
+  const tag = `[Varian: ${varianBersih}]`;
+  return catatanBersih ? `${tag} Catatan: ${catatanBersih}` : tag;
+}
+
+export function pisahCatatanItem(catatanItem: string | null | undefined): {
   varian: string | null
   catatan: string | null
 } {

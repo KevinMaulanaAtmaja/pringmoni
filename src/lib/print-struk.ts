@@ -1,10 +1,12 @@
 import { jsPDF } from "jspdf"
 import { hitungAdminFee } from "@/lib/fee"
+import { pisahCatatanItem } from "@/lib/catatan-item"
 
 interface StrukItem {
   nama: string
   jumlah: number
   harga: number
+  catatan?: string | null
 }
 
 interface StrukData {
@@ -109,10 +111,21 @@ function renderStruk(doc: jsPDF, data: StrukData, startY: number, kitchen: boole
   doc.setFont("helvetica", "normal")
 
   for (const item of data.items) {
-    const nama = item.nama.length > maxNama ? item.nama.slice(0, maxNama - 2) + ".." : item.nama
-    doc.text(`${item.jumlah}x ${nama}`, mg, y)
+    const { varian, catatan } = pisahCatatanItem(item.catatan)
+    const batasNama = varian ? Math.max(8, maxNama - 8) : maxNama
+    const nama = item.nama.length > batasNama ? item.nama.slice(0, batasNama - 2) + ".." : item.nama
+    const labelVarian = varian ? ` [${varian.toUpperCase()}]` : ""
+    doc.text(`${item.jumlah}x ${nama}${labelVarian}`, mg, y)
     if (!kitchen) rightText(doc, formatRupiah(item.harga * item.jumlah), y, mg)
     y += 5
+    if (catatan) {
+      const batasCatatan = is58 ? 32 : 44
+      const teksCatatan = catatan.length > batasCatatan ? catatan.slice(0, batasCatatan - 2) + ".." : catatan
+      doc.setFontSize(9)
+      doc.text(`   ${teksCatatan}`, mg, y)
+      doc.setFontSize(11)
+      y += 4
+    }
   }
 
   if (!kitchen) {

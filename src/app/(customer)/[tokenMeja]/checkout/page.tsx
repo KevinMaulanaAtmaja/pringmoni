@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { VarianBadge } from "@/components/ui/varian-badge";
 import { Wallet, ArrowLeft, Banknote, CreditCard, Loader2, AlertCircle } from "lucide-react";
 import { createPesanan } from "@/app/actions/pesanan";
 import { validateVoucher } from "@/app/actions/voucher";
@@ -11,7 +12,7 @@ import { ambilKeranjangCheckout, hapusKeranjangCheckout, ambilKodeVoucher } from
 import { hitungPotonganDiskon } from "@/lib/voucher";
 
 interface CheckoutData {
-  items: { id: number; namaMenu: string; harga: number; jumlah: number; catatan: string | null }[];
+  items: { id: number; namaMenu: string; harga: number; jumlah: number; catatan: string | null; varian?: string | null }[];
   subtotal: number;
   diskon: number;
   total: number;
@@ -111,6 +112,7 @@ export default function CheckoutPage() {
       menuId: item.id,
       jumlah: item.jumlah,
       catatan: item.catatan,
+      varian: item.varian,
     }));
 
     try {
@@ -196,9 +198,12 @@ export default function CheckoutPage() {
             <h3 className="font-bold mb-3">Ringkasan Pesanan</h3>
             <div className="space-y-2">
               {data.items.map((item, index) => (
-                <div key={index} className="flex justify-between text-sm">
-                  <span>{item.jumlah}x {item.namaMenu}</span>
-                  <span className="font-medium">Rp {(item.harga * item.jumlah).toLocaleString("id-ID")}</span>
+                <div key={index} className="flex justify-between gap-2 text-sm">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    {item.jumlah}x {item.namaMenu}
+                    {item.varian && <VarianBadge varian={item.varian} />}
+                  </span>
+                  <span className="shrink-0 font-medium">Rp {(item.harga * item.jumlah).toLocaleString("id-ID")}</span>
                 </div>
               ))}
             </div>

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Minus, Plus, ChevronLeft, ChevronRight, Flame, Snowflake } from "lucide-react";
+import { Minus, Plus, ChevronLeft, ChevronRight, Flame, Snowflake, Ban } from "lucide-react";
 
 interface MenuFoto {
   id: number;
@@ -46,19 +46,16 @@ interface MenuCardProps {
 }
 
 export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardProps) {
-  const stockHabis = menu.statusMenu !== "tersedia";
-  // Ketersediaan mengacu pada resep: menu hanya bisa dipesan bila resepnya
-  // lengkap sesuai kategorinya (Makanan: bahan utama + bumbu; Minuman/Camilan:
-  // cukup bahan utama). Resep kosong / tidak lengkap tetap tampil sebagai card,
-  // tapi tidak bisa dipesan.
   const resepLengkap = menu.resepLengkap ?? false;
   const resepTidakSiap = !resepLengkap;
   const adaResep = menu.adaResep ?? false;
   const diKeranjang = Math.max(0, jumlahDipesan ?? 0);
+  // `porsiTersedia` adalah stok harian (stokManual) yang sudah dikurangi item
+  // di keranjang. Angkanya sengaja tidak ditampilkan; yang penting statusnya.
   const porsiTersedia = Math.max(0, (menu.porsiTersedia ?? 0) - diKeranjang);
-  // Porsi 0 (stok bahan dapur habis) juga membuat menu tidak bisa dipesan.
-  const bahanHabis = adaResep && porsiTersedia <= 0;
-  const isDisabled = stockHabis || resepTidakSiap || bahanHabis;
+  const stokHarianHabis = porsiTersedia <= 0;
+  const statusHabis = menu.statusMenu !== "tersedia";
+  const isDisabled = statusHabis || resepTidakSiap || stokHarianHabis;
   const [jumlah, setJumlah] = useState(1);
   const [catatan, setCatatan] = useState("");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -68,12 +65,9 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
     menu.namaMenu.toLowerCase().includes("es") ? "Dingin" : "Panas"
   );
   const punyaPilihanSuhu = menu.pilihanSuhu === true;
-  // Jumlah per porsi tidak boleh melebihi sisa porsi yang tersedia, jadi
-  // nilainya diderivate langsung (tidak perlu efek untuk menjepit).
-  const jumlahValid = bahanHabis ? 1 : Math.min(jumlah, Math.max(1, porsiTersedia));
-  // Angka "sisa porsi" di dialog ikut turun tiap kali tombol + ditekan,
-  // karena porsi yang sedang dipilih sudah dianggap terpakai.
-  const porsiSetelahTambah = Math.max(0, porsiTersedia - jumlahValid);
+  // Jumlah tidak boleh melebihi stok harian yang tersisa, diderivate langsung
+  // tanpa efek untuk menjepit nilai.
+  const jumlahValid = Math.min(jumlah, Math.max(1, porsiTersedia));
 
   // Use menuFoto for slider, fallback to fotoUrl
   const allImages = menu.menuFoto && menu.menuFoto.length > 0
@@ -107,9 +101,10 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
     <Dialog onOpenChange={(open) => !open && handleReset()}>
       <DialogTrigger asChild>
         <div
+          aria-disabled={isDisabled}
           className={`bg-card rounded-2xl overflow-hidden border transition-all cursor-pointer ${
             isDisabled
-              ? "border-destructive/30"
+              ? "border-border/70 bg-muted/20"
               : "hover:shadow-lg hover:border-primary/20 active:scale-95"
           }`}
         >
@@ -121,27 +116,19 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
                 alt={menu.namaMenu}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className={`object-cover ${isDisabled ? "opacity-40 grayscale" : ""}`}
+                className={`object-cover transition-opacity ${isDisabled ? "opacity-60 grayscale-[35%]" : ""}`}
                 loading="lazy"
               />
             ) : (
-              <span className={`text-4xl ${isDisabled ? "opacity-40 grayscale" : ""}`}>🍽️</span>
+              <span className={`text-4xl ${isDisabled ? "opacity-60 grayscale-[35%]" : ""}`}>🍽️</span>
             )}
             {isDisabled && (
               <Badge
                 variant="secondary"
-                className="absolute top-2 right-2 rounded-full bg-background text-xs font-bold text-destructive shadow-sm ring-1 ring-destructive/40"
+                className="absolute top-2 right-2 gap-1 rounded-full bg-background/95 px-2.5 text-[11px] font-semibold text-muted-foreground shadow-sm ring-1 ring-border"
               >
-                {bahanHabis                   ? "Habis"
-                    : "Habis"}
-              </Badge>
-            )}
-            {!isDisabled && adaResep && (
-              <Badge
-                variant="outline"
-                className="absolute top-2 right-2 rounded-full border-primary/40 bg-background/90 text-[11px] font-semibold text-primary backdrop-blur-sm"
-              >
-                Sisa {porsiTersedia} porsi
+                <Ban className="size-3" />
+                Habis
               </Badge>
             )}
             {jumlahDipesan !== undefined && jumlahDipesan > 0 && (
@@ -151,11 +138,14 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
             )}
           </div>
 
-          <div className={`p-2.5 ${isDisabled ? "opacity-60" : ""}`}>
+          <div className="p-2.5">
             <h3 className="font-medium text-sm line-clamp-2">{menu.namaMenu}</h3>
-            <p className="text-primary font-bold text-sm mt-1">
+            <p className={`font-bold text-sm mt-1 ${isDisabled ? "text-muted-foreground" : "text-primary"}`}>
               Rp {menu.harga.toLocaleString("id-ID")}
             </p>
+            {isDisabled && (
+              <p className="text-[11px] text-muted-foreground mt-1">Stok habis</p>
+            )}
           </div>
         </div>
       </DialogTrigger>
@@ -215,27 +205,13 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
           {/* Title & Price */}
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-bold text-lg">{menu.namaMenu}</h3>
-            {(adaResep || isDisabled) && (
+            {isDisabled && (
               <Badge
                 variant="outline"
-                title={
-                  isDisabled
-                    ? "Menu ini sedang tidak dapat dipesan"
-                    : "Sisa porsi setelah pesanan ini ditambahkan"
-                }
-                className={
-                  isDisabled
-                    ? "shrink-0 text-destructive border-destructive/40"
-                    : porsiTersedia <= 5
-                      ? "shrink-0 text-amber-700 border-amber-300"
-                      : "shrink-0 text-primary border-primary/40"
-                }
+                className="shrink-0 gap-1 border-border bg-muted/60 text-muted-foreground"
               >
-                {isDisabled
-                  ? bahanHabis
-                ? "Habis"
-              : "Habis"
-                  : `Sisa ${porsiSetelahTambah} porsi`}
+                <Ban className="size-3" />
+                Habis
               </Badge>
             )}
           </div>
@@ -253,16 +229,29 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
           )}
 
           {isDisabled ? (
-            /* Menu habis: tidak ada kontrol pemesanan sama sekali */
-            <div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-center">
-              <p className="text-sm font-semibold text-destructive">
-                {bahanHabis ? "Habis" : "Habis"}
+            <div className="mt-5 rounded-2xl border border-border bg-muted/40 px-4 py-5 text-center">
+              <div className="mx-auto flex size-11 items-center justify-center rounded-full bg-background text-muted-foreground shadow-sm ring-1 ring-border">
+                <Ban className="size-5" />
+              </div>
+              <p className="mt-3 text-sm font-semibold text-foreground">
+                {stokHarianHabis
+                  ? "Stok menu ini habis"
+                  : resepTidakSiap
+                    ? "Menu belum siap dipesan"
+                    : "Menu tidak tersedia"}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {bahanHabis
-                  ? "Bahan untuk menu ini sedang habis. Silakan pilih menu lain."
-                  : "Menu ini sedang tidak tersedia. Silakan pilih menu lain."}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {stokHarianHabis
+                  ? "Stok harian sudah habis hari ini. Silakan pilih menu lain atau cek kembali nanti."
+                  : resepTidakSiap
+                    ? "Menu ini belum siap dipesan. Silakan pilih menu lain."
+                    : "Menu ini sedang tidak tersedia. Silakan pilih menu lain."}
               </p>
+              <DialogClose asChild>
+                <Button variant="outline" className="mt-4 rounded-full">
+                  Lihat menu lain
+                </Button>
+              </DialogClose>
             </div>
           ) : (
             <>
@@ -322,11 +311,11 @@ export function MenuCard({ menu, onTambah, onSuccess, jumlahDipesan }: MenuCardP
                   <span className="font-bold w-6 text-center">{jumlahValid}</span>
                   <button
                     onClick={() => setJumlah(jumlahValid + 1)}
-                    disabled={adaResep && jumlahValid >= porsiTersedia}
+                    disabled={jumlahValid >= porsiTersedia}
                     className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-background transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     title={
-                      adaResep && jumlahValid >= porsiTersedia
-                        ? `Maksimal ${porsiTersedia} porsi sesuai stok bahan`
+                      jumlahValid >= porsiTersedia
+                        ? "Jumlah sudah mencapai stok yang bisa dipesan"
                         : undefined
                     }
                   >

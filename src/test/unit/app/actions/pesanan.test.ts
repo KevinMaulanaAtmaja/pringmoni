@@ -720,7 +720,7 @@ function barisPesanan(
 }
 
 describe('getMenusForCustomer', () => {
-  it('memetakan menu tersedia beserta foto dan porsi harian', async () => {
+  it('memetakan menu tersedia dan habis beserta foto dan porsi harian', async () => {
     prismaMock.menu.findMany.mockResolvedValue([
       {
         id: 7,
@@ -745,6 +745,16 @@ describe('getMenusForCustomer', () => {
         kategori: { namaKategori: 'Minuman', lokasi: 'bar', pilihanSuhu: 'dingin' },
         menuFoto: [],
       },
+      {
+        id: 9,
+        namaMenu: 'Nasi Ayam',
+        deskripsi: 'Menu yang stok hariannya habis',
+        harga: 20000,
+        statusMenu: 'habis',
+        stokManual: 0,
+        kategori: { namaKategori: 'Makanan', lokasi: 'dapur', pilihanSuhu: 'panas' },
+        menuFoto: [],
+      },
     ])
 
     const hasil = await getMenusForCustomer()
@@ -760,6 +770,9 @@ describe('getMenusForCustomer', () => {
     })
     expect(hasil[0].menuFoto).toHaveLength(2)
     expect(hasil[1]).toMatchObject({ fotoUrl: null, porsiTersedia: 0 })
+    // Menu habis tetap dikirim supaya UI bisa menampilkan label "Habis".
+    expect(hasil).toHaveLength(3)
+    expect(hasil[2]).toMatchObject({ id: 9, statusMenu: 'habis', porsiTersedia: 0 })
   })
 })
 
